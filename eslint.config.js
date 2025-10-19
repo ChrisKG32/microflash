@@ -1,11 +1,9 @@
-import js from '@eslint/js';
 import typescript from '@typescript-eslint/eslint-plugin';
 import typescriptParser from '@typescript-eslint/parser';
 import react from 'eslint-plugin-react';
 import reactNative from 'eslint-plugin-react-native';
 
 export default [
-  js.configs.recommended,
   {
     files: ['**/*.{ts,tsx,js,jsx}'],
     languageOptions: {
@@ -40,10 +38,9 @@ export default [
     },
   },
   {
-    files: ['packages/application/**/*.{ts,tsx}'],
+    files: ['apps/server/**/*.{ts,tsx,js}', 'packages/shared/**/*.{ts,tsx,js}'],
     rules: {
       ...react.configs.recommended.rules,
-      ...reactNative.configs.all.rules,
     },
   },
   {
@@ -51,7 +48,7 @@ export default [
       'node_modules',
       'dist',
       'build',
-      '.expo',
+      'client',
       'coverage',
       '*.config.js',
     ],
