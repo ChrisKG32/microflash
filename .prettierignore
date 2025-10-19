@@ -4,5 +4,8 @@ dist
 coverage
 .expo
 .expo-shared
+android
+ios
 *.log
 pnpm-lock.yaml
+*.d.ts
