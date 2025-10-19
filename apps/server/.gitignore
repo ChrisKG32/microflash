@@ -1,0 +1,7 @@
+# Build
+dist/
+
+# Prisma
+migrations/
+*.db
+*.db-journal
