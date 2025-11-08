@@ -2,6 +2,19 @@ import { PrismaClient, CardState, Rating } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+/**
+ * Prisma Seed Script
+ *
+ * Populates the database with test data for development.
+ *
+ * Usage:
+ *   pnpm db:seed              (from apps/server)
+ *   pnpm prisma db seed       (from apps/server)
+ *
+ * This script is idempotent - it clears existing data before seeding,
+ * so it can be run multiple times safely.
+ */
+
 async function main() {
   console.log('🌱 Starting database seed...');
 
