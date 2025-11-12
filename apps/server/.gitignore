@@ -5,6 +5,5 @@ dist/
 *.tsbuildinfo
 
 # Prisma
-migrations/
 *.db
 *.db-journal
