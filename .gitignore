@@ -35,3 +35,6 @@ pnpm-debug.log*
 
 # OS
 Thumbs.db
+
+# typescript
+*.tsbuildinfo
