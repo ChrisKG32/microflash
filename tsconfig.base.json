@@ -8,8 +8,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
-    "moduleResolution": "bundler",
-    "module": "ESNext",
+    "moduleResolution": "Node",
+    "module": "CommonJS",
     "target": "ES2022"
   }
 }

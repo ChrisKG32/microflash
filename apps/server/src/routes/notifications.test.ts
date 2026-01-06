@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import notificationsRouter from './notifications.js';
+import notificationsRouter from '@/routes/notifications';
 
 // Create a test app with the router
 const app = express();

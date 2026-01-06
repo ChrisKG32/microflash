@@ -1,8 +1,4 @@
-import {
-  PrismaClient,
-  CardState,
-  Rating,
-} from '../src/generated/prisma/index.js';
+import { PrismaClient, CardState, Rating } from '../src/generated/prisma';
 
 const prisma = new PrismaClient();
 

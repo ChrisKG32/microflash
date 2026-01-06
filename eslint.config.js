@@ -1,7 +1,7 @@
-import typescript from '@typescript-eslint/eslint-plugin';
-import typescriptParser from '@typescript-eslint/parser';
+const typescript = require('@typescript-eslint/eslint-plugin');
+const typescriptParser = require('@typescript-eslint/parser');
 
-export default [
+module.exports = [
   {
     files: ['apps/server/**/*.{ts,js}'],
     languageOptions: {
@@ -25,7 +25,20 @@ export default [
       ...typescript.configs.recommended.rules,
       '@typescript-eslint/no-unused-vars': [
         'warn',
-        { argsIgnorePattern: '^_' },
+        { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
+      // Forbid .js extensions in imports (to prevent ESM-style imports)
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/*/*.js', './*.js', '../*.js', '../**/*.js'],
+              message:
+                'Do not use .js extensions in imports. Use extensionless imports instead.',
+            },
+          ],
+        },
       ],
     },
   },
@@ -41,6 +54,7 @@ export default [
       '**/pnpm-lock.yaml',
       'apps/client/expo-env.d.ts',
       '**/generated/**',
+      '**/scripts/**',
     ],
   },
 ];

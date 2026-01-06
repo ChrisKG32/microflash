@@ -1,7 +1,7 @@
 import { Router, type Router as RouterType, type Request } from 'express';
-import { prisma } from '@/lib/prisma.js';
-import { createCardSchema } from '@/lib/validation.js';
-import { requireAuth, getAuth } from '@/middlewares/auth.js';
+import { prisma } from '@/lib/prisma';
+import { createCardSchema } from '@/lib/validation';
+import { requireAuth, getAuth } from '@/middlewares/auth';
 
 const router: RouterType = Router();
 

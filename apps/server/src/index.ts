@@ -1,13 +1,13 @@
 import express, { type Express } from 'express';
 import cors from 'cors';
-import { clerkMiddleware } from '@/middlewares/auth.js';
-import { errorHandler } from '@/middlewares/error-handler.js';
+import { clerkMiddleware } from '@/middlewares/auth';
+import { errorHandler } from '@/middlewares/error-handler';
 
 // Import routes
-import decksRouter from '@/routes/decks.js';
-import cardsRouter from '@/routes/cards.js';
-import reviewsRouter from '@/routes/reviews.js';
-import notificationsRouter from '@/routes/notifications.js';
+import decksRouter from '@/routes/decks';
+import cardsRouter from '@/routes/cards';
+import reviewsRouter from '@/routes/reviews';
+import notificationsRouter from '@/routes/notifications';
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
