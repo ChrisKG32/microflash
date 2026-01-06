@@ -13,7 +13,7 @@ You will implement all sub-issues for parent issue #$1 using a feature branch wo
 
 ## Step 1: Gather Information
 
-Use the github-reader subagent to:
+Use the `@github-ops` subagent (which uses `github_*` MCP tools) to:
 
 1. Fetch parent issue #$1 details (title, description, requirements)
 2. Fetch ALL sub-issues linked to this parent issue

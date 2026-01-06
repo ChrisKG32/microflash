@@ -1,7 +1,7 @@
 ---
 description: Identify relevant code snippets by using gh_grep
 mode: subagent
-model: opencode/gemini-3-flash
+model: opencode/claude-haiku-4-5
 temperature: 0.1
 tools:
   read: true

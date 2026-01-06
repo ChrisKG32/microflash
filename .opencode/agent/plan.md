@@ -4,7 +4,7 @@ mode: primary
 model: opencode/gpt-5.2
 options:
   reasoningEffort: medium
-  reasoningSummary: none
+  reasoningSummary: concise
   textVerbosity: low
 temperature: 0.5
 tools:

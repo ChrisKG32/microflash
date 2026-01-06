@@ -1,7 +1,7 @@
 ---
 description: Determine external docs needed and summarize key points (use Context7 if present).
 mode: subagent
-model: opencode/gemini-3-flash
+model: opencode/claude-haiku-4-5
 temperature: 0.3
 tools:
   read: true
