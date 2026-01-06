@@ -4,16 +4,9 @@ import { createCardSchema, type CreateCardInput } from '@/lib/validation';
 import { requireUser } from '@/middlewares/auth';
 import { validate } from '@/middlewares/validate';
 import { asyncHandler, ApiError } from '@/middlewares/error-handler';
+import { initializeFSRS, calculateInitialReviewDate } from '@/services/fsrs';
 
 const router: RouterType = Router();
-
-/**
- * Calculate initial nextReviewDate for a new card.
- * New cards are immediately due for their first review.
- */
-function calculateInitialNextReviewDate(): Date {
-  return new Date();
-}
 
 // GET /api/cards - List cards (filterable by deckId)
 router.get('/', async (_req, res) => {
@@ -49,25 +42,43 @@ router.post(
       );
     }
 
+    // Initialize FSRS state for the new card
+    const fsrsState = initializeFSRS();
+    const nextReviewDate = calculateInitialReviewDate();
+
     // Create card with initial FSRS state
-    // FSRS fields use Prisma schema defaults (stability=0, difficulty=0, etc.)
-    // We only need to set nextReviewDate explicitly
     const card = await prisma.card.create({
       data: {
         front: front.trim(),
         back: back.trim(),
         deckId,
-        nextReviewDate: calculateInitialNextReviewDate(),
+        // FSRS state fields
+        stability: fsrsState.stability,
+        difficulty: fsrsState.difficulty,
+        elapsedDays: fsrsState.elapsedDays,
+        scheduledDays: fsrsState.scheduledDays,
+        reps: fsrsState.reps,
+        lapses: fsrsState.lapses,
+        state: fsrsState.state,
+        lastReview: fsrsState.lastReview,
+        nextReviewDate,
       },
     });
 
-    // Return created card
+    // Return created card with FSRS state
     res.status(201).json({
       card: {
         id: card.id,
         front: card.front,
         back: card.back,
         deckId: card.deckId,
+        // FSRS state
+        state: card.state,
+        stability: card.stability,
+        difficulty: card.difficulty,
+        reps: card.reps,
+        lapses: card.lapses,
+        // Scheduling
         nextReview: card.nextReviewDate.toISOString(),
         createdAt: card.createdAt.toISOString(),
       },
