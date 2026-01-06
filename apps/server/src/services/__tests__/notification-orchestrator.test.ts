@@ -145,6 +145,8 @@ describe('Notification Orchestrator', () => {
           },
         ],
         totalCards: 2,
+        includedCardIds: ['card-1', 'card-2'],
+        overflowCardIds: [],
       },
     ];
 
@@ -152,12 +154,14 @@ describe('Notification Orchestrator', () => {
     mockGroupCardsByUserAndDeck.mockReturnValue(mockGroups);
     mockPrepareNotificationPayload.mockReturnValue({
       title: 'Cards ready for review!',
-      body: '2 cards due in Math',
+      body: '2 cards ready in Math',
+      categoryId: 'due_cards',
       data: {
         type: 'due_cards',
         cardIds: ['card-1', 'card-2'],
         deckIds: ['deck-1'],
         totalCards: 2,
+        url: '/review-session?cardIds=card-1,card-2',
       },
     });
     mockSendBatchNotifications.mockResolvedValue([
@@ -216,6 +220,8 @@ describe('Notification Orchestrator', () => {
           },
         ],
         totalCards: 1,
+        includedCardIds: ['card-1'],
+        overflowCardIds: [],
       },
     ];
 
@@ -223,12 +229,14 @@ describe('Notification Orchestrator', () => {
     mockGroupCardsByUserAndDeck.mockReturnValue(mockGroups);
     mockPrepareNotificationPayload.mockReturnValue({
       title: 'Time to review!',
-      body: '1 card due in Math',
+      body: '1 card ready in Math',
+      categoryId: 'due_cards',
       data: {
         type: 'due_cards',
         cardIds: ['card-1'],
         deckIds: ['deck-1'],
         totalCards: 1,
+        url: '/review-session?cardIds=card-1',
       },
     });
     mockSendBatchNotifications.mockResolvedValue([
@@ -281,6 +289,8 @@ describe('Notification Orchestrator', () => {
           },
         ],
         totalCards: 1,
+        includedCardIds: ['card-1'],
+        overflowCardIds: [],
       },
     ];
 
@@ -288,12 +298,14 @@ describe('Notification Orchestrator', () => {
     mockGroupCardsByUserAndDeck.mockReturnValue(mockGroups);
     mockPrepareNotificationPayload.mockReturnValue({
       title: 'Time to review!',
-      body: '1 card due in Math',
+      body: '1 card ready in Math',
+      categoryId: 'due_cards',
       data: {
         type: 'due_cards',
         cardIds: ['card-1'],
         deckIds: ['deck-1'],
         totalCards: 1,
+        url: '/review-session?cardIds=card-1',
       },
     });
     mockSendBatchNotifications.mockResolvedValue([

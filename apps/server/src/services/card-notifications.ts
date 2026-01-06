@@ -83,6 +83,41 @@ export async function clearNotificationStatus(
 }
 
 /**
+ * Snoozes cards for a specified duration.
+ * Used to auto-snooze overflow cards that weren't included in a notification.
+ *
+ * @param cardIds - Array of card IDs to snooze
+ * @param durationMinutes - Duration to snooze in minutes
+ * @returns Number of cards snoozed
+ */
+export async function snoozeCards(
+  cardIds: string[],
+  durationMinutes: number,
+): Promise<number> {
+  if (cardIds.length === 0) {
+    return 0;
+  }
+
+  const snoozedUntil = new Date(Date.now() + durationMinutes * 60 * 1000);
+
+  const result = await prisma.card.updateMany({
+    where: {
+      id: {
+        in: cardIds,
+      },
+    },
+    data: {
+      snoozedUntil,
+    },
+  });
+
+  console.log(
+    `[CardNotifications] Snoozed ${result.count} cards for ${durationMinutes} minutes`,
+  );
+  return result.count;
+}
+
+/**
  * Removes a user's push token from the database.
  * This is called when we receive a DeviceNotRegistered error from Expo,
  * indicating the token is no longer valid.

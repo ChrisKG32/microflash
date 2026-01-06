@@ -132,6 +132,7 @@ export async function sendBatchNotifications(
     pushToken: string;
     title: string;
     body: string;
+    categoryId?: string;
     data?: Record<string, unknown>;
   }>,
 ): Promise<PushNotificationResult[]> {
@@ -147,6 +148,7 @@ export async function sendBatchNotifications(
     pushToken: string;
     title: string;
     body: string;
+    categoryId?: string;
     data?: Record<string, unknown>;
   }> = [];
 
@@ -167,12 +169,15 @@ export async function sendBatchNotifications(
   }
 
   // Build messages
+  // Note: categoryId maps to iOS APNs 'category' field for interactive notifications
   const messages: ExpoPushMessage[] = validNotifications.map((n) => ({
     to: n.pushToken,
     sound: 'default' as const,
     title: n.title,
     body: n.body,
     data: n.data || {},
+    // categoryId is passed through to APNs for iOS interactive notifications
+    ...(n.categoryId && { categoryId: n.categoryId }),
   }));
 
   // Chunk messages for efficient sending

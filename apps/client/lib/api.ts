@@ -146,6 +146,19 @@ export async function getDueCards(): Promise<{ cards: Card[]; total: number }> {
 }
 
 /**
+ * Get specific cards by their IDs.
+ * Used for notification deep links to fetch exact cards for a review session.
+ */
+export async function getCardsByIds(
+  cardIds: string[],
+): Promise<{ cards: Card[]; total: number; notFound: string[] }> {
+  return request('/api/cards/by-ids', {
+    method: 'POST',
+    body: JSON.stringify({ cardIds }),
+  });
+}
+
+/**
  * Create a new card.
  */
 export async function createCard(data: {
@@ -169,5 +182,97 @@ export async function submitReview(data: {
   return request('/api/reviews', {
     method: 'POST',
     body: JSON.stringify(data),
+  });
+}
+
+// =============================================================================
+// Notification API Methods
+// =============================================================================
+
+export interface NotificationPreferences {
+  notificationsEnabled: boolean;
+  hasPushToken: boolean;
+}
+
+/**
+ * Register an Expo push token with the server.
+ * Call this after obtaining a token from expo-notifications.
+ */
+export async function registerPushToken(
+  pushToken: string,
+): Promise<{ success: boolean; message: string }> {
+  return request('/api/notifications/register', {
+    method: 'POST',
+    body: JSON.stringify({ pushToken }),
+  });
+}
+
+/**
+ * Get current notification preferences.
+ */
+export async function getNotificationPreferences(): Promise<NotificationPreferences> {
+  return request('/api/notifications/preferences');
+}
+
+/**
+ * Update notification preferences.
+ */
+export async function updateNotificationPreferences(
+  notificationsEnabled: boolean,
+): Promise<{
+  success: boolean;
+  message: string;
+  notificationsEnabled: boolean;
+}> {
+  return request('/api/notifications/preferences', {
+    method: 'PATCH',
+    body: JSON.stringify({ notificationsEnabled }),
+  });
+}
+
+/**
+ * Snooze notifications for a specific card.
+ * @param cardId - The card to snooze
+ * @param duration - Duration in minutes (1-1440, default 30)
+ */
+export async function snoozeCardNotifications(
+  cardId: string,
+  duration: number = 30,
+): Promise<{ success: boolean; message: string; snoozedUntil: string }> {
+  return request(`/api/notifications/cards/${cardId}/snooze`, {
+    method: 'POST',
+    body: JSON.stringify({ duration }),
+  });
+}
+
+/**
+ * Remove snooze from a card.
+ */
+export async function unsnoozeCard(
+  cardId: string,
+): Promise<{ success: boolean; message: string }> {
+  return request(`/api/notifications/cards/${cardId}/snooze`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Batch snooze multiple cards.
+ * Used when user taps "Snooze" on a notification.
+ * @param cardIds - Array of card IDs to snooze
+ * @param durationMinutes - Duration in minutes (default 60 = 1 hour)
+ */
+export async function snoozeCards(
+  cardIds: string[],
+  durationMinutes: number = 60,
+): Promise<{
+  success: boolean;
+  message: string;
+  snoozedCount: number;
+  snoozedUntil: string;
+}> {
+  return request('/api/notifications/snooze', {
+    method: 'POST',
+    body: JSON.stringify({ cardIds, durationMinutes }),
   });
 }

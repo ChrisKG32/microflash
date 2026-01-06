@@ -1,6 +1,17 @@
 import type { DueCardWithRelations } from './due-cards';
 
 /**
+ * Maximum number of cards to include in a single notification.
+ * Keeps review sessions small and manageable.
+ */
+export const MAX_CARDS_PER_NOTIFICATION = 3;
+
+/**
+ * Duration in minutes to snooze overflow cards (cards not included in notification).
+ */
+export const OVERFLOW_SNOOZE_DURATION_MINUTES = 120; // 2 hours
+
+/**
  * Represents a deck with its due card count for notification purposes.
  */
 export interface DeckCardGroup {
@@ -20,6 +31,10 @@ export interface UserNotificationGroup {
   pushToken: string;
   decks: DeckCardGroup[];
   totalCards: number;
+  /** Card IDs included in the notification (max 3) */
+  includedCardIds: string[];
+  /** Card IDs that were due but not included (overflow) */
+  overflowCardIds: string[];
 }
 
 /**
@@ -87,12 +102,21 @@ export function groupCardsByUserAndDeck(
     const decks = Array.from(userEntry.deckMap.values());
     const totalCards = decks.reduce((sum, deck) => sum + deck.cardCount, 0);
 
+    // Collect all card IDs for this user
+    const allCardIds = decks.flatMap((deck) => deck.cardIds);
+
+    // Split into included (max 3) and overflow
+    const includedCardIds = allCardIds.slice(0, MAX_CARDS_PER_NOTIFICATION);
+    const overflowCardIds = allCardIds.slice(MAX_CARDS_PER_NOTIFICATION);
+
     result.push({
       userId: userEntry.userId,
       clerkId: userEntry.clerkId,
       pushToken: userEntry.pushToken,
       decks,
       totalCards,
+      includedCardIds,
+      overflowCardIds,
     });
   }
 
@@ -101,12 +125,11 @@ export function groupCardsByUserAndDeck(
 
 /**
  * Generates a human-readable notification message for a user's due cards.
+ * Now reflects only the cards included in the notification (max 3).
  *
  * Examples:
- * - "1 card due in Math"
- * - "3 cards due in Math"
- * - "5 cards due: 3 in Math, 2 in Science"
- * - "7 cards due: 3 in Math, 2 in Science, 2 in History"
+ * - "1 card ready in Math"
+ * - "3 cards ready for review"
  *
  * @param group - User notification group
  * @returns Notification message string, or empty string if no cards
@@ -114,43 +137,36 @@ export function groupCardsByUserAndDeck(
 export function generateNotificationMessage(
   group: UserNotificationGroup,
 ): string {
-  if (group.totalCards === 0 || group.decks.length === 0) {
+  const includedCount = group.includedCardIds.length;
+
+  if (includedCount === 0) {
     return '';
   }
 
-  const cardWord = group.totalCards === 1 ? 'card' : 'cards';
+  const cardWord = includedCount === 1 ? 'card' : 'cards';
 
-  // Single deck case
+  // Single deck case - mention the deck name
   if (group.decks.length === 1) {
     const deck = group.decks[0];
-    return `${group.totalCards} ${cardWord} due in ${deck.deckTitle}`;
+    return `${includedCount} ${cardWord} ready in ${deck.deckTitle}`;
   }
 
-  // Multiple decks case
-  // Sort decks by card count (descending) for more meaningful message
-  const sortedDecks = [...group.decks].sort(
-    (a, b) => b.cardCount - a.cardCount,
-  );
-
-  const deckParts = sortedDecks.map(
-    (deck) => `${deck.cardCount} in ${deck.deckTitle}`,
-  );
-
-  return `${group.totalCards} ${cardWord} due: ${deckParts.join(', ')}`;
+  // Multiple decks - keep it simple
+  return `${includedCount} ${cardWord} ready for review`;
 }
 
 /**
- * Generates a notification title based on the number of due cards.
+ * Generates a notification title based on the number of included cards.
  *
- * @param totalCards - Total number of due cards
+ * @param includedCount - Number of cards included in the notification
  * @returns Notification title string
  */
-export function generateNotificationTitle(totalCards: number): string {
-  if (totalCards === 0) {
+export function generateNotificationTitle(includedCount: number): string {
+  if (includedCount === 0) {
     return 'MicroFlash';
   }
 
-  if (totalCards === 1) {
+  if (includedCount === 1) {
     return 'Time to review!';
   }
 
@@ -158,29 +174,42 @@ export function generateNotificationTitle(totalCards: number): string {
 }
 
 /**
+ * iOS notification category ID for due cards notifications.
+ * Must match the category registered on the client.
+ */
+export const NOTIFICATION_CATEGORY_ID = 'due_cards';
+
+/**
  * Prepares notification data for a user group.
+ * Only includes up to MAX_CARDS_PER_NOTIFICATION cards.
  *
  * @param group - User notification group
- * @returns Object with title, body, and data for the push notification
+ * @returns Object with title, body, categoryId, and data for the push notification
  */
 export function prepareNotificationPayload(group: UserNotificationGroup): {
   title: string;
   body: string;
+  categoryId: string;
   data: {
     type: 'due_cards';
     cardIds: string[];
     deckIds: string[];
     totalCards: number;
+    url: string;
   };
 } {
   return {
-    title: generateNotificationTitle(group.totalCards),
+    title: generateNotificationTitle(group.includedCardIds.length),
     body: generateNotificationMessage(group),
+    categoryId: NOTIFICATION_CATEGORY_ID,
     data: {
       type: 'due_cards',
-      cardIds: group.decks.flatMap((deck) => deck.cardIds),
+      // Only include the limited card IDs (max 3)
+      cardIds: group.includedCardIds,
       deckIds: group.decks.map((deck) => deck.deckId),
-      totalCards: group.totalCards,
+      totalCards: group.includedCardIds.length,
+      // Deep link URL for the review session
+      url: `/review-session?cardIds=${group.includedCardIds.join(',')}`,
     },
   };
 }

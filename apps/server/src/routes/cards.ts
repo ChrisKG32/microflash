@@ -1,6 +1,11 @@
 import { Router, type Router as RouterType } from 'express';
 import { prisma } from '@/lib/prisma';
-import { createCardSchema, type CreateCardInput } from '@/lib/validation';
+import {
+  createCardSchema,
+  type CreateCardInput,
+  cardIdsSchema,
+  type CardIdsInput,
+} from '@/lib/validation';
 import { requireUser } from '@/middlewares/auth';
 import { validate } from '@/middlewares/validate';
 import { asyncHandler, ApiError } from '@/middlewares/error-handler';
@@ -54,6 +59,60 @@ router.get(
         lapses: card.lapses,
       })),
       total: dueCards.length,
+    });
+  }),
+);
+
+// POST /api/cards/by-ids - Get specific cards by their IDs
+// Used by notification deep links to fetch exact cards for a review session
+router.post(
+  '/by-ids',
+  requireUser,
+  validate({ body: cardIdsSchema }),
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const { cardIds } = req.validated!.body as CardIdsInput;
+
+    // Fetch cards that belong to the user (via deck ownership)
+    const cards = await prisma.card.findMany({
+      where: {
+        id: { in: cardIds },
+        deck: {
+          userId: user.id,
+        },
+      },
+      include: {
+        deck: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+    });
+
+    // Return cards in the same order as requested cardIds
+    const cardMap = new Map(cards.map((card) => [card.id, card]));
+    const orderedCards = cardIds
+      .map((id) => cardMap.get(id))
+      .filter((card): card is NonNullable<typeof card> => card !== undefined);
+
+    res.json({
+      cards: orderedCards.map((card) => ({
+        id: card.id,
+        front: card.front,
+        back: card.back,
+        deckId: card.deckId,
+        deckTitle: card.deck.title,
+        state: card.state,
+        nextReview: card.nextReviewDate.toISOString(),
+        lastReview: card.lastReview?.toISOString() ?? null,
+        reps: card.reps,
+        lapses: card.lapses,
+      })),
+      total: orderedCards.length,
+      // Include which requested IDs were not found (for debugging)
+      notFound: cardIds.filter((id) => !cardMap.has(id)),
     });
   }),
 );

@@ -118,9 +118,11 @@ describe('Notification Grouping Service', () => {
           },
         ],
         totalCards: 1,
+        includedCardIds: ['card-1'],
+        overflowCardIds: [],
       };
 
-      expect(generateNotificationMessage(group)).toBe('1 card due in Math');
+      expect(generateNotificationMessage(group)).toBe('1 card ready in Math');
     });
 
     it('should generate message for multiple cards in single deck', () => {
@@ -138,9 +140,11 @@ describe('Notification Grouping Service', () => {
           },
         ],
         totalCards: 3,
+        includedCardIds: ['card-1', 'card-2', 'card-3'],
+        overflowCardIds: [],
       };
 
-      expect(generateNotificationMessage(group)).toBe('3 cards due in Math');
+      expect(generateNotificationMessage(group)).toBe('3 cards ready in Math');
     });
 
     it('should generate message for multiple decks', () => {
@@ -165,14 +169,16 @@ describe('Notification Grouping Service', () => {
           },
         ],
         totalCards: 3,
+        includedCardIds: ['card-1', 'card-2', 'card-3'],
+        overflowCardIds: [],
       };
 
       expect(generateNotificationMessage(group)).toBe(
-        '3 cards due: 2 in Math, 1 in Science',
+        '3 cards ready for review',
       );
     });
 
-    it('should sort decks by card count in message', () => {
+    it('should generate message based on included cards count', () => {
       const group: UserNotificationGroup = {
         userId: 'user-1',
         clerkId: 'clerk-1',
@@ -189,26 +195,31 @@ describe('Notification Grouping Service', () => {
             deckId: 'deck-2',
             deckTitle: 'Science',
             parentDeckId: null,
-            cardCount: 3,
-            cardIds: ['card-2', 'card-3', 'card-4'],
+            cardCount: 5,
+            cardIds: ['card-2', 'card-3', 'card-4', 'card-5', 'card-6'],
           },
         ],
-        totalCards: 4,
+        totalCards: 6,
+        // Only 3 cards included (max per notification)
+        includedCardIds: ['card-1', 'card-2', 'card-3'],
+        overflowCardIds: ['card-4', 'card-5', 'card-6'],
       };
 
-      // Science should come first (3 cards) then Math (1 card)
+      // Message should reflect included count (3), not total (6)
       expect(generateNotificationMessage(group)).toBe(
-        '4 cards due: 3 in Science, 1 in Math',
+        '3 cards ready for review',
       );
     });
 
-    it('should return empty string for zero cards', () => {
+    it('should return empty string for zero included cards', () => {
       const group: UserNotificationGroup = {
         userId: 'user-1',
         clerkId: 'clerk-1',
         pushToken: 'token',
         decks: [],
         totalCards: 0,
+        includedCardIds: [],
+        overflowCardIds: [],
       };
 
       expect(generateNotificationMessage(group)).toBe('');
@@ -253,17 +264,21 @@ describe('Notification Grouping Service', () => {
           },
         ],
         totalCards: 3,
+        includedCardIds: ['card-1', 'card-2', 'card-3'],
+        overflowCardIds: [],
       };
 
       const payload = prepareNotificationPayload(group);
 
       expect(payload.title).toBe('Cards ready for review!');
-      expect(payload.body).toBe('3 cards due: 2 in Math, 1 in Science');
+      expect(payload.body).toBe('3 cards ready for review');
+      expect(payload.categoryId).toBe('due_cards');
       expect(payload.data).toEqual({
         type: 'due_cards',
         cardIds: ['card-1', 'card-2', 'card-3'],
         deckIds: ['deck-1', 'deck-2'],
         totalCards: 3,
+        url: '/review-session?cardIds=card-1,card-2,card-3',
       });
     });
 
@@ -282,13 +297,16 @@ describe('Notification Grouping Service', () => {
           },
         ],
         totalCards: 1,
+        includedCardIds: ['card-1'],
+        overflowCardIds: [],
       };
 
       const payload = prepareNotificationPayload(group);
 
       expect(payload.title).toBe('Time to review!');
-      expect(payload.body).toBe('1 card due in Math');
+      expect(payload.body).toBe('1 card ready in Math');
       expect(payload.data.cardIds).toEqual(['card-1']);
+      expect(payload.data.url).toBe('/review-session?cardIds=card-1');
     });
   });
 });
