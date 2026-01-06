@@ -154,3 +154,380 @@ export function initializeFSRS(): FSRSState {
 export function calculateInitialReviewDate(): Date {
   return new Date();
 }
+
+// =============================================================================
+// FSRS Core Algorithm Functions
+// =============================================================================
+
+/**
+ * Learning step intervals in minutes.
+ * Used for cards in LEARNING or RELEARNING state.
+ */
+const LEARNING_STEPS_MINUTES = [1, 10]; // 1 minute, then 10 minutes
+
+/**
+ * Clamp a value between min and max.
+ */
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+/**
+ * Calculate initial difficulty for a new card based on the first rating.
+ * Uses FSRS formula: D0(G) = w4 - (G-3) * w5
+ *
+ * @param rating - The first rating given to the card
+ * @param params - FSRS parameters
+ * @returns Initial difficulty value (clamped to 1-10)
+ */
+function calculateInitialDifficulty(
+  rating: RatingType,
+  params: FSRSParameters = DEFAULT_FSRS_PARAMETERS,
+): number {
+  const g = RATING_VALUES[rating];
+  const w = params.w;
+  const d0 = w[4] - (g - 3) * w[5];
+  return clamp(d0, 1, 10);
+}
+
+/**
+ * Calculate initial stability for a new card based on the first rating.
+ * Uses FSRS formula: S0(G) = w[G-1]
+ *
+ * @param rating - The first rating given to the card
+ * @param params - FSRS parameters
+ * @returns Initial stability value in days
+ */
+function calculateInitialStability(
+  rating: RatingType,
+  params: FSRSParameters = DEFAULT_FSRS_PARAMETERS,
+): number {
+  const g = RATING_VALUES[rating];
+  return params.w[g - 1];
+}
+
+/**
+ * Calculate the retrievability (probability of recall) given stability and elapsed days.
+ * Uses FSRS formula: R(t,S) = (1 + t/(9*S))^(-1)
+ *
+ * @param stability - Current stability in days
+ * @param elapsedDays - Days since last review
+ * @returns Retrievability (0-1)
+ */
+function calculateRetrievability(
+  stability: number,
+  elapsedDays: number,
+): number {
+  if (stability <= 0) return 0;
+  return Math.pow(1 + elapsedDays / (9 * stability), -1);
+}
+
+/**
+ * Update difficulty after a review.
+ * Uses FSRS formula: D'(D,G) = w6 * D0(3) + (1 - w6) * (D - w7 * (G - 3))
+ *
+ * @param currentDifficulty - Current difficulty
+ * @param rating - The rating given
+ * @param params - FSRS parameters
+ * @returns Updated difficulty (clamped to 1-10)
+ */
+function updateDifficulty(
+  currentDifficulty: number,
+  rating: RatingType,
+  params: FSRSParameters = DEFAULT_FSRS_PARAMETERS,
+): number {
+  const g = RATING_VALUES[rating];
+  const w = params.w;
+  const d0 = w[4]; // D0(3) = w4 when G=3
+  const newD = w[6] * d0 + (1 - w[6]) * (currentDifficulty - w[7] * (g - 3));
+  return clamp(newD, 1, 10);
+}
+
+/**
+ * Calculate stability after a successful recall (rating >= HARD).
+ * Uses FSRS formula for stability increase.
+ *
+ * @param difficulty - Current difficulty
+ * @param stability - Current stability
+ * @param retrievability - Current retrievability
+ * @param rating - The rating given
+ * @param params - FSRS parameters
+ * @returns New stability value
+ */
+function calculateRecallStability(
+  difficulty: number,
+  stability: number,
+  retrievability: number,
+  rating: RatingType,
+  params: FSRSParameters = DEFAULT_FSRS_PARAMETERS,
+): number {
+  const g = RATING_VALUES[rating];
+  const w = params.w;
+
+  // Hard penalty or Easy bonus
+  let hardPenalty = 1;
+  let easyBonus = 1;
+  if (rating === 'HARD') {
+    hardPenalty = w[15];
+  } else if (rating === 'EASY') {
+    easyBonus = w[16];
+  }
+
+  // FSRS stability formula for recall
+  const newS =
+    stability *
+    (1 +
+      Math.exp(w[8]) *
+        (11 - difficulty) *
+        Math.pow(stability, -w[9]) *
+        (Math.exp((1 - retrievability) * w[10]) - 1) *
+        hardPenalty *
+        easyBonus);
+
+  return Math.max(0.1, newS);
+}
+
+/**
+ * Calculate stability after forgetting (rating = AGAIN).
+ * Uses FSRS formula for stability after lapse.
+ *
+ * @param difficulty - Current difficulty
+ * @param stability - Current stability
+ * @param retrievability - Current retrievability
+ * @param params - FSRS parameters
+ * @returns New stability value (reset to a lower value)
+ */
+function calculateForgetStability(
+  difficulty: number,
+  stability: number,
+  retrievability: number,
+  params: FSRSParameters = DEFAULT_FSRS_PARAMETERS,
+): number {
+  const w = params.w;
+
+  // FSRS stability formula for forget
+  const newS =
+    w[11] *
+    Math.pow(difficulty, -w[12]) *
+    (Math.pow(stability + 1, w[13]) - 1) *
+    Math.exp((1 - retrievability) * w[14]);
+
+  return Math.max(0.1, Math.min(newS, stability));
+}
+
+/**
+ * Calculate the interval in days from stability and desired retention.
+ * Uses FSRS formula: I(r,S) = 9 * S * (1/r - 1)
+ *
+ * @param stability - Stability in days
+ * @param requestRetention - Desired retention rate (default 0.9)
+ * @param maxInterval - Maximum interval in days
+ * @returns Interval in days
+ */
+function calculateInterval(
+  stability: number,
+  requestRetention: number = 0.9,
+  maxInterval: number = 36500,
+): number {
+  const interval = 9 * stability * (1 / requestRetention - 1);
+  return Math.min(Math.max(1, Math.round(interval)), maxInterval);
+}
+
+/**
+ * Get the next learning step interval in minutes.
+ *
+ * @param reps - Number of repetitions in current learning cycle
+ * @returns Interval in minutes
+ */
+function getLearningStepMinutes(reps: number): number {
+  const stepIndex = Math.min(reps, LEARNING_STEPS_MINUTES.length - 1);
+  return LEARNING_STEPS_MINUTES[stepIndex];
+}
+
+/**
+ * Calculate the next review based on current state and rating.
+ * This is the main FSRS algorithm function.
+ *
+ * @param currentState - Current FSRS state of the card
+ * @param rating - The rating given by the user
+ * @param reviewTime - When the review occurred (defaults to now)
+ * @param params - FSRS parameters (defaults to FSRS-4.5)
+ * @returns Updated state and next review date
+ */
+export function calculateNextReview(
+  currentState: FSRSState,
+  rating: RatingType,
+  reviewTime: Date = new Date(),
+  params: FSRSParameters = DEFAULT_FSRS_PARAMETERS,
+): FSRSReviewResult {
+  const { state, stability, difficulty, reps, lapses, lastReview } =
+    currentState;
+
+  // Calculate elapsed days since last review
+  let elapsedDays = 0;
+  if (lastReview) {
+    elapsedDays = Math.max(
+      0,
+      (reviewTime.getTime() - lastReview.getTime()) / (1000 * 60 * 60 * 24),
+    );
+  }
+
+  // Initialize result with current values
+  let newStability = stability;
+  let newDifficulty = difficulty;
+  let newState: CardStateType = state;
+  let newReps = reps;
+  let newLapses = lapses;
+  let scheduledDays = 0;
+  let nextReviewDate: Date;
+
+  // Handle based on current state
+  if (state === 'NEW') {
+    // First review of a new card
+    newStability = calculateInitialStability(rating, params);
+    newDifficulty = calculateInitialDifficulty(rating, params);
+    newReps = 1;
+
+    if (rating === 'AGAIN') {
+      // Failed first review - go to learning
+      newState = 'LEARNING';
+      newLapses = 1;
+      const minutes = getLearningStepMinutes(0);
+      nextReviewDate = new Date(reviewTime.getTime() + minutes * 60 * 1000);
+      scheduledDays = minutes / (60 * 24);
+    } else if (rating === 'HARD') {
+      // Hard on first review - short learning period
+      newState = 'LEARNING';
+      const minutes = getLearningStepMinutes(0);
+      nextReviewDate = new Date(reviewTime.getTime() + minutes * 60 * 1000);
+      scheduledDays = minutes / (60 * 24);
+    } else if (rating === 'GOOD') {
+      // Good on first review - graduate to review
+      newState = 'REVIEW';
+      scheduledDays = calculateInterval(
+        newStability,
+        params.requestRetention,
+        params.maximumInterval,
+      );
+      nextReviewDate = new Date(
+        reviewTime.getTime() + scheduledDays * 24 * 60 * 60 * 1000,
+      );
+    } else {
+      // Easy on first review - graduate with bonus
+      newState = 'REVIEW';
+      scheduledDays = calculateInterval(
+        newStability,
+        params.requestRetention,
+        params.maximumInterval,
+      );
+      nextReviewDate = new Date(
+        reviewTime.getTime() + scheduledDays * 24 * 60 * 60 * 1000,
+      );
+    }
+  } else if (state === 'LEARNING' || state === 'RELEARNING') {
+    // Card is in learning/relearning phase
+    newReps = reps + 1;
+
+    if (rating === 'AGAIN') {
+      // Reset learning progress
+      newLapses = state === 'LEARNING' ? lapses : lapses + 1;
+      newState = state === 'LEARNING' ? 'LEARNING' : 'RELEARNING';
+      const minutes = getLearningStepMinutes(0);
+      nextReviewDate = new Date(reviewTime.getTime() + minutes * 60 * 1000);
+      scheduledDays = minutes / (60 * 24);
+      // Recalculate stability on lapse
+      if (stability > 0) {
+        const retrievability = calculateRetrievability(stability, elapsedDays);
+        newStability = calculateForgetStability(
+          difficulty,
+          stability,
+          retrievability,
+          params,
+        );
+      }
+    } else if (rating === 'HARD') {
+      // Stay in learning but advance
+      const minutes = getLearningStepMinutes(newReps - 1);
+      nextReviewDate = new Date(reviewTime.getTime() + minutes * 60 * 1000);
+      scheduledDays = minutes / (60 * 24);
+    } else {
+      // Good or Easy - graduate to review
+      newState = 'REVIEW';
+      if (stability > 0) {
+        const retrievability = calculateRetrievability(stability, elapsedDays);
+        newStability = calculateRecallStability(
+          difficulty,
+          stability,
+          retrievability,
+          rating,
+          params,
+        );
+        newDifficulty = updateDifficulty(difficulty, rating, params);
+      } else {
+        // First time graduating
+        newStability = calculateInitialStability(rating, params);
+        newDifficulty = calculateInitialDifficulty(rating, params);
+      }
+      scheduledDays = calculateInterval(
+        newStability,
+        params.requestRetention,
+        params.maximumInterval,
+      );
+      nextReviewDate = new Date(
+        reviewTime.getTime() + scheduledDays * 24 * 60 * 60 * 1000,
+      );
+    }
+  } else {
+    // Card is in REVIEW state
+    const retrievability = calculateRetrievability(stability, elapsedDays);
+    newReps = reps + 1;
+
+    if (rating === 'AGAIN') {
+      // Lapse - go to relearning
+      newState = 'RELEARNING';
+      newLapses = lapses + 1;
+      newStability = calculateForgetStability(
+        difficulty,
+        stability,
+        retrievability,
+        params,
+      );
+      newDifficulty = updateDifficulty(difficulty, rating, params);
+      const minutes = getLearningStepMinutes(0);
+      nextReviewDate = new Date(reviewTime.getTime() + minutes * 60 * 1000);
+      scheduledDays = minutes / (60 * 24);
+    } else {
+      // Successful recall
+      newStability = calculateRecallStability(
+        difficulty,
+        stability,
+        retrievability,
+        rating,
+        params,
+      );
+      newDifficulty = updateDifficulty(difficulty, rating, params);
+      scheduledDays = calculateInterval(
+        newStability,
+        params.requestRetention,
+        params.maximumInterval,
+      );
+      nextReviewDate = new Date(
+        reviewTime.getTime() + scheduledDays * 24 * 60 * 60 * 1000,
+      );
+    }
+  }
+
+  return {
+    state: {
+      stability: newStability,
+      difficulty: newDifficulty,
+      elapsedDays: Math.round(elapsedDays),
+      scheduledDays: Math.round(scheduledDays),
+      reps: newReps,
+      lapses: newLapses,
+      state: newState,
+      lastReview: reviewTime,
+    },
+    nextReviewDate,
+  };
+}
