@@ -1,18 +1,56 @@
+import { jest } from '@jest/globals';
 import request from 'supertest';
-import express from 'express';
-import cardsRouter from './cards.js';
+import express, {
+  type Express,
+  type Request,
+  type Response,
+  type NextFunction,
+} from 'express';
+import { mockDeep, mockReset } from 'jest-mock-extended';
+import { PrismaClient } from '@/generated/prisma/index.js';
 
-// Create a test app with the router
-const app = express();
-app.use(express.json());
-app.use('/api/cards', cardsRouter);
+// Create a mock prisma client
+const prismaMock = mockDeep<PrismaClient>();
 
-// Add 404 handler
-app.use((_req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
+// Mock the prisma module before importing the router
+jest.unstable_mockModule('@/lib/prisma.js', () => ({
+  prisma: prismaMock,
+}));
+
+// Dynamic import after mock is set up
+const { default: cardsRouter } = await import('@/routes/cards.js');
+
+// Helper to create test app with optional auth
+function createTestApp(authUserId?: string): Express {
+  const app = express();
+  app.use(express.json());
+
+  // Mock auth middleware
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    if (authUserId) {
+      req.auth = { userId: authUserId };
+    }
+    next();
+  });
+
+  app.use('/api/cards', cardsRouter);
+
+  // Add 404 handler
+  app.use((_req, res) => {
+    res.status(404).json({ error: 'Route not found' });
+  });
+
+  return app;
+}
+
+// Default app without auth for stub tests
+const app = createTestApp();
 
 describe('Cards Routes - Unit Tests', () => {
+  beforeEach(() => {
+    mockReset(prismaMock);
+  });
+
   describe('GET /api/cards', () => {
     it('should return 200 for list cards (stub)', async () => {
       const response = await request(app).get('/api/cards');
@@ -23,13 +61,266 @@ describe('Cards Routes - Unit Tests', () => {
   });
 
   describe('POST /api/cards', () => {
-    it('should return 201 for create card (stub)', async () => {
+    it('should return 401 when not authenticated', async () => {
       const response = await request(app)
         .post('/api/cards')
         .send({ front: 'Question', back: 'Answer', deckId: 'deck-1' });
 
+      expect(response.status).toBe(401);
+      expect(response.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('should return 400 when front is missing', async () => {
+      const authApp = createTestApp('clerk-user-123');
+
+      const response = await request(authApp)
+        .post('/api/cards')
+        .send({ back: 'Answer', deckId: 'deck-1' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+      expect(response.body.error.details).toContainEqual(
+        expect.objectContaining({ field: 'front' }),
+      );
+    });
+
+    it('should return 400 when back is missing', async () => {
+      const authApp = createTestApp('clerk-user-123');
+
+      const response = await request(authApp)
+        .post('/api/cards')
+        .send({ front: 'Question', deckId: 'deck-1' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+      expect(response.body.error.details).toContainEqual(
+        expect.objectContaining({ field: 'back' }),
+      );
+    });
+
+    it('should return 400 when deckId is missing', async () => {
+      const authApp = createTestApp('clerk-user-123');
+
+      const response = await request(authApp)
+        .post('/api/cards')
+        .send({ front: 'Question', back: 'Answer' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+      expect(response.body.error.details).toContainEqual(
+        expect.objectContaining({ field: 'deckId' }),
+      );
+    });
+
+    it('should return 401 when user not found in database', async () => {
+      const authApp = createTestApp('clerk-user-123');
+      prismaMock.user.findUnique.mockResolvedValue(null);
+
+      const response = await request(authApp)
+        .post('/api/cards')
+        .send({ front: 'Question', back: 'Answer', deckId: 'deck-1' });
+
+      expect(response.status).toBe(401);
+      expect(response.body.error.code).toBe('UNAUTHORIZED');
+      expect(response.body.error.message).toBe('User not found');
+    });
+
+    it('should return 404 when deck not found', async () => {
+      const authApp = createTestApp('clerk-user-123');
+
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'user-internal-id',
+        clerkId: 'clerk-user-123',
+        pushToken: null,
+        notificationsEnabled: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      prismaMock.deck.findUnique.mockResolvedValue(null);
+
+      const response = await request(authApp).post('/api/cards').send({
+        front: 'Question',
+        back: 'Answer',
+        deckId: 'nonexistent-deck',
+      });
+
+      expect(response.status).toBe(404);
+      expect(response.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('should return 403 when user does not own the deck', async () => {
+      const authApp = createTestApp('clerk-user-123');
+
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'user-internal-id',
+        clerkId: 'clerk-user-123',
+        pushToken: null,
+        notificationsEnabled: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      prismaMock.deck.findUnique.mockResolvedValue({
+        id: 'deck-1',
+        title: 'Test Deck',
+        description: null,
+        userId: 'different-user-id', // Different user owns this deck
+        parentDeckId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const response = await request(authApp)
+        .post('/api/cards')
+        .send({ front: 'Question', back: 'Answer', deckId: 'deck-1' });
+
+      expect(response.status).toBe(403);
+      expect(response.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should return 201 with created card when valid', async () => {
+      const authApp = createTestApp('clerk-user-123');
+      const now = new Date();
+
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'user-internal-id',
+        clerkId: 'clerk-user-123',
+        pushToken: null,
+        notificationsEnabled: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      prismaMock.deck.findUnique.mockResolvedValue({
+        id: 'deck-1',
+        title: 'Test Deck',
+        description: null,
+        userId: 'user-internal-id', // Same user owns this deck
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      prismaMock.card.create.mockResolvedValue({
+        id: 'card-new-123',
+        front: 'Question',
+        back: 'Answer',
+        deckId: 'deck-1',
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        state: 'NEW',
+        lastReview: null,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const response = await request(authApp)
+        .post('/api/cards')
+        .send({ front: 'Question', back: 'Answer', deckId: 'deck-1' });
+
       expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('message');
+      expect(response.body.card).toHaveProperty('id', 'card-new-123');
+      expect(response.body.card).toHaveProperty('front', 'Question');
+      expect(response.body.card).toHaveProperty('back', 'Answer');
+      expect(response.body.card).toHaveProperty('deckId', 'deck-1');
+      expect(response.body.card).toHaveProperty('nextReview');
+      expect(response.body.card).toHaveProperty('createdAt');
+      expect(prismaMock.card.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          front: 'Question',
+          back: 'Answer',
+          deckId: 'deck-1',
+        }),
+      });
+    });
+
+    it('should trim whitespace from front and back', async () => {
+      const authApp = createTestApp('clerk-user-123');
+      const now = new Date();
+
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'user-internal-id',
+        clerkId: 'clerk-user-123',
+        pushToken: null,
+        notificationsEnabled: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      prismaMock.deck.findUnique.mockResolvedValue({
+        id: 'deck-1',
+        title: 'Test Deck',
+        description: null,
+        userId: 'user-internal-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      prismaMock.card.create.mockResolvedValue({
+        id: 'card-new-123',
+        front: 'Question',
+        back: 'Answer',
+        deckId: 'deck-1',
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        state: 'NEW',
+        lastReview: null,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const response = await request(authApp)
+        .post('/api/cards')
+        .send({ front: '  Question  ', back: '  Answer  ', deckId: 'deck-1' });
+
+      expect(response.status).toBe(201);
+      expect(prismaMock.card.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          front: 'Question',
+          back: 'Answer',
+        }),
+      });
+    });
+
+    it('should return 500 on database error', async () => {
+      const authApp = createTestApp('clerk-user-123');
+      const now = new Date();
+
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'user-internal-id',
+        clerkId: 'clerk-user-123',
+        pushToken: null,
+        notificationsEnabled: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      prismaMock.deck.findUnique.mockResolvedValue({
+        id: 'deck-1',
+        title: 'Test Deck',
+        description: null,
+        userId: 'user-internal-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      prismaMock.card.create.mockRejectedValue(new Error('Database error'));
+
+      const response = await request(authApp)
+        .post('/api/cards')
+        .send({ front: 'Question', back: 'Answer', deckId: 'deck-1' });
+
+      expect(response.status).toBe(500);
+      expect(response.body.error.code).toBe('INTERNAL_ERROR');
     });
   });
 
