@@ -2,6 +2,7 @@ import express, { type Express } from 'express';
 import cors from 'cors';
 import { clerkMiddleware } from '@/middlewares/auth';
 import { errorHandler } from '@/middlewares/error-handler';
+import { startScheduler, stopScheduler } from '@/services/scheduler';
 
 // Import routes
 import decksRouter from '@/routes/decks';
@@ -46,9 +47,25 @@ app.use(errorHandler);
 
 // Only start server if this file is run directly (not imported for testing)
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+
+    // Start the notification scheduler after server is listening
+    startScheduler();
   });
+
+  // Graceful shutdown handling
+  const shutdown = () => {
+    console.log('Shutting down gracefully...');
+    stopScheduler();
+    server.close(() => {
+      console.log('Server closed');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 // Export for testing

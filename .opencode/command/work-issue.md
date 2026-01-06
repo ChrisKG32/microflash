@@ -100,6 +100,7 @@ For each sub-issue that needs implementation:
      ## Changes
      - <bullet points of key changes>
      ```
+
 3. If implementation failed or is incomplete:
    - Create as **Draft PR**
    - Document what failed/remains in the PR description
@@ -140,6 +141,16 @@ This PR implements all sub-issues for #$1:
 ## Changes
 
 <high-level bullet points of all changes across sub-issues>
+
+## Manual Setup Required
+
+> **Note:** List any manual steps required for this feature to work. Remove this section if none are needed.
+
+- [ ] <Service/Tool>: <What needs to be done>
+  - Example: "Clerk Auth: Create a new application and add `CLERK_SECRET_KEY` to `.env`"
+  - Example: "Expo: Generate push notification credentials in the Expo dashboard"
+  - Example: "Database: Run `pnpm db:migrate` to apply new migrations"
+  - Example: "Third-party API: Create an account at X and generate an API token"
 ```
 
 **Note:** The `[x]` checkboxes indicate merged PRs. Use `[ ]` for any that are still open/draft.
@@ -177,3 +188,4 @@ When the feature branch PR is merged to main:
 - Reference issue numbers in commits: `feat: add GET /decks endpoint (#8)`
 - If a sub-issue is blocked or unclear, create a Draft PR with questions in the description
 - The parent PR description MUST list all sub-issue PRs at the top for easy navigation
+- **Document manual setup steps** - If the feature requires external setup (API keys, dashboard configuration, third-party accounts, etc.), list them in the "Manual Setup Required" section of the feature branch PR

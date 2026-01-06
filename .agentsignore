@@ -1,0 +1,146 @@
+# .agentsignore - Prevent AI agents from reading these files to reduce token usage
+# Uses gitignore syntax
+
+# =============================================================================
+# DEPENDENCIES
+# =============================================================================
+node_modules/
+.pnp/
+.pnp.js
+
+# =============================================================================
+# LOCKFILES (large, auto-generated, not useful for context)
+# =============================================================================
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+bun.lock
+bun.lockb
+
+# =============================================================================
+# BUILD OUTPUT
+# =============================================================================
+dist/
+build/
+out/
+.next/
+web-build/
+
+# =============================================================================
+# GENERATED CODE
+# =============================================================================
+# Prisma generated client (large, auto-generated)
+apps/server/src/generated/
+**/generated/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Expo generated types
+expo-env.d.ts
+
+# =============================================================================
+# NATIVE BUILD ARTIFACTS (Expo/React Native)
+# =============================================================================
+apps/client/ios/
+apps/client/android/
+.kotlin/
+*.orig.*
+
+# =============================================================================
+# CACHES & TEMP FILES
+# =============================================================================
+.expo/
+.cache/
+.turbo/
+.parcel-cache/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Metro bundler
+.metro-health-check*
+
+# =============================================================================
+# COVERAGE & TEST ARTIFACTS
+# =============================================================================
+coverage/
+.nyc_output/
+*.lcov
+
+# =============================================================================
+# ENVIRONMENT & SECRETS (security - never read these)
+# =============================================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+*.jks
+*.mobileprovision
+credentials.json
+serviceAccountKey.json
+
+# =============================================================================
+# IDE & EDITOR
+# =============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-*
+
+# =============================================================================
+# OS FILES
+# =============================================================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# =============================================================================
+# AI AGENT TOOLING (avoid recursion/confusion)
+# =============================================================================
+.opencode/
+.cursor/
+.claude/
+.aider*
+.continue/
+
+# =============================================================================
+# MISC LARGE/BINARY FILES
+# =============================================================================
+*.wasm
+*.dylib
+*.so
+*.dll
+*.node
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Large media files
+*.mp4
+*.mov
+*.avi
+*.mp3
+*.wav
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+
+# Images (usually not needed for code context)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.svg
+*.webp
