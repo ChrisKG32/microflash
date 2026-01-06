@@ -1,107 +1,338 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useState, useCallback } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+  RefreshControl,
+} from 'react-native';
+import { useFocusEffect } from 'expo-router';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { getDueCards, submitReview, type Card } from '@/lib/api';
 
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
+type Rating = 'AGAIN' | 'HARD' | 'GOOD' | 'EASY';
+
+export default function ReviewScreen() {
+  const [cards, setCards] = useState<Card[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchDueCards = useCallback(async () => {
+    try {
+      setError(null);
+      const { cards: dueCards } = await getDueCards();
+      setCards(dueCards);
+      setCurrentIndex(0);
+      setShowAnswer(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load cards');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchDueCards();
+    }, [fetchDueCards]),
+  );
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchDueCards();
+  };
+
+  const handleRating = async (rating: Rating) => {
+    const card = cards[currentIndex];
+    if (!card || submitting) return;
+
+    try {
+      setSubmitting(true);
+      await submitReview({ cardId: card.id, rating });
+
+      // Move to next card or refetch
+      if (currentIndex < cards.length - 1) {
+        setCurrentIndex(currentIndex + 1);
+        setShowAnswer(false);
+      } else {
+        // Refetch to get any new due cards
+        await fetchDueCards();
       }
-    >
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText>{' '}
-          to see changes. Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction
-              title="Action"
-              icon="cube"
-              onPress={() => alert('Action pressed')}
-            />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit review');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">
-            npm run reset-project
-          </ThemedText>{' '}
-          to get a fresh <ThemedText type="defaultSemiBold">app</ThemedText>{' '}
-          directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const currentCard = cards[currentIndex];
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" />
+        <Text style={styles.loadingText}>Loading due cards...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <ScrollView
+        contentContainerStyle={styles.centered}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  }
+
+  if (!currentCard) {
+    return (
+      <ScrollView
+        contentContainerStyle={styles.centered}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
+        <Text style={styles.emptyIcon}>🎉</Text>
+        <Text style={styles.emptyTitle}>All caught up!</Text>
+        <Text style={styles.emptyText}>No cards due for review right now.</Text>
+        <Text style={styles.emptyHint}>
+          Pull down to refresh or add cards in the Decks tab.
+        </Text>
+      </ScrollView>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* Progress */}
+      <View style={styles.progress}>
+        <Text style={styles.progressText}>
+          Card {currentIndex + 1} of {cards.length}
+        </Text>
+        {currentCard.deckTitle && (
+          <Text style={styles.deckTitle}>{currentCard.deckTitle}</Text>
+        )}
+      </View>
+
+      {/* Card */}
+      <View style={styles.card}>
+        <Text style={styles.cardLabel}>Question</Text>
+        <Text style={styles.cardText}>{currentCard.front}</Text>
+
+        {showAnswer && (
+          <>
+            <View style={styles.divider} />
+            <Text style={styles.cardLabel}>Answer</Text>
+            <Text style={styles.cardText}>{currentCard.back}</Text>
+          </>
+        )}
+      </View>
+
+      {/* Actions */}
+      {!showAnswer ? (
+        <TouchableOpacity
+          style={styles.showAnswerButton}
+          onPress={() => setShowAnswer(true)}
+        >
+          <Text style={styles.showAnswerText}>Show Answer</Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.ratingButtons}>
+          <TouchableOpacity
+            style={[styles.ratingButton, styles.againButton]}
+            onPress={() => handleRating('AGAIN')}
+            disabled={submitting}
+          >
+            <Text style={styles.ratingButtonText}>Again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.ratingButton, styles.hardButton]}
+            onPress={() => handleRating('HARD')}
+            disabled={submitting}
+          >
+            <Text style={styles.ratingButtonText}>Hard</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.ratingButton, styles.goodButton]}
+            onPress={() => handleRating('GOOD')}
+            disabled={submitting}
+          >
+            <Text style={styles.ratingButtonText}>Good</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.ratingButton, styles.easyButton]}
+            onPress={() => handleRating('EASY')}
+            disabled={submitting}
+          >
+            <Text style={styles.ratingButtonText}>Easy</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {submitting && (
+        <View style={styles.submittingOverlay}>
+          <ActivityIndicator color="#fff" />
+        </View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#f5f5f5',
   },
-  stepContainer: {
-    gap: 8,
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#d32f2f',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#2196f3',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: '600',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  emptyHint: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  progress: {
+    marginBottom: 16,
+  },
+  progressText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  deckTitle: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
+  },
+  card: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardLabel: {
+    fontSize: 12,
+    color: '#999',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  cardText: {
+    fontSize: 18,
+    lineHeight: 26,
+    color: '#333',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#eee',
+    marginVertical: 20,
+  },
+  showAnswerButton: {
+    backgroundColor: '#2196f3',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  showAnswerText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  ratingButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 16,
+  },
+  ratingButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  ratingButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  againButton: {
+    backgroundColor: '#d32f2f',
+  },
+  hardButton: {
+    backgroundColor: '#f57c00',
+  },
+  goodButton: {
+    backgroundColor: '#388e3c',
+  },
+  easyButton: {
+    backgroundColor: '#1976d2',
+  },
+  submittingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
   },
 });
