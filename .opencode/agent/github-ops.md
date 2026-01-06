@@ -35,6 +35,7 @@ Use ONLY the `github_*` MCP tools for all GitHub operations:
 2. **Return concise summaries** unless asked for verbatim content
 3. **When updating issues**, preserve existing content and append new sections
 4. **For PR creation**, use descriptive titles and reference related issues with `Closes #N` or `Relates to #N`
+5. **Always run /compact after each `github_*` tool usage**
 
 ## Common Operations
 

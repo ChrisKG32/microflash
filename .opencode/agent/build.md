@@ -3,6 +3,8 @@ description: Implementation agent that applies a Plan artifact, validates change
 mode: primary
 model: opencode/claude-opus-4-5
 temperature: 0.4
+tools:
+  github_*: false
 permission:
    webfetch: deny
 ---
