@@ -12,6 +12,21 @@ jest.mock('node-cron', () => ({
   })),
 }));
 
+// Mock notification orchestrator
+jest.mock('@/services/notification-orchestrator', () => ({
+  sendDueCardNotifications: jest.fn().mockResolvedValue({
+    totalCardsFound: 0,
+    totalUsersNotified: 0,
+    totalNotificationsSent: 0,
+    successfulNotifications: 0,
+    failedNotifications: 0,
+    cardsMarkedAsNotified: 0,
+  }),
+}));
+
+// Import cron for type-safe access in tests
+import * as cron from 'node-cron';
+
 describe('Scheduler Service', () => {
   beforeEach(() => {
     // Reset scheduler state between tests
@@ -25,8 +40,6 @@ describe('Scheduler Service', () => {
 
   describe('startScheduler', () => {
     it('should start the scheduler', () => {
-      const cron = require('node-cron');
-
       startScheduler();
 
       expect(cron.schedule).toHaveBeenCalledWith(
@@ -41,8 +54,6 @@ describe('Scheduler Service', () => {
     });
 
     it('should not start multiple schedulers', () => {
-      const cron = require('node-cron');
-
       startScheduler();
       startScheduler();
 

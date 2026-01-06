@@ -1,7 +1,5 @@
 import Expo, {
   type ExpoPushMessage,
-  type ExpoPushTicket,
-  type ExpoPushReceipt,
   type ExpoPushSuccessTicket,
 } from 'expo-server-sdk';
 

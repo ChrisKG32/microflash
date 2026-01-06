@@ -70,10 +70,15 @@ app.use(
       return;
     }
 
-    const statusCode = (err as any).statusCode || 500;
+    interface ErrorWithStatus extends Error {
+      statusCode?: number;
+      code?: string;
+    }
+    const typedErr = err as ErrorWithStatus;
+    const statusCode = typedErr.statusCode || 500;
     res.status(statusCode).json({
       error: {
-        code: (err as any).code || 'INTERNAL_ERROR',
+        code: typedErr.code || 'INTERNAL_ERROR',
         message: err.message,
       },
     });

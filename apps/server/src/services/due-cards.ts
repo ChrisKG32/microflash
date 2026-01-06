@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/prisma';
-import type { Card, Deck, User } from '@/generated/prisma';
 
 /**
  * Notification window in minutes (±7 minutes from current time).

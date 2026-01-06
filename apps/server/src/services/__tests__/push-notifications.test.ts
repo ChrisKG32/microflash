@@ -13,12 +13,14 @@ jest.mock('expo-server-sdk', () => {
   const mockExpo = {
     sendPushNotificationsAsync: jest.fn(),
     getPushNotificationReceiptsAsync: jest.fn(),
-    chunkPushNotifications: jest.fn((messages) => [messages]),
-    chunkPushNotificationReceiptIds: jest.fn((ids) => [ids]),
+    chunkPushNotifications: jest.fn((messages: unknown[]) => [messages]),
+    chunkPushNotificationReceiptIds: jest.fn((ids: string[]) => [ids]),
   };
 
-  const MockExpo = jest.fn(() => mockExpo);
-  (MockExpo as any).isExpoPushToken = jest.fn(
+  const MockExpo = jest.fn(() => mockExpo) as jest.Mock & {
+    isExpoPushToken: jest.Mock;
+  };
+  MockExpo.isExpoPushToken = jest.fn(
     (token: string) =>
       typeof token === 'string' && token.startsWith('ExponentPushToken['),
   );
@@ -30,6 +32,7 @@ jest.mock('expo-server-sdk', () => {
 });
 
 describe('Push Notifications Service', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockExpo: any;
 
   beforeEach(() => {

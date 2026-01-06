@@ -6,7 +6,6 @@ import {
 import {
   sendBatchNotifications,
   logNotificationResults,
-  type PushNotificationResult,
 } from './push-notifications';
 import { markCardsAsNotified, removeUserPushToken } from './card-notifications';
 
