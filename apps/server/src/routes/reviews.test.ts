@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import reviewsRouter from './reviews.js';
+import reviewsRouter from '@/routes/reviews';
 
 // Create a test app with the router
 const app = express();

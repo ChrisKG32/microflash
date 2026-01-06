@@ -1,11 +1,11 @@
 /** @type {import('jest').Config} */
 const config = {
   projects: [
-    '<rootDir>/apps/server/jest.config.mjs',
+    '<rootDir>/apps/server/jest.config.js',
     '<rootDir>/apps/client/jest.config.cjs',
     // Future packages can be added here:
-    // '<rootDir>/packages/shared/jest.config.mjs',
+    // '<rootDir>/packages/shared/jest.config.js',
   ],
 };
 
-export default config;
+module.exports = config;

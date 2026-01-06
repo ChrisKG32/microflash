@@ -2,10 +2,9 @@
   "name": "@microflash/server",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc && tsc-alias -p tsconfig.json && cp -R src/generated/prisma dist/generated/prisma",
+    "build": "tsc && tsc-alias -p tsconfig.json && mkdir -p dist/generated && cp -R src/generated/prisma dist/generated/prisma && node scripts/fix-prisma-imports.js",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
@@ -13,11 +12,11 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
-    "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern='\\.test\\.ts$'",
-    "test:integration": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern='\\.spec\\.ts$'",
-    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
-    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage"
+    "test": "jest",
+    "test:unit": "jest --testPathPattern='\\.test\\.ts$'",
+    "test:integration": "jest --testPathPattern='\\.spec\\.ts$'",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

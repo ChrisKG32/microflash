@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv';
-import { PrismaClient } from '@/generated/prisma/index.js';
+import { PrismaClient } from '@/generated/prisma';
 
 // Load test environment variables
 // Path is relative to the project root since Jest runs from there
@@ -24,7 +24,7 @@ describe('Decks Routes - Integration Tests', () => {
     try {
       await prisma.$connect();
       databaseAvailable = true;
-    } catch (error) {
+    } catch (_error) {
       console.warn(
         '\n⚠️  Integration tests skipped: Database not available.\n' +
           '   Configure apps/server/.env.test and ensure PostgreSQL is running.\n',

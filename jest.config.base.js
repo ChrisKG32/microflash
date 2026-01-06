@@ -1,17 +1,12 @@
 /** @type {import('jest').Config} */
 const baseConfig = {
-  preset: 'ts-jest/presets/default-esm',
+  preset: 'ts-jest',
   testEnvironment: 'node',
-  extensionsToTreatAsEsm: ['.ts'],
-  moduleNameMapper: {
-    // Handle .js extensions in ESM imports
-    '^(\\.{1,2}/.*)\\.js$': '$1',
-  },
   transform: {
     '^.+\\.tsx?$': [
       'ts-jest',
       {
-        useESM: true,
+        useESM: false,
       },
     ],
   },
@@ -25,4 +20,4 @@ const baseConfig = {
   ],
 };
 
-export default baseConfig;
+module.exports = baseConfig;

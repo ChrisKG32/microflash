@@ -1,7 +1,7 @@
 import request from 'supertest';
 import express, { type Express, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { errorHandler, ApiError } from './error-handler.js';
+import { errorHandler, ApiError } from '@/middlewares/error-handler';
 
 // Helper to create test app
 function createTestApp(): Express {

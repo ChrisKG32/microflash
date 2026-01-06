@@ -2,7 +2,6 @@
   "name": "microflash",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "description": "MicroFlash - Intelligent Spaced Repetition Learning",
   "scripts": {
     "dev:server": "pnpm --filter @microflash/server dev",
@@ -14,11 +13,11 @@
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r typecheck",
     "clean": "pnpm -r exec rm -rf dist build .expo && rm -rf node_modules",
-    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
-    "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern='\\.test\\.ts$'",
-    "test:integration": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern='\\.spec\\.ts$'",
-    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
-    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "test": "jest",
+    "test:unit": "jest --testPathPattern='\\.test\\.ts$'",
+    "test:integration": "jest --testPathPattern='\\.spec\\.ts$'",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "test:server": "pnpm --filter @microflash/server test"
   },
   "keywords": [

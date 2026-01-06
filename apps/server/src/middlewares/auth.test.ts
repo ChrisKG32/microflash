@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import request from 'supertest';
 import express, {
   type Express,
@@ -9,14 +8,14 @@ import express, {
 
 // Mock @clerk/express before importing our auth module
 const mockGetAuth = jest.fn();
-jest.unstable_mockModule('@clerk/express', () => ({
+jest.mock('@clerk/express', () => ({
   clerkMiddleware: () => (_req: Request, _res: Response, next: NextFunction) =>
     next(),
   getAuth: mockGetAuth,
 }));
 
-// Dynamic import after mock is set up
-const { requireAuth } = await import('@/middlewares/auth.js');
+// Import after mock is set up
+import { requireAuth } from '@/middlewares/auth';
 
 // Helper to create test app
 function createTestApp(): Express {

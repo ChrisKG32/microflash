@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import request from 'supertest';
 import express, {
   type Express,
@@ -7,7 +6,7 @@ import express, {
   type NextFunction,
 } from 'express';
 import { mockDeep, mockReset } from 'jest-mock-extended';
-import { PrismaClient, Prisma } from '@/generated/prisma/index.js';
+import { PrismaClient, Prisma } from '@/generated/prisma';
 import DeckGetPayload = Prisma.DeckGetPayload;
 
 // Create a mock prisma client
@@ -16,19 +15,19 @@ const prismaMock = mockDeep<PrismaClient>();
 // Mock getAuth to return a specific userId
 const mockGetAuth = jest.fn();
 
-// Mock the prisma module before importing the router
-jest.unstable_mockModule('@/lib/prisma.js', () => ({
+// Mock the prisma module
+jest.mock('@/lib/prisma', () => ({
   prisma: prismaMock,
 }));
 
 // Mock the auth middleware
-jest.unstable_mockModule('@/middlewares/auth.js', () => ({
+jest.mock('@/middlewares/auth', () => ({
   requireAuth: (_req: Request, _res: Response, next: NextFunction) => next(),
   getAuth: mockGetAuth,
 }));
 
-// Dynamic import after mock is set up
-const { default: decksRouter } = await import('@/routes/decks.js');
+// Import after mocks are set up
+import decksRouter from '@/routes/decks';
 
 // Helper to create test app
 function createTestApp(): Express {
