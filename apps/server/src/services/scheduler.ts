@@ -1,11 +1,12 @@
 import cron, { type ScheduledTask } from 'node-cron';
+import { sendDueCardNotifications } from './notification-orchestrator';
 
 let schedulerTask: ScheduledTask | null = null;
 let isRunning = false;
 
 /**
- * Placeholder for the notification check function.
- * Will be implemented in subsequent sub-issues (#22-#25).
+ * Runs the notification check process.
+ * Finds due cards, groups them, sends notifications, and marks them as notified.
  */
 async function runNotificationCheck(): Promise<void> {
   // Prevent concurrent runs
@@ -18,12 +19,10 @@ async function runNotificationCheck(): Promise<void> {
   console.log('[Scheduler] Running notification check...');
 
   try {
-    // TODO: Implement in #22-#25
-    // 1. Find cards due for review (±7 min window)
-    // 2. Group by user and deck
-    // 3. Send push notifications via Expo
-    // 4. Mark cards as notified
-    console.log('[Scheduler] Notification check complete');
+    const result = await sendDueCardNotifications();
+    console.log(
+      `[Scheduler] Notification check complete - ${result.totalCardsFound} cards found, ${result.successfulNotifications} notifications sent`,
+    );
   } catch (error) {
     console.error('[Scheduler] Error:', error);
   } finally {
