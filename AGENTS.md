@@ -228,6 +228,9 @@ pnpm --filter @microflash/server db:migrate   # Create migration
 
 - **Unit tests**: `*.test.ts` - Fast, isolated tests
 - **Integration tests**: `*.spec.ts` - Tests with real dependencies (DB, etc.)
+- **Test Colocation**: Tests must be colocated with their source files, never in `__tests__` or `__test__` directories
+  - Example: `decks.ts` → `decks.test.ts` (unit tests) and/or `decks.spec.ts` (integration tests)
+  - Example: `use-theme-color.ts` → `use-theme-color.test.ts` (unit tests)
 
 ### Server Testing (`apps/server`)
 
