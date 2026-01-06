@@ -2,6 +2,7 @@ import Expo, {
   type ExpoPushMessage,
   type ExpoPushSuccessTicket,
 } from 'expo-server-sdk';
+import pAll from 'p-all';
 
 /**
  * Result of sending a single push notification.
@@ -236,6 +237,7 @@ export async function sendBatchNotifications(
 /**
  * Checks push notification receipts to verify delivery.
  * Should be called after a delay (e.g., 15-30 seconds) to allow delivery.
+ * Uses concurrent processing with limited concurrency for efficiency.
  *
  * @param receiptIds - Array of receipt IDs from successful ticket sends
  * @returns Array of receipt check results
@@ -248,12 +250,16 @@ export async function checkPushNotificationReceipts(
   }
 
   const expo = getExpoClient();
-  const results: ReceiptCheckResult[] = [];
 
   // Chunk receipt IDs for efficient fetching
   const chunks = expo.chunkPushNotificationReceiptIds(receiptIds);
 
-  for (const chunk of chunks) {
+  // Process each chunk concurrently with limited concurrency
+  const processChunk = async (
+    chunk: string[],
+  ): Promise<ReceiptCheckResult[]> => {
+    const chunkResults: ReceiptCheckResult[] = [];
+
     try {
       const receipts = await expo.getPushNotificationReceiptsAsync(chunk);
 
@@ -261,7 +267,7 @@ export async function checkPushNotificationReceipts(
         const receipt = receipts[receiptId];
 
         if (!receipt) {
-          results.push({
+          chunkResults.push({
             receiptId,
             status: 'error',
             error: 'Receipt not found',
@@ -270,13 +276,13 @@ export async function checkPushNotificationReceipts(
         }
 
         if (receipt.status === 'ok') {
-          results.push({
+          chunkResults.push({
             receiptId,
             status: 'ok',
           });
         } else {
           const errorDetails = receipt.details?.error;
-          results.push({
+          chunkResults.push({
             receiptId,
             status: 'error',
             error: receipt.message || errorDetails || 'Unknown error',
@@ -292,16 +298,25 @@ export async function checkPushNotificationReceipts(
 
       // Mark all receipts in this chunk as errored
       for (const receiptId of chunk) {
-        results.push({
+        chunkResults.push({
           receiptId,
           status: 'error',
           error: errorMessage,
         });
       }
     }
-  }
 
-  return results;
+    return chunkResults;
+  };
+
+  // Create array of functions to process each chunk
+  const chunkProcessors = chunks.map((chunk) => () => processChunk(chunk));
+
+  // Process all chunks concurrently with limited concurrency (5 concurrent requests)
+  const chunkResults = await pAll(chunkProcessors, { concurrency: 5 });
+
+  // Flatten results from all chunks
+  return chunkResults.flat();
 }
 
 /**
