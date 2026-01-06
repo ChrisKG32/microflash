@@ -1,0 +1,25 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "github": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-github"],
+      "environment": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "{env:GITHUB_MCP_ACCESS_TOKEN}"
+      },
+      "enabled": true
+    }
+  },
+  "tools": {
+    "github_*": false
+  },
+  "agent": {
+    "github-reader": {
+      "description": "Fetches GitHub issues, PRs, and related data. Use this agent to read issue details, sub-issues, and PR information before implementing features.",
+      "mode": "subagent",
+      "tools": {
+        "github_*": true
+      }
+    }
+  }
+}
