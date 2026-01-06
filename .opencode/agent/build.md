@@ -23,3 +23,4 @@ Chat output policy (end-of-run report only):
 Important:
 - Do not run typechecks, lints, or formatting while you're actively implementing.
 - When you are finished with implementation, delegate typecheck, lint, formatting to `validator`
+- Once the `validator` agent confirms no errors, then delegate testing to `tester`

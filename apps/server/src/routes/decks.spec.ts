@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv';
-import { PrismaClient } from '../generated/prisma/index.js';
+import { PrismaClient } from '@/generated/prisma/index.js';
 
 // Load test environment variables
 // Path is relative to the project root since Jest runs from there

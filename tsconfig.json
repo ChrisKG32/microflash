@@ -1,14 +1,9 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "compilerOptions": {
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "incremental": true,
-    "allowSyntheticDefaultImports": true
-  },
-  "exclude": ["node_modules", "dist", "build", ".expo"]
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "apps/server" },
+    { "path": "apps/client" }
+  ]
 }

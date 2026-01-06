@@ -1,6 +1,6 @@
-import { Router } from 'express';
+import { Router, type Router as RouterType } from 'express';
 
-const router = Router();
+const router: RouterType = Router();
 
 // GET /api/cards - List cards (filterable by deckId)
 router.get('/', async (req, res) => {
@@ -14,12 +14,16 @@ router.post('/', async (req, res) => {
 
 // GET /api/cards/:id - Get single card
 router.get('/:id', async (req, res) => {
-  res.json({ message: `GET /api/cards/${req.params.id} - Not implemented yet` });
+  res.json({
+    message: `GET /api/cards/${req.params.id} - Not implemented yet`,
+  });
 });
 
 // PATCH /api/cards/:id - Update card
 router.patch('/:id', async (req, res) => {
-  res.json({ message: `PATCH /api/cards/${req.params.id} - Not implemented yet` });
+  res.json({
+    message: `PATCH /api/cards/${req.params.id} - Not implemented yet`,
+  });
 });
 
 // DELETE /api/cards/:id - Delete card

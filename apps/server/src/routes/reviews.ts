@@ -1,6 +1,6 @@
-import { Router } from 'express';
+import { Router, type Router as RouterType } from 'express';
 
-const router = Router();
+const router: RouterType = Router();
 
 // POST /api/reviews - Submit a card review
 router.post('/', async (req, res) => {
@@ -14,7 +14,9 @@ router.get('/', async (req, res) => {
 
 // GET /api/reviews/card/:cardId - Get reviews for specific card
 router.get('/card/:cardId', async (req, res) => {
-  res.json({ message: `GET /api/reviews/card/${req.params.cardId} - Not implemented yet` });
+  res.json({
+    message: `GET /api/reviews/card/${req.params.cardId} - Not implemented yet`,
+  });
 });
 
 export default router;

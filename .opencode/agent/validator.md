@@ -1,7 +1,7 @@
 ---
 description: Runs ONLY root package.json scripts typecheck and lint
 mode: subagent
-model: opencode/gemini-3-flash
+model: opencode/claude-haiku-4-5
 temperature: 0.0
 permission:
   webfetch: deny
@@ -25,5 +25,6 @@ Purpose:
 Constraints:
 - Do not inspect, summarize, or explain anything about the repo.
 - Run only the two skills in this order: `typecheck`, then `lint`.
-- If both pass: reply with exactly `No errors`.
 - If either fails: reply with ONLY the raw error output (no commentary).
+- If both pass: reply with exactly `No errors`.
+

@@ -1,13 +1,13 @@
-import express from 'express';
+import express, { type Express } from 'express';
 import cors from 'cors';
 
 // Import routes
-import decksRouter from './routes/decks.js';
-import cardsRouter from './routes/cards.js';
-import reviewsRouter from './routes/reviews.js';
-import notificationsRouter from './routes/notifications.js';
+import decksRouter from '@/routes/decks.js';
+import cardsRouter from '@/routes/cards.js';
+import reviewsRouter from '@/routes/reviews.js';
+import notificationsRouter from '@/routes/notifications.js';
 
-const app = express();
+const app: Express = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware

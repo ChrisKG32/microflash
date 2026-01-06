@@ -1,7 +1,7 @@
-import { Router } from 'express';
-import { prisma } from '../lib/prisma.js';
+import { Router, type Router as RouterType } from 'express';
+import { prisma } from '@/lib/prisma.js';
 
-const router = Router();
+const router: RouterType = Router();
 
 // GET /api/decks - List all decks for authenticated user
 router.get('/', async (req, res) => {

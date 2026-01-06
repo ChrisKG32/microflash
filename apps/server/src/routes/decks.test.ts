@@ -2,19 +2,19 @@ import { jest } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
 import { mockDeep, mockReset } from 'jest-mock-extended';
-import { PrismaClient, Prisma } from '../generated/prisma/index.js';
+import { PrismaClient, Prisma } from '@/generated/prisma/index.js';
 import DeckGetPayload = Prisma.DeckGetPayload;
 
 // Create a mock prisma client
 const prismaMock = mockDeep<PrismaClient>();
 
 // Mock the prisma module before importing the router
-jest.unstable_mockModule('../lib/prisma.js', () => ({
+jest.unstable_mockModule('@/lib/prisma.js', () => ({
   prisma: prismaMock,
 }));
 
 // Dynamic import after mock is set up
-const { default: decksRouter } = await import('./decks.js');
+const { default: decksRouter } = await import('@/routes/decks.js');
 
 // Create a test app with the router
 const app = express();
