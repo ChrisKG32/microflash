@@ -18,6 +18,15 @@ const config = {
     // Inherit base config's .js extension handling for relative imports
     ...baseConfig.moduleNameMapper,
   },
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        useESM: true,
+        tsconfig: '<rootDir>/tsconfig.test.json',
+      },
+    ],
+  },
   testMatch: ['**/*.test.ts', '**/*.spec.ts'],
 };
 

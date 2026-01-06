@@ -1,5 +1,5 @@
 {
-  "extends": ["@tsconfig/recommended/tsconfig.json", "../../tsconfig.json"],
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
@@ -7,8 +7,11 @@
     "paths": {
       "@/*": ["src/*"]
     },
+    "composite": true,
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "incremental": true,
+    "types": []
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
