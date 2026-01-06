@@ -29,6 +29,7 @@ Important Rules:
   - Always delegate this to `docs-researcher`.
 - If you do not understand how to appropriately plan the task, you will search Github for more code examples.
   - Always delegate this to `code-researcher`
+- When planning tests, you will plan high-level smoke tests for basic functionality only. You will not be comprehensive or detailed with your tests.
 
 DO:
 - Summarize your proposed plan

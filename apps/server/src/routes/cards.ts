@@ -1,7 +1,9 @@
-import { Router, type Router as RouterType, type Request } from 'express';
+import { Router, type Router as RouterType } from 'express';
 import { prisma } from '@/lib/prisma';
-import { createCardSchema } from '@/lib/validation';
-import { requireAuth, getAuth } from '@/middlewares/auth';
+import { createCardSchema, type CreateCardInput } from '@/lib/validation';
+import { requireUser } from '@/middlewares/auth';
+import { validate } from '@/middlewares/validate';
+import { asyncHandler, ApiError } from '@/middlewares/error-handler';
 
 const router: RouterType = Router();
 
@@ -19,67 +21,35 @@ router.get('/', async (_req, res) => {
 });
 
 // POST /api/cards - Create a new card
-router.post('/', requireAuth, async (req: Request, res, next) => {
-  try {
-    // 1. Get Clerk userId from auth middleware
-    const { userId: clerkUserId } = getAuth(req);
+router.post(
+  '/',
+  requireUser,
+  validate({ body: createCardSchema }),
+  asyncHandler(async (req, res) => {
+    // User is guaranteed to exist by requireUser middleware
+    const user = req.user!;
 
-    // 2. Validate input using Zod schema
-    const validationResult = createCardSchema.safeParse(req.body);
+    // Body is validated and typed by validate middleware
+    const { front, back, deckId } = req.validated!.body as CreateCardInput;
 
-    if (!validationResult.success) {
-      return res.status(400).json({
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid request data',
-          details: validationResult.error.issues.map((issue) => ({
-            field: issue.path.join('.') || 'unknown',
-            message: issue.message,
-          })),
-        },
-      });
-    }
-
-    const { front, back, deckId } = validationResult.data;
-
-    // 3. Look up internal user by Clerk ID
-    const user = await prisma.user.findUnique({
-      where: { clerkId: clerkUserId! },
-    });
-
-    if (!user) {
-      return res.status(401).json({
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'User not found',
-        },
-      });
-    }
-
-    // 4. Verify deck exists and belongs to user
+    // Verify deck exists and belongs to user
     const deck = await prisma.deck.findUnique({
       where: { id: deckId },
     });
 
     if (!deck) {
-      return res.status(404).json({
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Deck not found',
-        },
-      });
+      throw new ApiError(404, 'NOT_FOUND', 'Deck not found');
     }
 
     if (deck.userId !== user.id) {
-      return res.status(403).json({
-        error: {
-          code: 'FORBIDDEN',
-          message: 'You do not have permission to add cards to this deck',
-        },
-      });
+      throw new ApiError(
+        403,
+        'FORBIDDEN',
+        'You do not have permission to add cards to this deck',
+      );
     }
 
-    // 5. Create card with initial FSRS state
+    // Create card with initial FSRS state
     // FSRS fields use Prisma schema defaults (stability=0, difficulty=0, etc.)
     // We only need to set nextReviewDate explicitly
     const card = await prisma.card.create({
@@ -91,8 +61,8 @@ router.post('/', requireAuth, async (req: Request, res, next) => {
       },
     });
 
-    // 6. Return created card
-    return res.status(201).json({
+    // Return created card
+    res.status(201).json({
       card: {
         id: card.id,
         front: card.front,
@@ -102,11 +72,8 @@ router.post('/', requireAuth, async (req: Request, res, next) => {
         createdAt: card.createdAt.toISOString(),
       },
     });
-  } catch (error) {
-    // Pass to global error handler
-    next(error);
-  }
-});
+  }),
+);
 
 // GET /api/cards/:id - Get single card
 router.get('/:id', async (req, res) => {

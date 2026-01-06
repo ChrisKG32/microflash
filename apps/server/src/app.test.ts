@@ -6,6 +6,7 @@ jest.mock('@/middlewares/auth', () => ({
   clerkMiddleware: () => (_req: Request, _res: Response, next: NextFunction) =>
     next(),
   requireAuth: (_req: Request, _res: Response, next: NextFunction) => next(),
+  requireUser: (_req: Request, _res: Response, next: NextFunction) => next(),
   getAuth: () => ({ userId: 'test-user' }),
 }));
 
@@ -23,6 +24,21 @@ jest.mock('@/middlewares/error-handler', () => ({
         message: 'An unexpected error occurred',
       },
     });
+  },
+  asyncHandler:
+    (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) =>
+    (req: Request, res: Response, next: NextFunction) => {
+      Promise.resolve(fn(req, res, next)).catch(next);
+    },
+  ApiError: class ApiError extends Error {
+    constructor(
+      public statusCode: number,
+      public code: string,
+      message: string,
+    ) {
+      super(message);
+      this.name = 'ApiError';
+    }
   },
 }));
 

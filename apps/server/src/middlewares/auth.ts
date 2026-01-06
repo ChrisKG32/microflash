@@ -1,5 +1,7 @@
 import { clerkMiddleware, getAuth, type AuthObject } from '@clerk/express';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
+import { prisma } from '@/lib/prisma';
+import { ApiError } from '@/middlewares/error-handler';
 
 // Re-export clerkMiddleware for use in index.ts
 export { clerkMiddleware, getAuth };
@@ -9,7 +11,8 @@ export type { AuthObject };
 
 /**
  * Middleware that requires authentication.
- * Returns 401 JSON response if user is not authenticated.
+ * Calls next(ApiError) if user is not authenticated, letting the global
+ * error handler return a consistent 401 JSON response.
  *
  * Unlike Clerk's built-in requireAuth() which redirects to a sign-in page,
  * this middleware is designed for API routes and returns JSON errors.
@@ -22,20 +25,61 @@ export type { AuthObject };
  */
 export const requireAuth: RequestHandler = (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction,
 ) => {
   const auth = getAuth(req);
 
   if (!auth.userId) {
-    res.status(401).json({
-      error: {
-        code: 'UNAUTHORIZED',
-        message: 'Authentication required',
-      },
-    });
+    next(new ApiError(401, 'UNAUTHORIZED', 'Authentication required'));
     return;
   }
 
   next();
+};
+
+/**
+ * Middleware that requires authentication AND loads the Prisma user.
+ * Attaches the user object to `req.user` for use in route handlers.
+ *
+ * This middleware:
+ * 1. Verifies Clerk authentication (via getAuth)
+ * 2. Loads the internal Prisma user by clerkId
+ * 3. Attaches the user to req.user
+ *
+ * On failure, calls next(ApiError) to let the global error handler respond.
+ *
+ * Usage:
+ *   router.post('/', requireUser, asyncHandler(async (req, res) => {
+ *     const user = req.user!; // User is guaranteed to exist
+ *     // ...
+ *   }));
+ */
+export const requireUser: RequestHandler = async (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const auth = getAuth(req);
+
+    if (!auth.userId) {
+      next(new ApiError(401, 'UNAUTHORIZED', 'Authentication required'));
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { clerkId: auth.userId },
+    });
+
+    if (!user) {
+      next(new ApiError(401, 'UNAUTHORIZED', 'User not found'));
+      return;
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    next(error);
+  }
 };

@@ -17,11 +17,12 @@ const config = {
       'ts-jest',
       {
         useESM: false,
-        tsconfig: '<rootDir>/tsconfig.test.json',
+        tsconfig: '<rootDir>/tsconfig.json',
       },
     ],
   },
   testMatch: ['**/*.test.ts', '**/*.spec.ts'],
+  setupFilesAfterEnv: ['<rootDir>/src/testing/setup.ts'],
 };
 
 module.exports = config;
