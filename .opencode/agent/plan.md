@@ -3,7 +3,9 @@ description: Plan-only orchestrator. No bash, no writes/edits. Must delegate dis
 mode: primary
 model: opencode/gpt-5.2
 options:
-  reasoningEffort
+  reasoningEffort: medium
+  reasoningSummary: none
+  textVerbosity: low
 temperature: 0.5
 tools:
   bash: false
