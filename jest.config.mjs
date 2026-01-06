@@ -2,8 +2,8 @@
 const config = {
   projects: [
     '<rootDir>/apps/server/jest.config.mjs',
+    '<rootDir>/apps/client/jest.config.cjs',
     // Future packages can be added here:
-    // '<rootDir>/apps/client/jest.config.mjs',
     // '<rootDir>/packages/shared/jest.config.mjs',
   ],
 };
