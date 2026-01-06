@@ -1,5 +1,6 @@
 import express, { type Express } from 'express';
 import cors from 'cors';
+import { clerkMiddleware } from '@/middlewares/auth.js';
 
 // Import routes
 import decksRouter from '@/routes/decks.js';
@@ -13,6 +14,10 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Clerk authentication middleware - attaches auth state to all requests
+// Individual routes can use requireAuth or getAuth to check authentication
+app.use(clerkMiddleware());
 
 // Health check
 app.get('/health', (_req, res) => {

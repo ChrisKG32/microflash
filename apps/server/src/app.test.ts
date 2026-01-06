@@ -1,5 +1,17 @@
+import { jest } from '@jest/globals';
 import request from 'supertest';
-import { app } from './index.js';
+import type { Request, Response, NextFunction } from 'express';
+
+// Mock the auth middleware before importing the app
+jest.unstable_mockModule('@/middlewares/auth.js', () => ({
+  clerkMiddleware: () => (_req: Request, _res: Response, next: NextFunction) =>
+    next(),
+  requireAuth: (_req: Request, _res: Response, next: NextFunction) => next(),
+  getAuth: () => ({ userId: 'test-user' }),
+}));
+
+// Dynamic import after mock is set up
+const { app } = await import('./index.js');
 
 describe('App - Unit Tests', () => {
   describe('GET /health', () => {

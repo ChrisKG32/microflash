@@ -1,19 +1,33 @@
 import { Router, type Router as RouterType } from 'express';
 import { prisma } from '@/lib/prisma.js';
+import { requireAuth, getAuth } from '@/middlewares/auth.js';
 
 const router: RouterType = Router();
 
 // GET /api/decks - List all decks for authenticated user
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
-    // TODO: Get userId from authentication middleware
-    // For now, we'll use a hardcoded test user from seed data
-    const userId = 'cmhvc9rh100002gq791i0fsqd'; // Placeholder - will be replaced with req.auth.userId
+    // Get Clerk userId from auth middleware
+    const { userId: clerkUserId } = getAuth(req);
+
+    // Look up internal user by Clerk ID
+    const user = await prisma.user.findUnique({
+      where: { clerkId: clerkUserId! },
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'User not found',
+        },
+      });
+    }
 
     // Fetch all decks for the user, including subdeck relationships
     const decks = await prisma.deck.findMany({
       where: {
-        userId: userId,
+        userId: user.id,
       },
       include: {
         subDecks: true, // Include child decks
@@ -64,7 +78,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/decks - Create a new deck
-router.post('/', async (req, res) => {
+router.post('/', async (_req, res) => {
   res.status(201).json({ message: 'POST /api/decks - Not implemented yet' });
 });
 
@@ -83,7 +97,7 @@ router.patch('/:id', async (req, res) => {
 });
 
 // DELETE /api/decks/:id - Delete deck
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (_req, res) => {
   res.status(204).send();
 });
 
