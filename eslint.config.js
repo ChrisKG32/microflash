@@ -40,6 +40,7 @@ export default [
       '**/node_modules/**',
       '**/pnpm-lock.yaml',
       'apps/client/expo-env.d.ts',
+      '**/generated/**',
     ],
   },
 ];

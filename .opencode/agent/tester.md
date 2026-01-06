@@ -1,7 +1,7 @@
 ---
 description: "Runs ONLY root package.json scripts test:unit and test:integration"
 mode: subagent
-model: opencode/gemini-3-flash
+model: opencode/claude-haiku-4-5
 temperature: 0.0
 permission:
   webfetch: deny
@@ -26,7 +26,5 @@ Purpose:
 Constraints:
 - You use pnpm as your package manager
 - Do not inspect, summarize, or explain anything about the repo.
-- Run only the two skills in this order: `typecheck`, then `lint`.
-- If both pass: reply with exactly `No errors`.
-- If either fails: reply with ONLY the raw error output (no commentary).
-- Only return 
+- If tests fail, only return the list of failed tests with those specific failure logs. Do not return success logs.
+- If all tests pass: reply with exactly `No errors`.
