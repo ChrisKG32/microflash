@@ -121,3 +121,36 @@ export type RatingType = keyof typeof RATING_VALUES;
  * Type for card state string literals.
  */
 export type CardStateType = keyof typeof STATE_VALUES;
+
+// =============================================================================
+// FSRS Initialization Functions
+// =============================================================================
+
+/**
+ * Initialize FSRS state for a new card.
+ * Sets default values according to the FSRS algorithm specification.
+ *
+ * @returns Initial FSRS state for a new card
+ */
+export function initializeFSRS(): FSRSState {
+  return {
+    stability: 0,
+    difficulty: 0,
+    elapsedDays: 0,
+    scheduledDays: 0,
+    reps: 0,
+    lapses: 0,
+    state: 'NEW' as const,
+    lastReview: null,
+  };
+}
+
+/**
+ * Calculate the initial review date for a new card.
+ * New cards are immediately available for review.
+ *
+ * @returns The initial review date (now, meaning immediately available)
+ */
+export function calculateInitialReviewDate(): Date {
+  return new Date();
+}
