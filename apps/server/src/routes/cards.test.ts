@@ -12,28 +12,40 @@ import { PrismaClient } from '@/generated/prisma/index.js';
 // Create a mock prisma client
 const prismaMock = mockDeep<PrismaClient>();
 
+// Mock getAuth to return a specific userId
+const mockGetAuth = jest.fn();
+
 // Mock the prisma module before importing the router
 jest.unstable_mockModule('@/lib/prisma.js', () => ({
   prisma: prismaMock,
 }));
 
+// Mock the auth middleware
+jest.unstable_mockModule('@/middlewares/auth.js', () => ({
+  requireAuth: (_req: Request, _res: Response, next: NextFunction) => next(),
+  getAuth: mockGetAuth,
+}));
+
 // Dynamic import after mock is set up
 const { default: cardsRouter } = await import('@/routes/cards.js');
 
-// Helper to create test app with optional auth
-function createTestApp(authUserId?: string): Express {
+// Helper to create test app
+function createTestApp(): Express {
   const app = express();
   app.use(express.json());
 
-  // Mock auth middleware
-  app.use((req: Request, _res: Response, next: NextFunction) => {
-    if (authUserId) {
-      req.auth = { userId: authUserId };
-    }
-    next();
-  });
-
   app.use('/api/cards', cardsRouter);
+
+  // Add error handler for tests
+  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+    console.error('Error:', err);
+    res.status(500).json({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  });
 
   // Add 404 handler
   app.use((_req, res) => {
@@ -43,12 +55,14 @@ function createTestApp(authUserId?: string): Express {
   return app;
 }
 
-// Default app without auth for stub tests
 const app = createTestApp();
 
 describe('Cards Routes - Unit Tests', () => {
   beforeEach(() => {
     mockReset(prismaMock);
+    mockGetAuth.mockReset();
+    // Default: authenticated user
+    mockGetAuth.mockReturnValue({ userId: 'clerk-user-123' });
   });
 
   describe('GET /api/cards', () => {
@@ -61,19 +75,8 @@ describe('Cards Routes - Unit Tests', () => {
   });
 
   describe('POST /api/cards', () => {
-    it('should return 401 when not authenticated', async () => {
-      const response = await request(app)
-        .post('/api/cards')
-        .send({ front: 'Question', back: 'Answer', deckId: 'deck-1' });
-
-      expect(response.status).toBe(401);
-      expect(response.body.error.code).toBe('UNAUTHORIZED');
-    });
-
     it('should return 400 when front is missing', async () => {
-      const authApp = createTestApp('clerk-user-123');
-
-      const response = await request(authApp)
+      const response = await request(app)
         .post('/api/cards')
         .send({ back: 'Answer', deckId: 'deck-1' });
 
@@ -85,9 +88,7 @@ describe('Cards Routes - Unit Tests', () => {
     });
 
     it('should return 400 when back is missing', async () => {
-      const authApp = createTestApp('clerk-user-123');
-
-      const response = await request(authApp)
+      const response = await request(app)
         .post('/api/cards')
         .send({ front: 'Question', deckId: 'deck-1' });
 
@@ -99,9 +100,7 @@ describe('Cards Routes - Unit Tests', () => {
     });
 
     it('should return 400 when deckId is missing', async () => {
-      const authApp = createTestApp('clerk-user-123');
-
-      const response = await request(authApp)
+      const response = await request(app)
         .post('/api/cards')
         .send({ front: 'Question', back: 'Answer' });
 
@@ -113,10 +112,9 @@ describe('Cards Routes - Unit Tests', () => {
     });
 
     it('should return 401 when user not found in database', async () => {
-      const authApp = createTestApp('clerk-user-123');
       prismaMock.user.findUnique.mockResolvedValue(null);
 
-      const response = await request(authApp)
+      const response = await request(app)
         .post('/api/cards')
         .send({ front: 'Question', back: 'Answer', deckId: 'deck-1' });
 
@@ -126,8 +124,6 @@ describe('Cards Routes - Unit Tests', () => {
     });
 
     it('should return 404 when deck not found', async () => {
-      const authApp = createTestApp('clerk-user-123');
-
       prismaMock.user.findUnique.mockResolvedValue({
         id: 'user-internal-id',
         clerkId: 'clerk-user-123',
@@ -138,7 +134,7 @@ describe('Cards Routes - Unit Tests', () => {
       });
       prismaMock.deck.findUnique.mockResolvedValue(null);
 
-      const response = await request(authApp).post('/api/cards').send({
+      const response = await request(app).post('/api/cards').send({
         front: 'Question',
         back: 'Answer',
         deckId: 'nonexistent-deck',
@@ -149,8 +145,6 @@ describe('Cards Routes - Unit Tests', () => {
     });
 
     it('should return 403 when user does not own the deck', async () => {
-      const authApp = createTestApp('clerk-user-123');
-
       prismaMock.user.findUnique.mockResolvedValue({
         id: 'user-internal-id',
         clerkId: 'clerk-user-123',
@@ -169,7 +163,7 @@ describe('Cards Routes - Unit Tests', () => {
         updatedAt: new Date(),
       });
 
-      const response = await request(authApp)
+      const response = await request(app)
         .post('/api/cards')
         .send({ front: 'Question', back: 'Answer', deckId: 'deck-1' });
 
@@ -178,7 +172,6 @@ describe('Cards Routes - Unit Tests', () => {
     });
 
     it('should return 201 with created card when valid', async () => {
-      const authApp = createTestApp('clerk-user-123');
       const now = new Date();
 
       prismaMock.user.findUnique.mockResolvedValue({
@@ -218,7 +211,7 @@ describe('Cards Routes - Unit Tests', () => {
         updatedAt: now,
       });
 
-      const response = await request(authApp)
+      const response = await request(app)
         .post('/api/cards')
         .send({ front: 'Question', back: 'Answer', deckId: 'deck-1' });
 
@@ -239,7 +232,6 @@ describe('Cards Routes - Unit Tests', () => {
     });
 
     it('should trim whitespace from front and back', async () => {
-      const authApp = createTestApp('clerk-user-123');
       const now = new Date();
 
       prismaMock.user.findUnique.mockResolvedValue({
@@ -279,7 +271,7 @@ describe('Cards Routes - Unit Tests', () => {
         updatedAt: now,
       });
 
-      const response = await request(authApp)
+      const response = await request(app)
         .post('/api/cards')
         .send({ front: '  Question  ', back: '  Answer  ', deckId: 'deck-1' });
 
@@ -293,7 +285,6 @@ describe('Cards Routes - Unit Tests', () => {
     });
 
     it('should return 500 on database error', async () => {
-      const authApp = createTestApp('clerk-user-123');
       const now = new Date();
 
       prismaMock.user.findUnique.mockResolvedValue({
@@ -315,7 +306,7 @@ describe('Cards Routes - Unit Tests', () => {
       });
       prismaMock.card.create.mockRejectedValue(new Error('Database error'));
 
-      const response = await request(authApp)
+      const response = await request(app)
         .post('/api/cards')
         .send({ front: 'Question', back: 'Answer', deckId: 'deck-1' });
 

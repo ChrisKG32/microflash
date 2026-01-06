@@ -1,19 +1,9 @@
 import { Router, type Router as RouterType, type Request } from 'express';
 import { prisma } from '@/lib/prisma.js';
+import { createCardSchema } from '@/lib/validation.js';
+import { requireAuth, getAuth } from '@/middlewares/auth.js';
 
 const router: RouterType = Router();
-
-// Extend Express Request to include auth from Clerk middleware
-// This will be populated by Clerk middleware in a future PR (#11)
-declare global {
-  namespace Express {
-    interface Request {
-      auth?: {
-        userId?: string;
-      };
-    }
-  }
-}
 
 /**
  * Calculate initial nextReviewDate for a new card.
@@ -29,52 +19,32 @@ router.get('/', async (_req, res) => {
 });
 
 // POST /api/cards - Create a new card
-router.post('/', async (req: Request, res) => {
+router.post('/', requireAuth, async (req: Request, res, next) => {
   try {
-    // 1. Check authentication
-    const clerkUserId = req.auth?.userId;
-    if (!clerkUserId) {
-      return res.status(401).json({
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required',
-        },
-      });
-    }
+    // 1. Get Clerk userId from auth middleware
+    const { userId: clerkUserId } = getAuth(req);
 
-    // 2. Validate input
-    const { front, back, deckId } = req.body;
+    // 2. Validate input using Zod schema
+    const validationResult = createCardSchema.safeParse(req.body);
 
-    const validationErrors: { field: string; message: string }[] = [];
-
-    if (!front || typeof front !== 'string' || front.trim().length === 0) {
-      validationErrors.push({ field: 'front', message: 'Front is required' });
-    }
-
-    if (!back || typeof back !== 'string' || back.trim().length === 0) {
-      validationErrors.push({ field: 'back', message: 'Back is required' });
-    }
-
-    if (!deckId || typeof deckId !== 'string') {
-      validationErrors.push({
-        field: 'deckId',
-        message: 'Deck ID is required',
-      });
-    }
-
-    if (validationErrors.length > 0) {
+    if (!validationResult.success) {
       return res.status(400).json({
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Invalid request data',
-          details: validationErrors,
+          details: validationResult.error.issues.map((issue) => ({
+            field: issue.path.join('.') || 'unknown',
+            message: issue.message,
+          })),
         },
       });
     }
 
+    const { front, back, deckId } = validationResult.data;
+
     // 3. Look up internal user by Clerk ID
     const user = await prisma.user.findUnique({
-      where: { clerkId: clerkUserId },
+      where: { clerkId: clerkUserId! },
     });
 
     if (!user) {
@@ -133,13 +103,8 @@ router.post('/', async (req: Request, res) => {
       },
     });
   } catch (error) {
-    console.error('Error creating card:', error);
-    return res.status(500).json({
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Failed to create card',
-      },
-    });
+    // Pass to global error handler
+    next(error);
   }
 });
 
