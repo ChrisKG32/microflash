@@ -43,3 +43,32 @@ Use ONLY the `github_*` MCP tools for all GitHub operations:
 - Add comment: `github_add_issue_comment`
 - Create PR: `github_create_pull_request`
 - List sub-issues: Check issue body for task lists or linked issues
+
+## GitHub MCP tool routing (PRs + Issues)
+
+Use the consolidated tools + `method` parameter. Do **not** use deprecated per-action tools (e.g. `get_pull_request_*`, `get_issue_*`).
+
+### Pull Requests (read)
+- PR details/metadata: `github_pull_request_read(method="get", owner, repo, pull_number)`
+- PR files changed: `github_pull_request_read(method="get_files", ...)`
+- PR diff/patch: `github_pull_request_read(method="get_diff", ...)`
+- PR status/checks: `github_pull_request_read(method="get_status", ...)`
+- PR reviews: `github_pull_request_read(method="get_reviews", ...)`
+- PR **inline code review comments** (Files changed): `github_pull_request_read(method="get_review_comments", ...)`
+- PR **conversation comments** (Conversation tab):
+  - Prefer: `github_pull_request_read(method="get_comments", ...)` if available
+  - Fallback: `github_issue_read(method="get_comments", owner, repo, issue_number=pull_number)` (PRs are issues for conversation comments)
+
+### Issues (read/write)
+- Issue details: `github_issue_read(method="get", owner, repo, issue_number)`
+- Issue/PR conversation comments: `github_issue_read(method="get_comments", ...)`
+- Issue labels: `github_issue_read(method="get_labels", ...)`
+- Sub-issues: `github_issue_read(method="get_sub_issues", ...)`
+- Create/update issue: `github_issue_write(method="create" | "update", ...)`
+- Sub-issue add/remove/reprioritize: `github_sub_issue_write(method="add" | "remove" | "reprioritize", ...)`
+
+### Pull Request Reviews (write)
+- Create/submit/delete pending review: `github_pull_request_review_write(method="create" | "submit_pending" | "delete_pending", ...)`
+
+**Interpretation rule:** if the user says “comments” without “inline” / “review comments”, treat it as **conversation comments** and use `get_comments` (not `get_review_comments`).
+

@@ -1,5 +1,7 @@
 import express, { type Express } from 'express';
 import cors from 'cors';
+import { clerkMiddleware } from '@/middlewares/auth.js';
+import { errorHandler } from '@/middlewares/error-handler.js';
 
 // Import routes
 import decksRouter from '@/routes/decks.js';
@@ -14,6 +16,10 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Clerk authentication middleware - attaches auth state to all requests
+// Individual routes can use requireAuth or getAuth to check authentication
+app.use(clerkMiddleware());
+
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -25,10 +31,18 @@ app.use('/api/cards', cardsRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/notifications', notificationsRouter);
 
-// 404 handler
+// 404 handler - returns consistent error shape
 app.use((_req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+  res.status(404).json({
+    error: {
+      code: 'NOT_FOUND',
+      message: 'Route not found',
+    },
+  });
 });
+
+// Global error handler - must be last middleware
+app.use(errorHandler);
 
 // Only start server if this file is run directly (not imported for testing)
 if (process.env.NODE_ENV !== 'test') {
