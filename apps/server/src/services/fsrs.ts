@@ -261,7 +261,6 @@ function calculateRecallStability(
   rating: RatingType,
   params: FSRSParameters = DEFAULT_FSRS_PARAMETERS,
 ): number {
-  const g = RATING_VALUES[rating];
   const w = params.w;
 
   // Hard penalty or Easy bonus

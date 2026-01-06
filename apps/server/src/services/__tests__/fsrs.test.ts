@@ -6,7 +6,6 @@ import {
   STATE_VALUES,
   DEFAULT_FSRS_PARAMETERS,
   type FSRSState,
-  type RatingType,
 } from '../fsrs';
 
 describe('FSRS Algorithm', () => {
