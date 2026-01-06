@@ -12,7 +12,12 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern='\\.test\\.ts$'",
+    "test:integration": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern='\\.spec\\.ts$'",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
+    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -26,11 +31,17 @@
     "node-cron": "^3.0.3"
   },
   "devDependencies": {
+    "@jest/globals": "^30.2.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
+    "@types/jest": "^29.5.14",
     "@types/node": "^22.10.1",
     "@types/node-cron": "^3.0.11",
+    "@types/supertest": "^6.0.3",
+    "dotenv": "^17.2.3",
+    "jest-mock-extended": "^4.0.0",
     "prisma": "^6.1.0",
+    "supertest": "^7.1.4",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   }

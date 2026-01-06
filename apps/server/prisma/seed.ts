@@ -1,4 +1,8 @@
-import { PrismaClient, CardState, Rating } from '@prisma/client';
+import {
+  PrismaClient,
+  CardState,
+  Rating,
+} from '../src/generated/prisma/index.js';
 
 const prisma = new PrismaClient();
 
@@ -191,7 +195,7 @@ async function main() {
   const learningCards = await Promise.all([
     prisma.card.create({
       data: {
-        front: 'What is Newton\'s Second Law?',
+        front: "What is Newton's Second Law?",
         back: 'F = ma (Force equals mass times acceleration)',
         deckId: physicsDeck.id,
         state: CardState.LEARNING,
@@ -378,7 +382,7 @@ async function main() {
     }),
     prisma.card.create({
       data: {
-        front: 'What is $e$ (Euler\'s number)?',
+        front: "What is $e$ (Euler's number)?",
         back: 'Approximately 2.71828, the base of natural logarithms',
         deckId: algebraSubdeck.id,
         state: CardState.REVIEW,
@@ -394,8 +398,13 @@ async function main() {
     }),
   ]);
 
-  const totalCards = newCards.length + learningCards.length + reviewCards.length +
-    relearnCards.length + dueCards.length + additionalCards.length;
+  const totalCards =
+    newCards.length +
+    learningCards.length +
+    reviewCards.length +
+    relearnCards.length +
+    dueCards.length +
+    additionalCards.length;
 
   console.log(`✅ Created ${totalCards} cards`);
   console.log(`   - ${newCards.length} NEW cards`);
