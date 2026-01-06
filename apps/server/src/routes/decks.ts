@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma.js';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET /api/decks - List all decks for authenticated user
 router.get('/', async (req, res) => {
@@ -71,12 +70,16 @@ router.post('/', async (req, res) => {
 
 // GET /api/decks/:id - Get single deck
 router.get('/:id', async (req, res) => {
-  res.json({ message: `GET /api/decks/${req.params.id} - Not implemented yet` });
+  res.json({
+    message: `GET /api/decks/${req.params.id} - Not implemented yet`,
+  });
 });
 
 // PATCH /api/decks/:id - Update deck
 router.patch('/:id', async (req, res) => {
-  res.json({ message: `PATCH /api/decks/${req.params.id} - Not implemented yet` });
+  res.json({
+    message: `PATCH /api/decks/${req.params.id} - Not implemented yet`,
+  });
 });
 
 // DELETE /api/decks/:id - Delete deck
