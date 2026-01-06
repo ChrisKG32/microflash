@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@/generated/prisma';
 
 /**
  * Notification window in minutes (±7 minutes from current time).
@@ -81,7 +82,7 @@ export async function findDueCards(
   );
 
   // Build the AND conditions array
-  const andConditions: object[] = [
+  const andConditions: Prisma.CardWhereInput[] = [
     // Card is due within the notification window
     {
       nextReviewDate: {
@@ -185,7 +186,7 @@ export async function countDueCards(
     now.getTime() - MIN_NOTIFICATION_INTERVAL_MINUTES * 60 * 1000,
   );
 
-  const andConditions: object[] = [
+  const andConditions: Prisma.CardWhereInput[] = [
     {
       nextReviewDate: {
         gte: windowStart,
