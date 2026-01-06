@@ -141,10 +141,10 @@ importers:
       node-cron:
         specifier: ^3.0.3
         version: 3.0.3
+      zod:
+        specifier: ^4.3.5
+        version: 4.3.5
     devDependencies:
-      '@tsconfig/node20':
-        specifier: ^20.1.4
-        version: 20.1.6
       '@types/cors':
         specifier: ^2.8.17
         version: 2.8.19
@@ -163,12 +163,15 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.20.6
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
 
   packages/shared:
     devDependencies:
-      '@tsconfig/recommended':
-        specifier: ^1.0.7
-        version: 1.0.10
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
 
 packages:
 
@@ -1526,12 +1529,6 @@ packages:
 
   '@standard-schema/spec@1.0.0':
     resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
-
-  '@tsconfig/node20@20.1.6':
-    resolution: {integrity: sha512-sz+Hqx9zwZDpZIV871WSbUzSqNIsXzghZydypnfgzPKLltVJfkINfUeTct31n/tTSa9ZE1ZOfKdRre1uHHquYQ==}
-
-  '@tsconfig/recommended@1.0.10':
-    resolution: {integrity: sha512-cGvydvg03lONp5Z9yaplW493Vw9/um7k588mvDkm+VFPF2PZUVPx0uswq4PFpeEySsLbQRETrDRhzh4Dmxaslw==}
 
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
@@ -4896,6 +4893,9 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
+  zod@4.3.5:
+    resolution: {integrity: sha512-k7Nwx6vuWx1IJ9Bjuf4Zt1PEllcwe7cls3VNzm4CQ1/hgtFUK2bRNG3rvnpPUhFjmqJKAKtjV576KnUkHocg/g==}
+
 snapshots:
 
   '@0no-co/graphql.web@1.2.0': {}
@@ -6562,10 +6562,6 @@ snapshots:
   '@stablelib/base64@1.0.1': {}
 
   '@standard-schema/spec@1.0.0': {}
-
-  '@tsconfig/node20@20.1.6': {}
-
-  '@tsconfig/recommended@1.0.10': {}
 
   '@tybys/wasm-util@0.10.1':
     dependencies:
@@ -10555,3 +10551,5 @@ snapshots:
       zod: 3.25.76
 
   zod@3.25.76: {}
+
+  zod@4.3.5: {}
