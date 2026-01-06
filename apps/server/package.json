@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc && tsc-alias -p tsconfig.json && mkdir -p dist/generated && cp -R src/generated/prisma dist/generated/prisma && node scripts/fix-prisma-imports.js",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json && mkdir -p dist/generated && cp -R src/generated/prisma dist/generated/prisma && node scripts/fix-prisma-imports.js",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",

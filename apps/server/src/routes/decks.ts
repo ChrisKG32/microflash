@@ -1,28 +1,17 @@
 import { Router, type Router as RouterType } from 'express';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, getAuth } from '@/middlewares/auth';
+import { requireUser } from '@/middlewares/auth';
+import { asyncHandler } from '@/middlewares/error-handler';
 
 const router: RouterType = Router();
 
 // GET /api/decks - List all decks for authenticated user
-router.get('/', requireAuth, async (req, res) => {
-  try {
-    // Get Clerk userId from auth middleware
-    const { userId: clerkUserId } = getAuth(req);
-
-    // Look up internal user by Clerk ID
-    const user = await prisma.user.findUnique({
-      where: { clerkId: clerkUserId! },
-    });
-
-    if (!user) {
-      return res.status(401).json({
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'User not found',
-        },
-      });
-    }
+router.get(
+  '/',
+  requireUser,
+  asyncHandler(async (req, res) => {
+    // User is guaranteed to exist by requireUser middleware
+    const user = req.user!;
 
     // Fetch all decks for the user, including subdeck relationships
     const decks = await prisma.deck.findMany({
@@ -66,16 +55,8 @@ router.get('/', requireAuth, async (req, res) => {
       decks: decksWithSubdecks,
       total: parentDecks.length,
     });
-  } catch (error) {
-    console.error('Error fetching decks:', error);
-    res.status(500).json({
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Failed to fetch decks',
-      },
-    });
-  }
-});
+  }),
+);
 
 // POST /api/decks - Create a new deck
 router.post('/', async (_req, res) => {

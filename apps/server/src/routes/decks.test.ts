@@ -12,28 +12,52 @@ import DeckGetPayload = Prisma.DeckGetPayload;
 // Create a mock prisma client
 const prismaMock = mockDeep<PrismaClient>();
 
-// Mock getAuth to return a specific userId
-const mockGetAuth = jest.fn();
+// Mock user to attach to req.user
+const mockUser = {
+  id: 'user-internal-id',
+  clerkId: 'clerk-user-123',
+  pushToken: null,
+  notificationsEnabled: true,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
 
 // Mock the prisma module
 jest.mock('@/lib/prisma', () => ({
   prisma: prismaMock,
 }));
 
-// Mock the auth middleware
+// Mock the auth middleware - requireUser attaches req.user
+let shouldAttachUser = true;
 jest.mock('@/middlewares/auth', () => ({
-  requireAuth: (_req: Request, _res: Response, next: NextFunction) => next(),
-  getAuth: mockGetAuth,
+  requireUser: (req: Request, res: Response, next: NextFunction) => {
+    if (shouldAttachUser) {
+      req.user = mockUser;
+      next();
+    } else {
+      // Simulate user not found
+      res.status(401).json({
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'User not found',
+        },
+      });
+    }
+  },
 }));
 
 // Import after mocks are set up
 import decksRouter from '@/routes/decks';
+import { errorHandler } from '@/middlewares/error-handler';
 
 // Helper to create test app
 function createTestApp(): Express {
   const app = express();
   app.use(express.json());
   app.use('/api/decks', decksRouter);
+
+  // Global error handler
+  app.use(errorHandler);
 
   // Add 404 handler
   app.use((_req, res) => {
@@ -48,14 +72,12 @@ const app = createTestApp();
 describe('Decks Routes - Unit Tests', () => {
   beforeEach(() => {
     mockReset(prismaMock);
-    mockGetAuth.mockReset();
-    // Default: authenticated user
-    mockGetAuth.mockReturnValue({ userId: 'clerk-user-123' });
+    shouldAttachUser = true;
   });
 
   describe('GET /api/decks', () => {
     it('should return 401 when user not found in database', async () => {
-      prismaMock.user.findUnique.mockResolvedValue(null);
+      shouldAttachUser = false;
 
       const response = await request(app).get('/api/decks');
 
@@ -65,18 +87,6 @@ describe('Decks Routes - Unit Tests', () => {
     });
 
     it('should return decks for the authenticated user', async () => {
-      const now = new Date();
-
-      // Mock user lookup
-      prismaMock.user.findUnique.mockResolvedValue({
-        id: 'user-internal-id',
-        clerkId: 'clerk-user-123',
-        pushToken: null,
-        notificationsEnabled: true,
-        createdAt: now,
-        updatedAt: now,
-      });
-
       const mockDecks = [
         {
           id: 'deck-1',
@@ -108,16 +118,6 @@ describe('Decks Routes - Unit Tests', () => {
     });
 
     it('should return empty array when user has no decks', async () => {
-      const now = new Date();
-
-      prismaMock.user.findUnique.mockResolvedValue({
-        id: 'user-internal-id',
-        clerkId: 'clerk-user-123',
-        pushToken: null,
-        notificationsEnabled: true,
-        createdAt: now,
-        updatedAt: now,
-      });
       prismaMock.deck.findMany.mockResolvedValue([]);
 
       const response = await request(app).get('/api/decks');
@@ -128,16 +128,6 @@ describe('Decks Routes - Unit Tests', () => {
     });
 
     it('should handle database errors gracefully', async () => {
-      const now = new Date();
-
-      prismaMock.user.findUnique.mockResolvedValue({
-        id: 'user-internal-id',
-        clerkId: 'clerk-user-123',
-        pushToken: null,
-        notificationsEnabled: true,
-        createdAt: now,
-        updatedAt: now,
-      });
       prismaMock.deck.findMany.mockRejectedValue(new Error('Database error'));
 
       const response = await request(app).get('/api/decks');
