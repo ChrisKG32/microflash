@@ -15,9 +15,17 @@ The app uses the FSRS algorithm for intelligent review scheduling and sends push
 ## Repository Structure
 
 ```
-apps/client/     # React Native/Expo (@microflash/client)
-apps/server/     # Express API (@microflash/server)
-packages/shared/ # Shared types (@microflash/shared)
+microflash/
+├── apps/
+│   ├── client/          # React Native/Expo (@microflash/client)
+│   └── server/          # Express API (@microflash/server)
+├── packages/
+│   └── shared/          # Shared types (@microflash/shared)
+├── jest.config.js       # Root Jest multi-project config
+├── jest.config.base.js  # Shared Jest base config
+├── eslint.config.js     # Root ESLint flat config (server only)
+├── tsconfig.base.json   # Shared TypeScript base config
+└── pnpm-workspace.yaml  # pnpm workspace definition
 ```
 
 ## Build, Lint, and Test Commands
@@ -25,15 +33,26 @@ packages/shared/ # Shared types (@microflash/shared)
 ### Root-Level (pnpm workspaces)
 
 ```bash
-pnpm dev:server          # Start server in watch mode
+pnpm dev:server          # Start server in watch mode (tsx watch)
 pnpm dev:client          # Start Expo dev server
 pnpm lint                # Run ESLint across all packages
 pnpm lint:fix            # Auto-fix ESLint issues
 pnpm format              # Format code with Prettier
 pnpm format:check        # Check formatting
-pnpm type-check          # TypeScript type checking
+pnpm typecheck           # TypeScript type checking (all packages)
 pnpm build               # Build all packages
 pnpm clean               # Remove dist, build, .expo, node_modules
+```
+
+### Testing Commands
+
+```bash
+pnpm test                # Run all tests (Jest multi-project)
+pnpm test:unit           # Run unit tests only (*.test.ts)
+pnpm test:integration    # Run integration tests only (*.spec.ts)
+pnpm test:watch          # Run tests in watch mode
+pnpm test:coverage       # Run tests with coverage report
+pnpm test:server         # Run server tests only
 ```
 
 ### Client Commands
@@ -43,28 +62,23 @@ pnpm --filter @microflash/client dev      # Expo dev server
 pnpm --filter @microflash/client ios      # iOS simulator
 pnpm --filter @microflash/client android  # Android emulator
 pnpm --filter @microflash/client web      # Web dev server
-pnpm --filter @microflash/client lint     # Expo lint
+pnpm --filter @microflash/client lint     # Expo lint (separate config)
+pnpm --filter @microflash/client test     # Client tests (jest-expo)
 ```
 
 ### Server Commands
 
 ```bash
 pnpm --filter @microflash/server dev         # Start with tsx watch
-pnpm --filter @microflash/server build       # Compile TypeScript
-pnpm --filter @microflash/server type-check  # Type check only
+pnpm --filter @microflash/server build       # Compile TS + copy Prisma + fix imports
+pnpm --filter @microflash/server start       # Run compiled dist/index.js
+pnpm --filter @microflash/server typecheck   # Type check only
+pnpm --filter @microflash/server test        # Run server tests
 pnpm --filter @microflash/server db:generate # Generate Prisma client
 pnpm --filter @microflash/server db:push     # Push schema to DB
 pnpm --filter @microflash/server db:migrate  # Run migrations
 pnpm --filter @microflash/server db:studio   # Open Prisma Studio
-```
-
-### Running Tests
-
-Tests not yet configured. When added:
-
-```bash
-pnpm test                         # Run all tests
-pnpm test -- path/to/file.test.ts # Run single test file
+pnpm --filter @microflash/server db:seed     # Seed database with test data
 ```
 
 ## Code Style Guidelines
@@ -81,7 +95,8 @@ pnpm test -- path/to/file.test.ts # Run single test file
 ### TypeScript
 
 - Strict mode enabled across all packages
-- Server uses ESM (`"type": "module"`)
+- **Server compiles to CommonJS** (see `tsconfig.base.json`: `"module": "CommonJS"`)
+- Dev uses `tsx watch`, prod runs `node dist/index.js`
 - Unused variables allowed if prefixed with `_` (e.g., `_unused`)
 
 ### Import Order
@@ -117,7 +132,7 @@ pnpm test -- path/to/file.test.ts # Run single test file
 
 - Underscore prefix for unused params: `(_req, res) => {}`
 - Environment variables via `process.env`
-- ESM exports
+- CommonJS-style exports (compiled from ESM-style TS)
 
 ### Error Handling
 
@@ -125,13 +140,133 @@ pnpm test -- path/to/file.test.ts # Run single test file
 - Return appropriate HTTP status codes
 - Validate input before processing
 
-### Database (Prisma)
+## Server Middleware Conventions
+
+### Authentication (`apps/server/src/middlewares/auth.ts`)
+
+- `clerkMiddleware()` - Global middleware attaching Clerk auth state
+- `requireAuth` - Returns 401 JSON if not authenticated (API-friendly)
+- `requireUser` - Loads Prisma user by `clerkId`, attaches to `req.user`
+
+Usage:
+
+```typescript
+router.post(
+  '/',
+  requireUser,
+  asyncHandler(async (req, res) => {
+    const user = req.user!; // Guaranteed by middleware
+    // ...
+  }),
+);
+```
+
+### Validation (`apps/server/src/middlewares/validate.ts`)
+
+- `validate({ body?, query?, params? })` - Zod schema validation
+- Attaches validated data to `req.validated.{body, query, params}`
+- Passes Zod errors to global error handler
+
+Usage:
+
+```typescript
+router.post('/', validate({ body: createCardSchema }), asyncHandler(handler));
+```
+
+### Error Handling (`apps/server/src/middlewares/error-handler.ts`)
+
+- `ApiError` class for throwing errors with status codes
+- `asyncHandler()` wrapper for async route handlers
+- Global `errorHandler` middleware returns consistent JSON:
+  ```typescript
+  { error: { code: string, message: string, details?: [...] } }
+  ```
+
+### Request Type Augmentation (`apps/server/src/types/express.ts`)
+
+Express Request is extended with:
+
+- `req.user?: User` - Prisma user (from `requireUser`)
+- `req.validated?: { body?, query?, params? }` - Validated data (from `validate`)
+
+## Database (Prisma)
+
+### Schema Conventions
 
 - Models: PascalCase (`User`, `Card`, `Deck`)
 - Fields: camelCase (`nextReviewDate`, `createdAt`)
 - Use `@default(cuid())` for IDs
 - Include `createdAt` and `updatedAt` on all models
 - Add `@@index` for frequently queried fields
+
+### Prisma Client Generation
+
+**Important**: Prisma client is generated to a non-standard location:
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+```
+
+- Generated client lives in `apps/server/src/generated/prisma`
+- Server code imports from `@/generated/prisma`
+- Build process copies generated client to `dist/generated/prisma`
+- Post-build script (`scripts/fix-prisma-imports.js`) fixes import paths
+
+After schema changes:
+
+```bash
+pnpm --filter @microflash/server db:generate  # Regenerate client
+pnpm --filter @microflash/server db:migrate   # Create migration
+```
+
+## Testing
+
+### Test Structure
+
+- **Unit tests**: `*.test.ts` - Fast, isolated tests
+- **Integration tests**: `*.spec.ts` - Tests with real dependencies (DB, etc.)
+
+### Server Testing (`apps/server`)
+
+- Jest + ts-jest + supertest
+- Config: `apps/server/jest.config.js` (extends `jest.config.base.js`)
+- Setup: `apps/server/src/testing/setup.ts`
+- Uses `.env.test` for test database URL
+- Mocking: `jest-mock-extended` for Prisma mocks
+
+### Client Testing (`apps/client`)
+
+- jest-expo + React Native Testing Library
+- Config: `apps/client/jest.config.cjs`
+- Setup: `apps/client/jest.setup.ts` (mocks for expo-router, reanimated, etc.)
+- Special `transformIgnorePatterns` for pnpm hoisted packages
+
+### Running Tests
+
+```bash
+pnpm test                         # All tests
+pnpm test:unit                    # Unit tests only (*.test.ts)
+pnpm test:integration             # Integration tests only (*.spec.ts)
+pnpm --filter @microflash/server test  # Server tests only
+```
+
+## Client Monorepo Configuration
+
+### Metro Config (`apps/client/metro.config.js`)
+
+Metro is configured for pnpm workspaces:
+
+- `watchFolders` includes monorepo root
+- `nodeModulesPaths` resolves local then root node_modules
+- `disableHierarchicalLookup` ensures consistent resolution
+
+### ESLint
+
+- Root `eslint.config.js` targets server only (flat config)
+- Client uses separate `apps/client/eslint.config.js` (expo lint)
 
 ## Key Technical Details
 
@@ -140,21 +275,24 @@ pnpm test -- path/to/file.test.ts # Run single test file
 - Server-side only calculations
 - Card states: NEW, LEARNING, REVIEW, RELEARNING
 - Ratings: AGAIN, HARD, GOOD, EASY
+- **Status**: Schema fields exist; scheduling logic is stubbed/planned
 
 ### Notifications
 
-- Background job every 15 minutes
-- Groups cards due within ±7 minute window
+- **Status**: Routes exist but are stubbed; no scheduler code yet
+- Planned: Background job every 15 minutes using `node-cron`
+- Planned: Groups cards due within ±7 minute window
 - Uses Expo Push Notifications
 
 ### Authentication
 
-- Clerk for user auth
+- Clerk for user auth (server: `@clerk/express`, client: planned)
 - `clerkId` stored on User model
+- Server middleware: `requireAuth`, `requireUser`
 
 ### Constraints
 
-- Subdeck depth: Maximum 2 levels
+- Subdeck depth: Maximum 2 levels (planned enforcement)
 - No offline support (initial version)
 - FSRS calculations server-side only
 
@@ -165,18 +303,6 @@ pnpm test -- path/to/file.test.ts # Run single test file
 - PostgreSQL database (`DATABASE_URL` env var)
 - Expo CLI for mobile development
 
-## GitHub Integration
+## CI/CD
 
-When you need to fetch GitHub issue details, PR information, or browse related issues:
-
-1. Use the `github-reader` subagent by mentioning `@github-reader` in your message
-2. Ask it to return a **concise summary** of requirements, not the full issue body
-3. The subagent can read issues, sub-issues, PRs, and comments
-
-Example usage:
-
-```
-@github-reader Summarize issue #42 and list any sub-issues or linked issues
-```
-
-The GitHub tools are disabled globally to minimize context usage. Only the `github-reader` subagent has access to them.
+- **Status**: No CI configured yet (only `.github/workflows/.gitkeep` placeholder)
