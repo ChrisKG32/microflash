@@ -49,6 +49,15 @@ Use ONLY the `github_*` MCP tools for all GitHub operations:
 
 Use the consolidated tools + `method` parameter. Do **not** use deprecated per-action tools (e.g. `get_pull_request_*`, `get_issue_*`).
 
+### REQUIRED DETAILS
+
+owner: "ChrisKG32"
+owner_id: 14794500
+repo: microflash
+repo_id: 1079019547
+
+
+
 ### Pull Requests (read)
 - PR details/metadata: `github_pull_request_read(method="get", owner, repo, pull_number)`
 - PR files changed: `github_pull_request_read(method="get_files", ...)`
