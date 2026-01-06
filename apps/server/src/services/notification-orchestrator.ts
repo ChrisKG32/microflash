@@ -1,3 +1,4 @@
+import pAll from 'p-all';
 import { findDueCards } from './due-cards';
 import {
   groupCardsByUserAndDeck,
@@ -132,9 +133,14 @@ export async function sendDueCardNotifications(): Promise<NotificationOrchestrat
         await markCardsAsNotified(successfulCardIds);
     }
 
-    // Remove invalid push tokens
-    for (const { userId } of tokensToRemove) {
-      await removeUserPushToken(userId);
+    // Remove invalid push tokens concurrently with limited concurrency
+    if (tokensToRemove.length > 0) {
+      const tokenRemovalTasks = tokensToRemove.map(
+        ({ userId }) =>
+          () =>
+            removeUserPushToken(userId),
+      );
+      await pAll(tokenRemovalTasks, { concurrency: 5 });
     }
 
     console.log(
