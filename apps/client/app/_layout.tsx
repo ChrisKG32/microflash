@@ -1,25 +1,164 @@
+import { useEffect, useRef } from 'react';
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
 } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { snoozeCards } from '@/lib/api';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
+/**
+ * iOS notification category ID for due cards notifications.
+ * Must match the category registered on the server.
+ */
+const NOTIFICATION_CATEGORY_ID = 'due_cards';
+
+/**
+ * Action identifiers for notification buttons.
+ */
+const ACTION_REVIEW_NOW = 'review_now';
+const ACTION_SNOOZE_60 = 'snooze_60';
+
+/**
+ * Configure how notifications are handled when app is in foreground.
+ */
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+/**
+ * Register iOS notification category with action buttons.
+ * This must be called at app startup.
+ */
+async function registerNotificationCategories() {
+  await Notifications.setNotificationCategoryAsync(NOTIFICATION_CATEGORY_ID, [
+    {
+      identifier: ACTION_REVIEW_NOW,
+      buttonTitle: 'Review Now',
+      options: {
+        opensAppToForeground: true,
+      },
+    },
+    {
+      identifier: ACTION_SNOOZE_60,
+      buttonTitle: 'Snooze 1h',
+      options: {
+        opensAppToForeground: true,
+      },
+    },
+  ]);
+}
+
+/**
+ * Handle notification response (user tapped notification or action button).
+ */
+async function handleNotificationResponse(
+  response: Notifications.NotificationResponse,
+) {
+  const { actionIdentifier, notification } = response;
+  const data = notification.request.content.data as {
+    type?: string;
+    cardIds?: string[];
+    url?: string;
+  };
+
+  console.log('[Notifications] Response received:', {
+    actionIdentifier,
+    data,
+  });
+
+  // Handle snooze action
+  if (actionIdentifier === ACTION_SNOOZE_60) {
+    if (data.cardIds && data.cardIds.length > 0) {
+      try {
+        await snoozeCards(data.cardIds, 60);
+        console.log('[Notifications] Snoozed cards:', data.cardIds);
+      } catch (error) {
+        console.error('[Notifications] Failed to snooze cards:', error);
+      }
+    }
+    return;
+  }
+
+  // Handle review action or default tap
+  if (
+    actionIdentifier === ACTION_REVIEW_NOW ||
+    actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER
+  ) {
+    // Navigate to review session with the specific cards
+    if (data.cardIds && data.cardIds.length > 0) {
+      const cardIdsParam = data.cardIds.join(',');
+      router.push(`/review-session?cardIds=${cardIdsParam}`);
+    } else if (data.url) {
+      router.push(data.url as any);
+    } else {
+      // Fallback to main review screen
+      router.push('/');
+    }
+  }
+}
+
+/**
+ * Hook to set up notification response handling.
+ */
+function useNotificationObserver() {
+  const responseListener = useRef<Notifications.Subscription | null>(null);
+
+  useEffect(() => {
+    // Register notification categories on mount
+    registerNotificationCategories();
+
+    // Check if app was launched from a notification
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) {
+        handleNotificationResponse(response);
+      }
+    });
+
+    // Listen for notification responses while app is running
+    responseListener.current =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        handleNotificationResponse(response);
+      });
+
+    return () => {
+      if (responseListener.current) {
+        responseListener.current.remove();
+      }
+    };
+  }, []);
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  // Set up notification handling
+  useNotificationObserver();
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="deck/[id]" options={{ headerBackTitle: 'Decks' }} />
+        <Stack.Screen
+          name="review-session"
+          options={{ headerBackTitle: 'Back', title: 'Review Session' }}
+        />
         <Stack.Screen
           name="modal"
           options={{ presentation: 'modal', title: 'Modal' }}

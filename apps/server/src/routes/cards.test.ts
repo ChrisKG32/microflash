@@ -75,15 +75,6 @@ describe('Cards Routes - Unit Tests', () => {
     shouldAttachUser = true;
   });
 
-  describe('GET /api/cards', () => {
-    it('should return 200 for list cards (stub)', async () => {
-      const response = await request(app).get('/api/cards');
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('message');
-    });
-  });
-
   describe('POST /api/cards', () => {
     it('should return 400 when front is missing', async () => {
       const response = await request(app)
@@ -326,13 +317,149 @@ describe('Cards Routes - Unit Tests', () => {
   });
 
   describe('GET /api/cards/due', () => {
-    // Note: This route is currently shadowed by GET /api/cards/:id
-    // Once fixed, this test should pass
-    it('should return 200 for due cards (stub)', async () => {
+    it('should return 401 when user not found', async () => {
+      shouldAttachUser = false;
+
+      const response = await request(app).get('/api/cards/due');
+
+      expect(response.status).toBe(401);
+      expect(response.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('should return due cards for authenticated user', async () => {
+      const now = new Date();
+      const pastDate = new Date(now.getTime() - 1000 * 60 * 60); // 1 hour ago
+
+      prismaMock.card.findMany.mockResolvedValue([
+        {
+          id: 'card-1',
+          front: 'Question 1',
+          back: 'Answer 1',
+          deckId: 'deck-1',
+          stability: 1.0,
+          difficulty: 5.0,
+          elapsedDays: 0,
+          scheduledDays: 1,
+          reps: 1,
+          lapses: 0,
+          state: 'LEARNING',
+          lastReview: pastDate,
+          nextReviewDate: pastDate, // Due in the past
+          lastNotificationSent: null,
+          snoozedUntil: null,
+          createdAt: now,
+          updatedAt: now,
+          deck: {
+            id: 'deck-1',
+            title: 'Test Deck',
+          },
+        },
+      ] as never);
+
       const response = await request(app).get('/api/cards/due');
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('cards');
+      expect(response.body).toHaveProperty('total');
+      expect(response.body.cards).toHaveLength(1);
+      expect(response.body.cards[0]).toHaveProperty('id', 'card-1');
+      expect(response.body.cards[0]).toHaveProperty('front', 'Question 1');
+      expect(response.body.cards[0]).toHaveProperty('deckTitle', 'Test Deck');
+      expect(prismaMock.card.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            nextReviewDate: expect.any(Object),
+            deck: { userId: 'user-internal-id' },
+          }),
+        }),
+      );
+    });
+
+    it('should return empty array when no cards are due', async () => {
+      prismaMock.card.findMany.mockResolvedValue([]);
+
+      const response = await request(app).get('/api/cards/due');
+
+      expect(response.status).toBe(200);
+      expect(response.body.cards).toEqual([]);
+      expect(response.body.total).toBe(0);
+    });
+
+    it('should NOT be shadowed by GET /api/cards/:id route', async () => {
+      // This test verifies the route ordering fix
+      // /due should be matched before /:id
+      prismaMock.card.findMany.mockResolvedValue([]);
+
+      const response = await request(app).get('/api/cards/due');
+
+      // Should NOT return a "Not implemented yet" message
+      expect(response.body).not.toHaveProperty('message');
+      // Should return the proper due cards response shape
+      expect(response.body).toHaveProperty('cards');
+      expect(response.body).toHaveProperty('total');
+    });
+  });
+
+  describe('GET /api/cards', () => {
+    it('should return 401 when user not found', async () => {
+      shouldAttachUser = false;
+
+      const response = await request(app).get('/api/cards');
+
+      expect(response.status).toBe(401);
+      expect(response.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('should return all cards for authenticated user', async () => {
+      const now = new Date();
+
+      prismaMock.card.findMany.mockResolvedValue([
+        {
+          id: 'card-1',
+          front: 'Question 1',
+          back: 'Answer 1',
+          deckId: 'deck-1',
+          stability: 0,
+          difficulty: 0,
+          elapsedDays: 0,
+          scheduledDays: 0,
+          reps: 0,
+          lapses: 0,
+          state: 'NEW',
+          lastReview: null,
+          nextReviewDate: now,
+          lastNotificationSent: null,
+          snoozedUntil: null,
+          createdAt: now,
+          updatedAt: now,
+          deck: {
+            id: 'deck-1',
+            title: 'Test Deck',
+          },
+        },
+      ] as never);
+
+      const response = await request(app).get('/api/cards');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('cards');
+      expect(response.body).toHaveProperty('total');
+      expect(response.body.cards).toHaveLength(1);
+    });
+
+    it('should filter cards by deckId when provided', async () => {
+      prismaMock.card.findMany.mockResolvedValue([]);
+
+      const response = await request(app).get('/api/cards?deckId=deck-123');
+
+      expect(response.status).toBe(200);
+      expect(prismaMock.card.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            deckId: 'deck-123',
+          }),
+        }),
+      );
     });
   });
 });

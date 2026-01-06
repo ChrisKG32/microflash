@@ -27,6 +27,20 @@ const updatePreferencesSchema = z.object({
   notificationsEnabled: z.boolean(),
 });
 
+const batchSnoozeSchema = z.object({
+  cardIds: z
+    .array(z.string().min(1))
+    .min(1, 'At least one card ID is required')
+    .max(10, 'Maximum 10 card IDs allowed'),
+  durationMinutes: z
+    .number()
+    .int()
+    .min(1)
+    .max(1440)
+    .default(60)
+    .describe('Snooze duration in minutes (default: 60)'),
+});
+
 // POST /api/notifications/register - Register push token
 router.post(
   '/register',
@@ -56,6 +70,60 @@ router.post(
     res.json({
       success: true,
       message: 'Push token registered successfully',
+    });
+  }),
+);
+
+// POST /api/notifications/snooze - Batch snooze multiple cards (used by notification actions)
+router.post(
+  '/snooze',
+  requireUser,
+  validate({ body: batchSnoozeSchema }),
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const { cardIds, durationMinutes } = req.validated!.body as z.infer<
+      typeof batchSnoozeSchema
+    >;
+
+    // Find all cards and verify ownership (via deck)
+    const cards = await prisma.card.findMany({
+      where: {
+        id: { in: cardIds },
+        deck: {
+          userId: user.id,
+        },
+      },
+      select: { id: true },
+    });
+
+    const ownedCardIds = cards.map((c) => c.id);
+    const notFoundIds = cardIds.filter((id) => !ownedCardIds.includes(id));
+
+    if (ownedCardIds.length === 0) {
+      throw new ApiError(
+        404,
+        'CARDS_NOT_FOUND',
+        'No cards found or you do not own them',
+      );
+    }
+
+    // Calculate snooze end time
+    const snoozedUntil = new Date(Date.now() + durationMinutes * 60 * 1000);
+
+    // Batch update all owned cards
+    const result = await prisma.card.updateMany({
+      where: {
+        id: { in: ownedCardIds },
+      },
+      data: { snoozedUntil },
+    });
+
+    res.json({
+      success: true,
+      message: `${result.count} card(s) snoozed for ${durationMinutes} minutes`,
+      snoozedCount: result.count,
+      snoozedUntil: snoozedUntil.toISOString(),
+      notFoundIds: notFoundIds.length > 0 ? notFoundIds : undefined,
     });
   }),
 );

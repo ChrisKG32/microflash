@@ -1,0 +1,22 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "lsp": {
+    "typescript": {
+      "disabled": false,
+      // Use pnpm exec to ensure we use the repo's typescript-language-server
+      "command": ["pnpm", "exec", "typescript-language-server", "--stdio"],
+      "extensions": [".ts", ".tsx"],
+      "initialization": {
+        "typescript": {
+          // Force using workspace TypeScript version (not bundled/global)
+          "tsdk": "node_modules/typescript/lib",
+          "tsserver": {
+            // Enable verbose logging to debug tsconfig selection issues
+            "logVerbosity": "verbose",
+            "logDirectory": "/tmp/tsserver-logs"
+          }
+        }
+      }
+    }
+  }
+}

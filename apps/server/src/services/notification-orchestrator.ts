@@ -3,12 +3,17 @@ import { findDueCards } from './due-cards';
 import {
   groupCardsByUserAndDeck,
   prepareNotificationPayload,
+  OVERFLOW_SNOOZE_DURATION_MINUTES,
 } from './notification-grouping';
 import {
   sendBatchNotifications,
   logNotificationResults,
 } from './push-notifications';
-import { markCardsAsNotified, removeUserPushToken } from './card-notifications';
+import {
+  markCardsAsNotified,
+  removeUserPushToken,
+  snoozeCards,
+} from './card-notifications';
 
 /**
  * Result of the notification orchestration process.
@@ -20,6 +25,8 @@ export interface NotificationOrchestrationResult {
   successfulNotifications: number;
   failedNotifications: number;
   cardsMarkedAsNotified: number;
+  /** Number of overflow cards that were auto-snoozed for 2 hours */
+  overflowCardsSnoozed: number;
 }
 
 /**
@@ -39,6 +46,7 @@ export async function sendDueCardNotifications(): Promise<NotificationOrchestrat
     successfulNotifications: 0,
     failedNotifications: 0,
     cardsMarkedAsNotified: 0,
+    overflowCardsSnoozed: 0,
   };
 
   try {
@@ -77,9 +85,11 @@ export async function sendDueCardNotifications(): Promise<NotificationOrchestrat
         pushToken: group.pushToken,
         title: payload.title,
         body: payload.body,
+        categoryId: payload.categoryId,
         data: payload.data as Record<string, unknown>,
         // Track which cards belong to this notification for marking
-        _cardIds: payload.data.cardIds,
+        _includedCardIds: group.includedCardIds,
+        _overflowCardIds: group.overflowCardIds,
         _userId: group.userId,
       };
     });
@@ -91,6 +101,7 @@ export async function sendDueCardNotifications(): Promise<NotificationOrchestrat
         pushToken: n.pushToken,
         title: n.title,
         body: n.body,
+        categoryId: n.categoryId,
         data: n.data,
       })),
     );
@@ -104,8 +115,9 @@ export async function sendDueCardNotifications(): Promise<NotificationOrchestrat
     ).length;
     result.failedNotifications = sendResults.filter((r) => !r.success).length;
 
-    // Step 4: Mark cards as notified for successful sends
+    // Step 4: Mark cards as notified for successful sends and snooze overflow
     const successfulCardIds: string[] = [];
+    const overflowCardIds: string[] = [];
     const tokensToRemove: { userId: string; pushToken: string }[] = [];
 
     for (let i = 0; i < sendResults.length; i++) {
@@ -113,8 +125,10 @@ export async function sendDueCardNotifications(): Promise<NotificationOrchestrat
       const notification = notifications[i];
 
       if (sendResult.success) {
-        // Add all card IDs from this successful notification
-        successfulCardIds.push(...notification._cardIds);
+        // Add included card IDs from this successful notification
+        successfulCardIds.push(...notification._includedCardIds);
+        // Track overflow cards to snooze
+        overflowCardIds.push(...notification._overflowCardIds);
       } else if (
         sendResult.error?.includes('DeviceNotRegistered') ||
         sendResult.error?.includes('Invalid')
@@ -133,6 +147,17 @@ export async function sendDueCardNotifications(): Promise<NotificationOrchestrat
         await markCardsAsNotified(successfulCardIds);
     }
 
+    // Snooze overflow cards for 2 hours so user isn't overwhelmed
+    if (overflowCardIds.length > 0) {
+      result.overflowCardsSnoozed = await snoozeCards(
+        overflowCardIds,
+        OVERFLOW_SNOOZE_DURATION_MINUTES,
+      );
+      console.log(
+        `[NotificationOrchestrator] Snoozed ${result.overflowCardsSnoozed} overflow cards for ${OVERFLOW_SNOOZE_DURATION_MINUTES} minutes`,
+      );
+    }
+
     // Remove invalid push tokens concurrently with limited concurrency
     if (tokensToRemove.length > 0) {
       const tokenRemovalTasks = tokensToRemove.map(
@@ -144,7 +169,7 @@ export async function sendDueCardNotifications(): Promise<NotificationOrchestrat
     }
 
     console.log(
-      `[NotificationOrchestrator] Complete: ${result.successfulNotifications}/${result.totalNotificationsSent} notifications sent, ${result.cardsMarkedAsNotified} cards marked as notified`,
+      `[NotificationOrchestrator] Complete: ${result.successfulNotifications}/${result.totalNotificationsSent} notifications sent, ${result.cardsMarkedAsNotified} cards marked as notified, ${result.overflowCardsSnoozed} overflow cards snoozed`,
     );
 
     return result;

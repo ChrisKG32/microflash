@@ -9,16 +9,25 @@ import decksRouter from '@/routes/decks';
 import cardsRouter from '@/routes/cards';
 import reviewsRouter from '@/routes/reviews';
 import notificationsRouter from '@/routes/notifications';
+import meRouter from '@/routes/me';
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
+
+// Log auth mode on startup
+if (process.env.DEV_AUTH === '1') {
+  console.log(
+    '🔓 DEV_AUTH mode enabled - using x-dev-clerk-id header for auth',
+  );
+}
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
 // Clerk authentication middleware - attaches auth state to all requests
-// Individual routes can use requireAuth or getAuth to check authentication
+// In DEV_AUTH mode, this is a no-op middleware
+// Individual routes can use requireAuth or requireUser to check authentication
 app.use(clerkMiddleware());
 
 // Health check
@@ -27,6 +36,7 @@ app.get('/health', (_req, res) => {
 });
 
 // Mount routes
+app.use('/api/me', meRouter);
 app.use('/api/decks', decksRouter);
 app.use('/api/cards', cardsRouter);
 app.use('/api/reviews', reviewsRouter);
