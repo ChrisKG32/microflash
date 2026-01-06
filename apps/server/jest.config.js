@@ -21,6 +21,9 @@ const config = {
       },
     ],
   },
+  // Transform ESM-only packages (p-all, p-map, etc.)
+  // Pattern handles pnpm's .pnpm structure
+  transformIgnorePatterns: ['/node_modules/\\.pnpm/(?!(p-all|p-map)@)'],
   testMatch: ['**/*.test.ts', '**/*.spec.ts'],
   setupFilesAfterEnv: ['<rootDir>/src/testing/setup.ts'],
 };
