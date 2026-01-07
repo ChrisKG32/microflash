@@ -20,6 +20,10 @@ async function main() {
 
   // Clear existing data (for idempotency)
   console.log('🧹 Cleaning existing data...');
+  await prisma.sprintCard.deleteMany();
+  await prisma.sprint.deleteMany();
+  await prisma.cardTag.deleteMany();
+  await prisma.tag.deleteMany();
   await prisma.review.deleteMany();
   await prisma.card.deleteMany();
   await prisma.deck.deleteMany();

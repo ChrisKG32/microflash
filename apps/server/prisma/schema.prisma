@@ -26,18 +26,70 @@ enum Rating {
   EASY   // Remembered effortlessly
 }
 
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum SprintStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+enum CardResult {
+  PASS
+  FAIL
+  SKIP
+}
+
 // Models
+// Relations summary:
+// - User: decks, reviews, tags, sprints
+// - Deck: user, parentDeck, subDecks, cards, sprints
+// - Card: deck, reviews, cardTags, sprintCards
+// - Tag: user, cardTags
+// - CardTag: card, tag
+// - Sprint: user, deck, sprintCards
+// - SprintCard: sprint, card
+// - Review: user, card
+
 model User {
   id                   String   @id @default(cuid())
   clerkId              String   @unique
   pushToken            String?
   notificationsEnabled Boolean  @default(true)
+
+  // Onboarding
+  onboardingComplete      Boolean   @default(false)
+  notificationsPromptedAt DateTime?
+
+  // Notification Preferences
+  quietHoursStart            String?  // HH:MM format (e.g., "22:00")
+  quietHoursEnd              String?  // HH:MM format (e.g., "07:00")
+  maxNotificationsPerDay     Int      @default(10)
+  notificationCooldownMinutes Int     @default(120)
+  backlogThreshold           Int      @default(5)
+  timezone                   String   @default("UTC")
+
+  // Notification Tracking
+  lastPushSentAt           DateTime?
+  notificationsCountToday  Int       @default(0)
+  notificationsCountThisWeek Int     @default(0)
+
+  // Sprint Preferences
+  sprintSize               Int       @default(5)
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
   // Relations
   decks   Deck[]
   reviews Review[]
+  tags    Tag[]
+  sprints Sprint[]
 
   @@index([clerkId])
 }
@@ -46,16 +98,18 @@ model Deck {
   id           String   @id @default(cuid())
   title        String
   description  String?
+  priority     Priority @default(MEDIUM)
   parentDeckId String?
   userId       String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   // Relations
-  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parentDeck Deck?  @relation("DeckHierarchy", fields: [parentDeckId], references: [id])
-  subDecks   Deck[] @relation("DeckHierarchy")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentDeck Deck?    @relation("DeckHierarchy", fields: [parentDeckId], references: [id])
+  subDecks   Deck[]   @relation("DeckHierarchy")
   cards      Card[]
+  sprints    Sprint[]
 
   @@index([userId])
 }
@@ -64,6 +118,7 @@ model Card {
   id                   String    @id @default(cuid())
   front                String    @db.Text
   back                 String    @db.Text
+  priority             Priority  @default(MEDIUM)
 
   // FSRS Algorithm State
   stability            Float     @default(0)
@@ -88,8 +143,10 @@ model Card {
   updatedAt            DateTime  @updatedAt
 
   // Relations
-  deck    Deck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
-  reviews Review[]
+  deck        Deck         @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  reviews     Review[]
+  cardTags    CardTag[]
+  sprintCards SprintCard[]
 
   @@index([nextReviewDate])
   @@index([deckId])
@@ -109,4 +166,70 @@ model Review {
   @@index([userId])
   @@index([cardId])
   @@index([createdAt])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardTags CardTag[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model CardTag {
+  id        String   @id @default(cuid())
+  cardId    String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  // Relations
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, tagId])
+  @@index([cardId])
+  @@index([tagId])
+}
+
+model Sprint {
+  id          String       @id @default(cuid())
+  userId      String
+  deckId      String?      // Optional: constrain sprint to a specific deck
+  status      SprintStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // Relations
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deck        Deck?        @relation(fields: [deckId], references: [id], onDelete: SetNull)
+  sprintCards SprintCard[]
+
+  @@index([userId])
+  @@index([deckId])
+  @@index([status])
+}
+
+model SprintCard {
+  id        String      @id @default(cuid())
+  sprintId  String
+  cardId    String
+  order     Int
+  result    CardResult?
+  createdAt DateTime    @default(now())
+
+  // Relations
+  sprint Sprint @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@unique([sprintId, cardId])
+  @@unique([sprintId, order])
+  @@index([sprintId])
+  @@index([cardId])
 }
