@@ -305,18 +305,351 @@ describe('Decks Routes - Unit Tests', () => {
   });
 
   describe('GET /api/decks/:id', () => {
-    it('should return deck by id (stub)', async () => {
+    it('should return 401 when user not found', async () => {
+      shouldAttachUser = false;
+
+      const response = await request(app).get('/api/decks/deck-123');
+
+      expect(response.status).toBe(401);
+      expect(response.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('should return 404 when deck not found', async () => {
+      prismaMock.deck.findUnique.mockResolvedValue(null);
+
+      const response = await request(app).get('/api/decks/deck-123');
+
+      expect(response.status).toBe(404);
+      expect(response.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('should return 403 when deck belongs to different user', async () => {
+      const now = new Date();
+
+      prismaMock.deck.findUnique.mockResolvedValue({
+        id: 'deck-123',
+        title: 'Test Deck',
+        description: null,
+        userId: 'different-user-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+        subDecks: [],
+        _count: { cards: 5 },
+      } as never);
+
+      const response = await request(app).get('/api/decks/deck-123');
+
+      expect(response.status).toBe(403);
+      expect(response.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should return deck with subdecks and card counts', async () => {
+      const now = new Date();
+
+      prismaMock.deck.findUnique.mockResolvedValue({
+        id: 'deck-123',
+        title: 'Test Deck',
+        description: 'A test deck',
+        userId: 'user-internal-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+        subDecks: [
+          {
+            id: 'subdeck-1',
+            title: 'Subdeck 1',
+            description: null,
+            createdAt: now,
+            updatedAt: now,
+            _count: { cards: 3 },
+          },
+        ],
+        _count: { cards: 10 },
+      } as never);
+
       const response = await request(app).get('/api/decks/deck-123');
 
       expect(response.status).toBe(200);
+      expect(response.body.deck).toHaveProperty('id', 'deck-123');
+      expect(response.body.deck).toHaveProperty('title', 'Test Deck');
+      expect(response.body.deck).toHaveProperty('cardCount', 10);
+      expect(response.body.deck.subdecks).toHaveLength(1);
+      expect(response.body.deck.subdecks[0]).toHaveProperty('cardCount', 3);
+    });
+  });
+
+  describe('PATCH /api/decks/:id', () => {
+    it('should return 401 when user not found', async () => {
+      shouldAttachUser = false;
+
+      const response = await request(app)
+        .patch('/api/decks/deck-123')
+        .send({ title: 'Updated Title' });
+
+      expect(response.status).toBe(401);
+      expect(response.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('should return 404 when deck not found', async () => {
+      prismaMock.deck.findUnique.mockResolvedValue(null);
+
+      const response = await request(app)
+        .patch('/api/decks/deck-123')
+        .send({ title: 'Updated Title' });
+
+      expect(response.status).toBe(404);
+      expect(response.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('should return 403 when deck belongs to different user', async () => {
+      const now = new Date();
+
+      prismaMock.deck.findUnique.mockResolvedValue({
+        id: 'deck-123',
+        title: 'Test Deck',
+        description: null,
+        userId: 'different-user-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+        subDecks: [],
+      } as never);
+
+      const response = await request(app)
+        .patch('/api/decks/deck-123')
+        .send({ title: 'Updated Title' });
+
+      expect(response.status).toBe(403);
+      expect(response.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should update deck title successfully', async () => {
+      const now = new Date();
+
+      prismaMock.deck.findUnique.mockResolvedValue({
+        id: 'deck-123',
+        title: 'Old Title',
+        description: null,
+        userId: 'user-internal-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+        subDecks: [],
+      } as never);
+
+      prismaMock.deck.update.mockResolvedValue({
+        id: 'deck-123',
+        title: 'Updated Title',
+        description: null,
+        userId: 'user-internal-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+        subDecks: [],
+        _count: { cards: 5 },
+      } as never);
+
+      const response = await request(app)
+        .patch('/api/decks/deck-123')
+        .send({ title: 'Updated Title' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.deck).toHaveProperty('title', 'Updated Title');
+    });
+
+    it('should return 400 when trying to set deck as its own parent', async () => {
+      const now = new Date();
+
+      prismaMock.deck.findUnique.mockResolvedValue({
+        id: 'deck-123',
+        title: 'Test Deck',
+        description: null,
+        userId: 'user-internal-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+        subDecks: [],
+      } as never);
+
+      const response = await request(app)
+        .patch('/api/decks/deck-123')
+        .send({ parentDeckId: 'deck-123' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('INVALID_PARENT');
+    });
+
+    it('should return 400 when moving deck with subdecks to become a subdeck', async () => {
+      const now = new Date();
+
+      // First call: get the deck being updated (has subdecks)
+      prismaMock.deck.findUnique.mockResolvedValueOnce({
+        id: 'deck-123',
+        title: 'Test Deck',
+        description: null,
+        userId: 'user-internal-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+        subDecks: [{ id: 'subdeck-1' }],
+      } as never);
+
+      // Second call: get the new parent deck
+      prismaMock.deck.findUnique.mockResolvedValueOnce({
+        id: 'parent-deck',
+        title: 'Parent',
+        description: null,
+        userId: 'user-internal-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const response = await request(app)
+        .patch('/api/decks/deck-123')
+        .send({ parentDeckId: 'parent-deck' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('INVALID_DEPTH');
+    });
+
+    it('should return 400 when new parent is already a subdeck (max depth = 2)', async () => {
+      const now = new Date();
+
+      // First call: get the deck being updated
+      prismaMock.deck.findUnique.mockResolvedValueOnce({
+        id: 'deck-123',
+        title: 'Test Deck',
+        description: null,
+        userId: 'user-internal-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+        subDecks: [],
+      } as never);
+
+      // Second call: get the new parent deck (which is already a subdeck)
+      prismaMock.deck.findUnique.mockResolvedValueOnce({
+        id: 'subdeck-parent',
+        title: 'Subdeck Parent',
+        description: null,
+        userId: 'user-internal-id',
+        parentDeckId: 'grandparent-deck',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const response = await request(app)
+        .patch('/api/decks/deck-123')
+        .send({ parentDeckId: 'subdeck-parent' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('INVALID_DEPTH');
+    });
+
+    it('should allow setting parentDeckId to null (making it a root deck)', async () => {
+      const now = new Date();
+
+      prismaMock.deck.findUnique.mockResolvedValue({
+        id: 'deck-123',
+        title: 'Test Deck',
+        description: null,
+        userId: 'user-internal-id',
+        parentDeckId: 'old-parent',
+        createdAt: now,
+        updatedAt: now,
+        subDecks: [],
+      } as never);
+
+      prismaMock.deck.update.mockResolvedValue({
+        id: 'deck-123',
+        title: 'Test Deck',
+        description: null,
+        userId: 'user-internal-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+        subDecks: [],
+        _count: { cards: 5 },
+      } as never);
+
+      const response = await request(app)
+        .patch('/api/decks/deck-123')
+        .send({ parentDeckId: null });
+
+      expect(response.status).toBe(200);
+      expect(response.body.deck).toHaveProperty('parentDeckId', null);
     });
   });
 
   describe('DELETE /api/decks/:id', () => {
-    it('should return 204 for delete deck (stub)', async () => {
+    it('should return 401 when user not found', async () => {
+      shouldAttachUser = false;
+
+      const response = await request(app).delete('/api/decks/deck-123');
+
+      expect(response.status).toBe(401);
+      expect(response.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('should return 404 when deck not found', async () => {
+      prismaMock.deck.findUnique.mockResolvedValue(null);
+
+      const response = await request(app).delete('/api/decks/deck-123');
+
+      expect(response.status).toBe(404);
+      expect(response.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('should return 403 when deck belongs to different user', async () => {
+      const now = new Date();
+
+      prismaMock.deck.findUnique.mockResolvedValue({
+        id: 'deck-123',
+        title: 'Test Deck',
+        description: null,
+        userId: 'different-user-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const response = await request(app).delete('/api/decks/deck-123');
+
+      expect(response.status).toBe(403);
+      expect(response.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should delete deck and return 204', async () => {
+      const now = new Date();
+
+      prismaMock.deck.findUnique.mockResolvedValue({
+        id: 'deck-123',
+        title: 'Test Deck',
+        description: null,
+        userId: 'user-internal-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      prismaMock.deck.delete.mockResolvedValue({
+        id: 'deck-123',
+        title: 'Test Deck',
+        description: null,
+        userId: 'user-internal-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
       const response = await request(app).delete('/api/decks/deck-123');
 
       expect(response.status).toBe(204);
+      expect(prismaMock.deck.delete).toHaveBeenCalledWith({
+        where: { id: 'deck-123' },
+      });
     });
   });
 });

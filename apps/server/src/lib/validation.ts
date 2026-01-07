@@ -28,6 +28,25 @@ export const createCardSchema = z
 
 export type CreateCardInput = z.infer<typeof createCardSchema>;
 
+// Update card validation schema
+export const updateCardSchema = z
+  .object({
+    front: z
+      .string()
+      .min(1, { error: 'Front cannot be empty' })
+      .max(10000, { error: 'Front is too long (max 10000 characters)' })
+      .optional(),
+    back: z
+      .string()
+      .min(1, { error: 'Back cannot be empty' })
+      .max(10000, { error: 'Back is too long (max 10000 characters)' })
+      .optional(),
+    deckId: z.string().min(1, { error: 'Deck ID cannot be empty' }).optional(),
+  })
+  .strict();
+
+export type UpdateCardInput = z.infer<typeof updateCardSchema>;
+
 // Deck validation schemas
 export const createDeckSchema = z
   .object({
@@ -44,6 +63,25 @@ export const createDeckSchema = z
   .strict();
 
 export type CreateDeckInput = z.infer<typeof createDeckSchema>;
+
+// Update deck validation schema
+export const updateDeckSchema = z
+  .object({
+    title: z
+      .string()
+      .min(1, { error: 'Title cannot be empty' })
+      .max(255, { error: 'Title is too long (max 255 characters)' })
+      .optional(),
+    description: z
+      .string()
+      .max(1000, { error: 'Description is too long (max 1000 characters)' })
+      .nullable()
+      .optional(),
+    parentDeckId: z.string().nullable().optional(),
+  })
+  .strict();
+
+export type UpdateDeckInput = z.infer<typeof updateDeckSchema>;
 
 // Review validation schemas
 export const createReviewSchema = z

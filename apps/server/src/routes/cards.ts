@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import {
   createCardSchema,
   type CreateCardInput,
+  updateCardSchema,
+  type UpdateCardInput,
   cardIdsSchema,
   type CardIdsInput,
 } from '@/lib/validation';
@@ -245,22 +247,219 @@ router.post(
 );
 
 // GET /api/cards/:id - Get single card
-router.get('/:id', async (req, res) => {
-  res.json({
-    message: `GET /api/cards/${req.params.id} - Not implemented yet`,
-  });
-});
+router.get(
+  '/:id',
+  requireUser,
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const { id } = req.params;
+
+    // Fetch card with deck info for ownership check
+    const card = await prisma.card.findUnique({
+      where: { id },
+      include: {
+        deck: {
+          select: {
+            id: true,
+            title: true,
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (!card) {
+      throw new ApiError(404, 'NOT_FOUND', 'Card not found');
+    }
+
+    // Enforce ownership via deck
+    if (card.deck.userId !== user.id) {
+      throw new ApiError(
+        403,
+        'FORBIDDEN',
+        'You do not have permission to view this card',
+      );
+    }
+
+    res.json({
+      card: {
+        id: card.id,
+        front: card.front,
+        back: card.back,
+        deckId: card.deckId,
+        deckTitle: card.deck.title,
+        // FSRS state
+        state: card.state,
+        stability: card.stability,
+        difficulty: card.difficulty,
+        elapsedDays: card.elapsedDays,
+        scheduledDays: card.scheduledDays,
+        reps: card.reps,
+        lapses: card.lapses,
+        // Scheduling
+        nextReview: card.nextReviewDate.toISOString(),
+        lastReview: card.lastReview?.toISOString() ?? null,
+        // Timestamps
+        createdAt: card.createdAt.toISOString(),
+        updatedAt: card.updatedAt.toISOString(),
+      },
+    });
+  }),
+);
 
 // PATCH /api/cards/:id - Update card
-router.patch('/:id', async (req, res) => {
-  res.json({
-    message: `PATCH /api/cards/${req.params.id} - Not implemented yet`,
-  });
-});
+router.patch(
+  '/:id',
+  requireUser,
+  validate({ body: updateCardSchema }),
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const { id } = req.params;
+    const updates = req.validated!.body as UpdateCardInput;
+
+    // Fetch card with deck info for ownership check
+    const card = await prisma.card.findUnique({
+      where: { id },
+      include: {
+        deck: {
+          select: {
+            id: true,
+            title: true,
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (!card) {
+      throw new ApiError(404, 'NOT_FOUND', 'Card not found');
+    }
+
+    // Enforce ownership via deck
+    if (card.deck.userId !== user.id) {
+      throw new ApiError(
+        403,
+        'FORBIDDEN',
+        'You do not have permission to update this card',
+      );
+    }
+
+    // If moving to a different deck, verify ownership of the new deck
+    if (updates.deckId !== undefined && updates.deckId !== card.deckId) {
+      const newDeck = await prisma.deck.findUnique({
+        where: { id: updates.deckId },
+      });
+
+      if (!newDeck) {
+        throw new ApiError(404, 'NOT_FOUND', 'Target deck not found');
+      }
+
+      if (newDeck.userId !== user.id) {
+        throw new ApiError(
+          403,
+          'FORBIDDEN',
+          'You do not have permission to move card to this deck',
+        );
+      }
+    }
+
+    // Build update data
+    const updateData: {
+      front?: string;
+      back?: string;
+      deckId?: string;
+    } = {};
+
+    if (updates.front !== undefined) {
+      updateData.front = updates.front.trim();
+    }
+    if (updates.back !== undefined) {
+      updateData.back = updates.back.trim();
+    }
+    if (updates.deckId !== undefined) {
+      updateData.deckId = updates.deckId;
+    }
+
+    // Update the card
+    const updatedCard = await prisma.card.update({
+      where: { id },
+      data: updateData,
+      include: {
+        deck: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      card: {
+        id: updatedCard.id,
+        front: updatedCard.front,
+        back: updatedCard.back,
+        deckId: updatedCard.deckId,
+        deckTitle: updatedCard.deck.title,
+        // FSRS state
+        state: updatedCard.state,
+        stability: updatedCard.stability,
+        difficulty: updatedCard.difficulty,
+        elapsedDays: updatedCard.elapsedDays,
+        scheduledDays: updatedCard.scheduledDays,
+        reps: updatedCard.reps,
+        lapses: updatedCard.lapses,
+        // Scheduling
+        nextReview: updatedCard.nextReviewDate.toISOString(),
+        lastReview: updatedCard.lastReview?.toISOString() ?? null,
+        // Timestamps
+        createdAt: updatedCard.createdAt.toISOString(),
+        updatedAt: updatedCard.updatedAt.toISOString(),
+      },
+    });
+  }),
+);
 
 // DELETE /api/cards/:id - Delete card
-router.delete('/:id', async (_req, res) => {
-  res.status(204).send();
-});
+router.delete(
+  '/:id',
+  requireUser,
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const { id } = req.params;
+
+    // Fetch card with deck info for ownership check
+    const card = await prisma.card.findUnique({
+      where: { id },
+      include: {
+        deck: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (!card) {
+      throw new ApiError(404, 'NOT_FOUND', 'Card not found');
+    }
+
+    // Enforce ownership via deck
+    if (card.deck.userId !== user.id) {
+      throw new ApiError(
+        403,
+        'FORBIDDEN',
+        'You do not have permission to delete this card',
+      );
+    }
+
+    // Delete the card
+    await prisma.card.delete({
+      where: { id },
+    });
+
+    res.status(204).send();
+  }),
+);
 
 export default router;
