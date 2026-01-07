@@ -121,11 +121,64 @@ router.post(
 );
 
 // GET /api/decks/:id - Get single deck
-router.get('/:id', async (req, res) => {
-  res.json({
-    message: `GET /api/decks/${req.params.id} - Not implemented yet`,
-  });
-});
+router.get(
+  '/:id',
+  requireUser,
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const { id } = req.params;
+
+    // Fetch deck with subdecks and card counts
+    const deck = await prisma.deck.findUnique({
+      where: { id },
+      include: {
+        subDecks: {
+          include: {
+            _count: {
+              select: { cards: true },
+            },
+          },
+        },
+        _count: {
+          select: { cards: true },
+        },
+      },
+    });
+
+    if (!deck) {
+      throw new ApiError(404, 'NOT_FOUND', 'Deck not found');
+    }
+
+    // Enforce ownership
+    if (deck.userId !== user.id) {
+      throw new ApiError(
+        403,
+        'FORBIDDEN',
+        'You do not have permission to view this deck',
+      );
+    }
+
+    res.json({
+      deck: {
+        id: deck.id,
+        title: deck.title,
+        description: deck.description,
+        parentDeckId: deck.parentDeckId,
+        cardCount: deck._count.cards,
+        createdAt: deck.createdAt.toISOString(),
+        updatedAt: deck.updatedAt.toISOString(),
+        subdecks: deck.subDecks.map((subdeck) => ({
+          id: subdeck.id,
+          title: subdeck.title,
+          description: subdeck.description,
+          cardCount: subdeck._count.cards,
+          createdAt: subdeck.createdAt.toISOString(),
+          updatedAt: subdeck.updatedAt.toISOString(),
+        })),
+      },
+    });
+  }),
+);
 
 // PATCH /api/decks/:id - Update deck
 router.patch('/:id', async (req, res) => {
