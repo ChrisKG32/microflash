@@ -345,7 +345,6 @@ router.patch(
     }
 
     // If moving to a different deck, verify ownership of the new deck
-    let newDeckTitle = card.deck.title;
     if (updates.deckId !== undefined && updates.deckId !== card.deckId) {
       const newDeck = await prisma.deck.findUnique({
         where: { id: updates.deckId },
@@ -362,8 +361,6 @@ router.patch(
           'You do not have permission to move card to this deck',
         );
       }
-
-      newDeckTitle = newDeck.title;
     }
 
     // Build update data
