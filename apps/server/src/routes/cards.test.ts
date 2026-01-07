@@ -289,30 +289,409 @@ describe('Cards Routes - Unit Tests', () => {
   });
 
   describe('GET /api/cards/:id', () => {
-    it('should return 200 for get card by id (stub)', async () => {
+    it('should return 401 when user not found', async () => {
+      shouldAttachUser = false;
+
+      const response = await request(app).get('/api/cards/card-123');
+
+      expect(response.status).toBe(401);
+      expect(response.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('should return 404 when card not found', async () => {
+      prismaMock.card.findUnique.mockResolvedValue(null);
+
+      const response = await request(app).get('/api/cards/card-123');
+
+      expect(response.status).toBe(404);
+      expect(response.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('should return 403 when card belongs to different user', async () => {
+      const now = new Date();
+
+      prismaMock.card.findUnique.mockResolvedValue({
+        id: 'card-123',
+        front: 'Question',
+        back: 'Answer',
+        deckId: 'deck-1',
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        state: 'NEW',
+        lastReview: null,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+        deck: {
+          id: 'deck-1',
+          title: 'Test Deck',
+          userId: 'different-user-id',
+        },
+      } as never);
+
+      const response = await request(app).get('/api/cards/card-123');
+
+      expect(response.status).toBe(403);
+      expect(response.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should return card with all fields', async () => {
+      const now = new Date();
+
+      prismaMock.card.findUnique.mockResolvedValue({
+        id: 'card-123',
+        front: 'Question',
+        back: 'Answer',
+        deckId: 'deck-1',
+        stability: 1.5,
+        difficulty: 5.0,
+        elapsedDays: 2,
+        scheduledDays: 3,
+        reps: 5,
+        lapses: 1,
+        state: 'REVIEW',
+        lastReview: now,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+        deck: {
+          id: 'deck-1',
+          title: 'Test Deck',
+          userId: 'user-internal-id',
+        },
+      } as never);
+
       const response = await request(app).get('/api/cards/card-123');
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('message');
+      expect(response.body.card).toHaveProperty('id', 'card-123');
+      expect(response.body.card).toHaveProperty('front', 'Question');
+      expect(response.body.card).toHaveProperty('back', 'Answer');
+      expect(response.body.card).toHaveProperty('deckTitle', 'Test Deck');
+      expect(response.body.card).toHaveProperty('state', 'REVIEW');
+      expect(response.body.card).toHaveProperty('stability', 1.5);
+      expect(response.body.card).toHaveProperty('difficulty', 5.0);
+      expect(response.body.card).toHaveProperty('reps', 5);
+      expect(response.body.card).toHaveProperty('lapses', 1);
     });
   });
 
   describe('PATCH /api/cards/:id', () => {
-    it('should return 200 for update card (stub)', async () => {
+    it('should return 401 when user not found', async () => {
+      shouldAttachUser = false;
+
       const response = await request(app)
         .patch('/api/cards/card-123')
         .send({ front: 'Updated question' });
 
+      expect(response.status).toBe(401);
+      expect(response.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('should return 404 when card not found', async () => {
+      prismaMock.card.findUnique.mockResolvedValue(null);
+
+      const response = await request(app)
+        .patch('/api/cards/card-123')
+        .send({ front: 'Updated question' });
+
+      expect(response.status).toBe(404);
+      expect(response.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('should return 403 when card belongs to different user', async () => {
+      const now = new Date();
+
+      prismaMock.card.findUnique.mockResolvedValue({
+        id: 'card-123',
+        front: 'Question',
+        back: 'Answer',
+        deckId: 'deck-1',
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        state: 'NEW',
+        lastReview: null,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+        deck: {
+          id: 'deck-1',
+          title: 'Test Deck',
+          userId: 'different-user-id',
+        },
+      } as never);
+
+      const response = await request(app)
+        .patch('/api/cards/card-123')
+        .send({ front: 'Updated question' });
+
+      expect(response.status).toBe(403);
+      expect(response.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should update card front and back successfully', async () => {
+      const now = new Date();
+
+      prismaMock.card.findUnique.mockResolvedValue({
+        id: 'card-123',
+        front: 'Old Question',
+        back: 'Old Answer',
+        deckId: 'deck-1',
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        state: 'NEW',
+        lastReview: null,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+        deck: {
+          id: 'deck-1',
+          title: 'Test Deck',
+          userId: 'user-internal-id',
+        },
+      } as never);
+
+      prismaMock.card.update.mockResolvedValue({
+        id: 'card-123',
+        front: 'Updated Question',
+        back: 'Updated Answer',
+        deckId: 'deck-1',
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        state: 'NEW',
+        lastReview: null,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+        deck: {
+          id: 'deck-1',
+          title: 'Test Deck',
+        },
+      } as never);
+
+      const response = await request(app)
+        .patch('/api/cards/card-123')
+        .send({ front: 'Updated Question', back: 'Updated Answer' });
+
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('message');
+      expect(response.body.card).toHaveProperty('front', 'Updated Question');
+      expect(response.body.card).toHaveProperty('back', 'Updated Answer');
+    });
+
+    it('should return 404 when moving to non-existent deck', async () => {
+      const now = new Date();
+
+      prismaMock.card.findUnique.mockResolvedValue({
+        id: 'card-123',
+        front: 'Question',
+        back: 'Answer',
+        deckId: 'deck-1',
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        state: 'NEW',
+        lastReview: null,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+        deck: {
+          id: 'deck-1',
+          title: 'Test Deck',
+          userId: 'user-internal-id',
+        },
+      } as never);
+
+      prismaMock.deck.findUnique.mockResolvedValue(null);
+
+      const response = await request(app)
+        .patch('/api/cards/card-123')
+        .send({ deckId: 'nonexistent-deck' });
+
+      expect(response.status).toBe(404);
+      expect(response.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('should return 403 when moving to deck owned by different user', async () => {
+      const now = new Date();
+
+      prismaMock.card.findUnique.mockResolvedValue({
+        id: 'card-123',
+        front: 'Question',
+        back: 'Answer',
+        deckId: 'deck-1',
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        state: 'NEW',
+        lastReview: null,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+        deck: {
+          id: 'deck-1',
+          title: 'Test Deck',
+          userId: 'user-internal-id',
+        },
+      } as never);
+
+      prismaMock.deck.findUnique.mockResolvedValue({
+        id: 'other-deck',
+        title: 'Other Deck',
+        description: null,
+        userId: 'different-user-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const response = await request(app)
+        .patch('/api/cards/card-123')
+        .send({ deckId: 'other-deck' });
+
+      expect(response.status).toBe(403);
+      expect(response.body.error.code).toBe('FORBIDDEN');
     });
   });
 
   describe('DELETE /api/cards/:id', () => {
-    it('should return 204 for delete card (stub)', async () => {
+    it('should return 401 when user not found', async () => {
+      shouldAttachUser = false;
+
+      const response = await request(app).delete('/api/cards/card-123');
+
+      expect(response.status).toBe(401);
+      expect(response.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('should return 404 when card not found', async () => {
+      prismaMock.card.findUnique.mockResolvedValue(null);
+
+      const response = await request(app).delete('/api/cards/card-123');
+
+      expect(response.status).toBe(404);
+      expect(response.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('should return 403 when card belongs to different user', async () => {
+      const now = new Date();
+
+      prismaMock.card.findUnique.mockResolvedValue({
+        id: 'card-123',
+        front: 'Question',
+        back: 'Answer',
+        deckId: 'deck-1',
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        state: 'NEW',
+        lastReview: null,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+        deck: {
+          userId: 'different-user-id',
+        },
+      } as never);
+
+      const response = await request(app).delete('/api/cards/card-123');
+
+      expect(response.status).toBe(403);
+      expect(response.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should delete card and return 204', async () => {
+      const now = new Date();
+
+      prismaMock.card.findUnique.mockResolvedValue({
+        id: 'card-123',
+        front: 'Question',
+        back: 'Answer',
+        deckId: 'deck-1',
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        state: 'NEW',
+        lastReview: null,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+        deck: {
+          userId: 'user-internal-id',
+        },
+      } as never);
+
+      prismaMock.card.delete.mockResolvedValue({
+        id: 'card-123',
+        front: 'Question',
+        back: 'Answer',
+        deckId: 'deck-1',
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        state: 'NEW',
+        lastReview: null,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
       const response = await request(app).delete('/api/cards/card-123');
 
       expect(response.status).toBe(204);
+      expect(prismaMock.card.delete).toHaveBeenCalledWith({
+        where: { id: 'card-123' },
+      });
     });
   });
 
