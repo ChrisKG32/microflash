@@ -44,6 +44,7 @@ model User {
   // Relations
   decks   Deck[]
   reviews Review[]
+  tags    Tag[]
 
   @@index([clerkId])
 }
@@ -96,8 +97,9 @@ model Card {
   updatedAt            DateTime  @updatedAt
 
   // Relations
-  deck    Deck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
-  reviews Review[]
+  deck     Deck      @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  reviews  Review[]
+  cardTags CardTag[]
 
   @@index([nextReviewDate])
   @@index([deckId])
@@ -117,4 +119,33 @@ model Review {
   @@index([userId])
   @@index([cardId])
   @@index([createdAt])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardTags CardTag[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model CardTag {
+  id        String   @id @default(cuid())
+  cardId    String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  // Relations
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, tagId])
+  @@index([cardId])
+  @@index([tagId])
 }
