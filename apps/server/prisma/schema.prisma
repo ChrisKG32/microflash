@@ -51,6 +51,11 @@ model User {
   backlogThreshold           Int      @default(5)
   timezone                   String   @default("UTC")
 
+  // Notification Tracking
+  lastPushSentAt           DateTime?
+  notificationsCountToday  Int       @default(0)
+  notificationsCountThisWeek Int     @default(0)
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
