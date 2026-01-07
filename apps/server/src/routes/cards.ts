@@ -424,8 +424,45 @@ router.patch(
 );
 
 // DELETE /api/cards/:id - Delete card
-router.delete('/:id', async (_req, res) => {
-  res.status(204).send();
-});
+router.delete(
+  '/:id',
+  requireUser,
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const { id } = req.params;
+
+    // Fetch card with deck info for ownership check
+    const card = await prisma.card.findUnique({
+      where: { id },
+      include: {
+        deck: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (!card) {
+      throw new ApiError(404, 'NOT_FOUND', 'Card not found');
+    }
+
+    // Enforce ownership via deck
+    if (card.deck.userId !== user.id) {
+      throw new ApiError(
+        403,
+        'FORBIDDEN',
+        'You do not have permission to delete this card',
+      );
+    }
+
+    // Delete the card
+    await prisma.card.delete({
+      where: { id },
+    });
+
+    res.status(204).send();
+  }),
+);
 
 export default router;
