@@ -245,11 +245,65 @@ router.post(
 );
 
 // GET /api/cards/:id - Get single card
-router.get('/:id', async (req, res) => {
-  res.json({
-    message: `GET /api/cards/${req.params.id} - Not implemented yet`,
-  });
-});
+router.get(
+  '/:id',
+  requireUser,
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const { id } = req.params;
+
+    // Fetch card with deck info for ownership check
+    const card = await prisma.card.findUnique({
+      where: { id },
+      include: {
+        deck: {
+          select: {
+            id: true,
+            title: true,
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (!card) {
+      throw new ApiError(404, 'NOT_FOUND', 'Card not found');
+    }
+
+    // Enforce ownership via deck
+    if (card.deck.userId !== user.id) {
+      throw new ApiError(
+        403,
+        'FORBIDDEN',
+        'You do not have permission to view this card',
+      );
+    }
+
+    res.json({
+      card: {
+        id: card.id,
+        front: card.front,
+        back: card.back,
+        deckId: card.deckId,
+        deckTitle: card.deck.title,
+        // FSRS state
+        state: card.state,
+        stability: card.stability,
+        difficulty: card.difficulty,
+        elapsedDays: card.elapsedDays,
+        scheduledDays: card.scheduledDays,
+        reps: card.reps,
+        lapses: card.lapses,
+        // Scheduling
+        nextReview: card.nextReviewDate.toISOString(),
+        lastReview: card.lastReview?.toISOString() ?? null,
+        // Timestamps
+        createdAt: card.createdAt.toISOString(),
+        updatedAt: card.updatedAt.toISOString(),
+      },
+    });
+  }),
+);
 
 // PATCH /api/cards/:id - Update card
 router.patch('/:id', async (req, res) => {
