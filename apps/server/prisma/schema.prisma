@@ -56,6 +56,9 @@ model User {
   notificationsCountToday  Int       @default(0)
   notificationsCountThisWeek Int     @default(0)
 
+  // Sprint Preferences
+  sprintSize               Int       @default(5)
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
