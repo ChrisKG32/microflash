@@ -45,6 +45,25 @@ export const createDeckSchema = z
 
 export type CreateDeckInput = z.infer<typeof createDeckSchema>;
 
+// Update deck validation schema
+export const updateDeckSchema = z
+  .object({
+    title: z
+      .string()
+      .min(1, { error: 'Title cannot be empty' })
+      .max(255, { error: 'Title is too long (max 255 characters)' })
+      .optional(),
+    description: z
+      .string()
+      .max(1000, { error: 'Description is too long (max 1000 characters)' })
+      .nullable()
+      .optional(),
+    parentDeckId: z.string().nullable().optional(),
+  })
+  .strict();
+
+export type UpdateDeckInput = z.infer<typeof updateDeckSchema>;
+
 // Review validation schemas
 export const createReviewSchema = z
   .object({

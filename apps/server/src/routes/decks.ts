@@ -1,6 +1,11 @@
 import { Router, type Router as RouterType } from 'express';
 import { prisma } from '@/lib/prisma';
-import { createDeckSchema, type CreateDeckInput } from '@/lib/validation';
+import {
+  createDeckSchema,
+  type CreateDeckInput,
+  updateDeckSchema,
+  type UpdateDeckInput,
+} from '@/lib/validation';
 import { requireUser } from '@/middlewares/auth';
 import { validate } from '@/middlewares/validate';
 import { asyncHandler, ApiError } from '@/middlewares/error-handler';
@@ -181,11 +186,143 @@ router.get(
 );
 
 // PATCH /api/decks/:id - Update deck
-router.patch('/:id', async (req, res) => {
-  res.json({
-    message: `PATCH /api/decks/${req.params.id} - Not implemented yet`,
-  });
-});
+router.patch(
+  '/:id',
+  requireUser,
+  validate({ body: updateDeckSchema }),
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const { id } = req.params;
+    const updates = req.validated!.body as UpdateDeckInput;
+
+    // Fetch the deck to verify ownership
+    const deck = await prisma.deck.findUnique({
+      where: { id },
+      include: {
+        subDecks: true,
+      },
+    });
+
+    if (!deck) {
+      throw new ApiError(404, 'NOT_FOUND', 'Deck not found');
+    }
+
+    // Enforce ownership
+    if (deck.userId !== user.id) {
+      throw new ApiError(
+        403,
+        'FORBIDDEN',
+        'You do not have permission to update this deck',
+      );
+    }
+
+    // Handle parentDeckId change with depth validation
+    if (updates.parentDeckId !== undefined) {
+      // If setting to null, that's always allowed (making it a root deck)
+      if (updates.parentDeckId !== null) {
+        // Verify new parent exists and belongs to user
+        const newParent = await prisma.deck.findUnique({
+          where: { id: updates.parentDeckId },
+        });
+
+        if (!newParent) {
+          throw new ApiError(404, 'NOT_FOUND', 'Parent deck not found');
+        }
+
+        if (newParent.userId !== user.id) {
+          throw new ApiError(
+            403,
+            'FORBIDDEN',
+            'You do not have permission to move deck to this parent',
+          );
+        }
+
+        // Check if new parent is already a subdeck (max depth = 2)
+        if (newParent.parentDeckId) {
+          throw new ApiError(
+            400,
+            'INVALID_DEPTH',
+            'Cannot move deck: maximum deck depth is 2 levels',
+          );
+        }
+
+        // Check if this deck has subdecks (can't become a subdeck if it has children)
+        if (deck.subDecks.length > 0) {
+          throw new ApiError(
+            400,
+            'INVALID_DEPTH',
+            'Cannot move deck with subdecks: maximum deck depth is 2 levels',
+          );
+        }
+
+        // Prevent setting parent to self
+        if (updates.parentDeckId === id) {
+          throw new ApiError(
+            400,
+            'INVALID_PARENT',
+            'A deck cannot be its own parent',
+          );
+        }
+      }
+    }
+
+    // Build update data
+    const updateData: {
+      title?: string;
+      description?: string | null;
+      parentDeckId?: string | null;
+    } = {};
+
+    if (updates.title !== undefined) {
+      updateData.title = updates.title.trim();
+    }
+    if (updates.description !== undefined) {
+      updateData.description =
+        updates.description === null ? null : updates.description.trim();
+    }
+    if (updates.parentDeckId !== undefined) {
+      updateData.parentDeckId = updates.parentDeckId;
+    }
+
+    // Update the deck
+    const updatedDeck = await prisma.deck.update({
+      where: { id },
+      data: updateData,
+      include: {
+        subDecks: {
+          include: {
+            _count: {
+              select: { cards: true },
+            },
+          },
+        },
+        _count: {
+          select: { cards: true },
+        },
+      },
+    });
+
+    res.json({
+      deck: {
+        id: updatedDeck.id,
+        title: updatedDeck.title,
+        description: updatedDeck.description,
+        parentDeckId: updatedDeck.parentDeckId,
+        cardCount: updatedDeck._count.cards,
+        createdAt: updatedDeck.createdAt.toISOString(),
+        updatedAt: updatedDeck.updatedAt.toISOString(),
+        subdecks: updatedDeck.subDecks.map((subdeck) => ({
+          id: subdeck.id,
+          title: subdeck.title,
+          description: subdeck.description,
+          cardCount: subdeck._count.cards,
+          createdAt: subdeck.createdAt.toISOString(),
+          updatedAt: subdeck.updatedAt.toISOString(),
+        })),
+      },
+    });
+  }),
+);
 
 // DELETE /api/decks/:id - Delete deck
 router.delete('/:id', async (_req, res) => {
