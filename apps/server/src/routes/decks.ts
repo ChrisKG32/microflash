@@ -325,8 +325,39 @@ router.patch(
 );
 
 // DELETE /api/decks/:id - Delete deck
-router.delete('/:id', async (_req, res) => {
-  res.status(204).send();
-});
+// Note: Prisma onDelete: Cascade handles deleting cards and subdecks automatically
+router.delete(
+  '/:id',
+  requireUser,
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const { id } = req.params;
+
+    // Fetch the deck to verify ownership
+    const deck = await prisma.deck.findUnique({
+      where: { id },
+    });
+
+    if (!deck) {
+      throw new ApiError(404, 'NOT_FOUND', 'Deck not found');
+    }
+
+    // Enforce ownership
+    if (deck.userId !== user.id) {
+      throw new ApiError(
+        403,
+        'FORBIDDEN',
+        'You do not have permission to delete this deck',
+      );
+    }
+
+    // Delete the deck (cards and subdecks cascade automatically via Prisma)
+    await prisma.deck.delete({
+      where: { id },
+    });
+
+    res.status(204).send();
+  }),
+);
 
 export default router;
