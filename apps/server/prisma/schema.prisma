@@ -38,6 +38,11 @@ model User {
   clerkId              String   @unique
   pushToken            String?
   notificationsEnabled Boolean  @default(true)
+
+  // Onboarding
+  onboardingComplete      Boolean   @default(false)
+  notificationsPromptedAt DateTime?
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
