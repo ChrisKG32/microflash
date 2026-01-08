@@ -10,6 +10,7 @@ import cardsRouter from '@/routes/cards';
 import reviewsRouter from '@/routes/reviews';
 import notificationsRouter from '@/routes/notifications';
 import meRouter from '@/routes/me';
+import sprintsRouter from '@/routes/sprints';
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
@@ -41,6 +42,7 @@ app.use('/api/decks', decksRouter);
 app.use('/api/cards', cardsRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/sprints', sprintsRouter);
 
 // 404 handler - returns consistent error shape
 app.use((_req, res) => {
