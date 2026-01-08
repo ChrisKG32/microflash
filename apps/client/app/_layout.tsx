@@ -76,6 +76,7 @@ async function handleNotificationResponse(
     type?: string;
     sprintId?: string;
     url?: string;
+    cardCount?: number;
   };
 
   console.log('[Notifications] Response received:', {

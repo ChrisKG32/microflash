@@ -13,6 +13,7 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+import { registerPushToken } from '@/lib/api';
 
 // Configure how notifications are handled when app is in foreground
 Notifications.setNotificationHandler({
@@ -189,6 +190,15 @@ export function useNotifications(): UseNotificationsReturn {
         ...prev,
         expoPushToken: token,
       }));
+
+      // Register token with server
+      try {
+        await registerPushToken(token);
+        console.log('[Notifications] Token registered with server');
+      } catch (error) {
+        console.error('[Notifications] Failed to register token:', error);
+        // Don't fail the overall operation - token is still valid locally
+      }
 
       return token;
     } catch (error) {
