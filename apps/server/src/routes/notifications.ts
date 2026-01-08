@@ -24,7 +24,19 @@ const snoozeCardSchema = z.object({
 });
 
 const updatePreferencesSchema = z.object({
-  notificationsEnabled: z.boolean(),
+  notificationsEnabled: z.boolean().optional(),
+  notificationCooldownMinutes: z
+    .number()
+    .int()
+    .min(120, 'Cooldown must be at least 120 minutes (2 hours)')
+    .max(1440, 'Maximum cooldown is 1440 minutes (24 hours)')
+    .optional(),
+  maxNotificationsPerDay: z
+    .number()
+    .int()
+    .min(1, 'Must be at least 1')
+    .max(50, 'Maximum 50 notifications per day')
+    .optional(),
 });
 
 // POST /api/notifications/register - Register push token
@@ -156,20 +168,54 @@ router.patch(
   validate({ body: updatePreferencesSchema }),
   asyncHandler(async (req, res) => {
     const user = req.user!;
-    const { notificationsEnabled } = req.validated!.body as z.infer<
-      typeof updatePreferencesSchema
-    >;
+    const {
+      notificationsEnabled,
+      notificationCooldownMinutes,
+      maxNotificationsPerDay,
+    } = req.validated!.body as z.infer<typeof updatePreferencesSchema>;
+
+    // Build update data (only include fields that were provided)
+    const updateData: {
+      notificationsEnabled?: boolean;
+      notificationCooldownMinutes?: number;
+      maxNotificationsPerDay?: number;
+    } = {};
+
+    if (notificationsEnabled !== undefined) {
+      updateData.notificationsEnabled = notificationsEnabled;
+    }
+    if (notificationCooldownMinutes !== undefined) {
+      updateData.notificationCooldownMinutes = notificationCooldownMinutes;
+    }
+    if (maxNotificationsPerDay !== undefined) {
+      updateData.maxNotificationsPerDay = maxNotificationsPerDay;
+    }
 
     // Update user's notification preferences
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: user.id },
-      data: { notificationsEnabled },
+      data: updateData,
+      select: {
+        notificationsEnabled: true,
+        notificationCooldownMinutes: true,
+        maxNotificationsPerDay: true,
+        pushToken: true,
+        lastPushSentAt: true,
+        notificationsCountToday: true,
+      },
     });
 
     res.json({
       success: true,
-      message: `Notifications ${notificationsEnabled ? 'enabled' : 'disabled'}`,
-      notificationsEnabled,
+      message: 'Notification preferences updated',
+      prefs: {
+        notificationsEnabled: updatedUser.notificationsEnabled,
+        notificationCooldownMinutes: updatedUser.notificationCooldownMinutes,
+        maxNotificationsPerDay: updatedUser.maxNotificationsPerDay,
+        hasPushToken: !!updatedUser.pushToken,
+        lastPushSentAt: updatedUser.lastPushSentAt?.toISOString() ?? null,
+        notificationsCountToday: updatedUser.notificationsCountToday,
+      },
     });
   }),
 );
@@ -181,9 +227,30 @@ router.get(
   asyncHandler(async (req, res) => {
     const user = req.user!;
 
+    // Fetch full user data for preferences
+    const userData = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        notificationsEnabled: true,
+        notificationCooldownMinutes: true,
+        maxNotificationsPerDay: true,
+        pushToken: true,
+        lastPushSentAt: true,
+        notificationsCountToday: true,
+      },
+    });
+
+    if (!userData) {
+      throw new ApiError(404, 'USER_NOT_FOUND', 'User not found');
+    }
+
     res.json({
-      notificationsEnabled: user.notificationsEnabled,
-      hasPushToken: !!user.pushToken,
+      notificationsEnabled: userData.notificationsEnabled,
+      notificationCooldownMinutes: userData.notificationCooldownMinutes,
+      maxNotificationsPerDay: userData.maxNotificationsPerDay,
+      hasPushToken: !!userData.pushToken,
+      lastPushSentAt: userData.lastPushSentAt?.toISOString() ?? null,
+      notificationsCountToday: userData.notificationsCountToday,
     });
   }),
 );
