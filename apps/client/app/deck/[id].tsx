@@ -10,10 +10,10 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
-import { useLocalSearchParams, Stack } from 'expo-router';
+import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 
-import { getCards, createCard, type Card } from '@/lib/api';
+import { getCards, createCard, startSprint, type Card } from '@/lib/api';
 
 export default function DeckDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,6 +27,7 @@ export default function DeckDetailScreen() {
   const [front, setFront] = useState('');
   const [back, setBack] = useState('');
   const [creating, setCreating] = useState(false);
+  const [startingSprintForDeck, setStartingSprintForDeck] = useState(false);
 
   const deckTitle = cards[0]?.deckTitle || 'Deck';
 
@@ -86,6 +87,42 @@ export default function DeckDetailScreen() {
     }
   };
 
+  const handleStartSprintForDeck = async () => {
+    if (!id || startingSprintForDeck) return;
+
+    setStartingSprintForDeck(true);
+    try {
+      const { sprint } = await startSprint({
+        deckId: id,
+        source: 'DECK',
+      });
+
+      router.push({
+        pathname: '/sprint/[id]',
+        params: {
+          id: sprint.id,
+          returnTo: `/deck/${id}`,
+          launchSource: 'DECK',
+          deckId: id,
+        },
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('No cards')) {
+        Alert.alert(
+          'No Cards Due',
+          'There are no cards due for review in this deck right now.',
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          err instanceof Error ? err.message : 'Failed to start sprint',
+        );
+      }
+    } finally {
+      setStartingSprintForDeck(false);
+    }
+  };
+
   const renderCard = ({ item }: { item: Card }) => (
     <View style={styles.cardItem}>
       <View style={styles.cardContent}>
@@ -119,10 +156,48 @@ export default function DeckDetailScreen() {
     );
   }
 
+  // Count due cards in this deck
+  const dueCardsCount = cards.filter((card) => {
+    const nextReview = new Date(card.nextReview);
+    return nextReview <= new Date();
+  }).length;
+
   return (
     <>
       <Stack.Screen options={{ title: deckTitle }} />
       <View style={styles.container}>
+        {/* Start Sprint for Deck Button */}
+        {cards.length > 0 && (
+          <View style={styles.sprintSection}>
+            <TouchableOpacity
+              style={[
+                styles.startSprintButton,
+                (startingSprintForDeck || dueCardsCount === 0) &&
+                  styles.buttonDisabled,
+              ]}
+              onPress={handleStartSprintForDeck}
+              disabled={startingSprintForDeck || dueCardsCount === 0}
+            >
+              {startingSprintForDeck ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.startSprintButtonText}>
+                    Start Sprint for This Deck
+                  </Text>
+                  {dueCardsCount > 0 ? (
+                    <Text style={styles.dueCountText}>
+                      {dueCardsCount} card{dueCardsCount !== 1 ? 's' : ''} due
+                    </Text>
+                  ) : (
+                    <Text style={styles.noDueText}>No cards due</Text>
+                  )}
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Create Card Form */}
         {showForm ? (
           <View style={styles.form}>
@@ -218,6 +293,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  // Sprint Section
+  sprintSection: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  startSprintButton: {
+    backgroundColor: '#4CAF50',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  startSprintButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  dueCountText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  noDueText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 13,
+    marginTop: 4,
   },
   centered: {
     flex: 1,
