@@ -35,6 +35,12 @@ enum SprintStatus {
   ABANDONED
 }
 
+enum SprintSource {
+  HOME   // Started manually from Home screen
+  DECK   // Started from Deck Detail screen
+  PUSH   // Created by server for push notification
+}
+
 enum CardResult {
   PASS
   FAIL
@@ -198,9 +204,16 @@ model Sprint {
   userId      String
   deckId      String?      // Optional: constrain sprint to a specific deck
   status      SprintStatus @default(PENDING)
+  source      SprintSource @default(HOME)
   createdAt   DateTime     @default(now())
   startedAt   DateTime?
   completedAt DateTime?
+
+  // Resume/abandon lifecycle fields
+  // resumableUntil: when the sprint can no longer be resumed (30 min after last activity)
+  // abandonedAt: when the sprint was abandoned (auto or explicit)
+  resumableUntil DateTime?
+  abandonedAt    DateTime?
 
   // Relations
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -210,6 +223,7 @@ model Sprint {
   @@index([userId])
   @@index([deckId])
   @@index([status])
+  @@index([resumableUntil])
 }
 
 model SprintCard {
