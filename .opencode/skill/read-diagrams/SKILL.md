@@ -18,4 +18,4 @@ Every task should first read the diagrams to understand the structure, functiona
 
 ## Diagram Locations
 
-Diagrams are located in the root of the monorepo inside `diagrams/*`
+Diagrams are located in the root of the monorepo inside `docs/*`

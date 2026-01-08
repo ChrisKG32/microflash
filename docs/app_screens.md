@@ -145,6 +145,3 @@
     - Loading: Signing out.
     - Empty: N/A
     - Error: Sign out failed.
-
-## 3) Open questions (only if blocking):
-- Do you want a “Review ahead” option when nothing is due, or strictly due/overdue only?

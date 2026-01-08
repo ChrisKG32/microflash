@@ -2,6 +2,11 @@
 
 Guidelines for agentic coding in this repo (product + code conventions).
 
+
+## Important Agent Instructions
+
+You will never try to create design systems or fancy designs. Working on this app, you will keep the designs extremely minimal until the entire MVP is accomplished, that way it will be easier to develop and migrate to a real design system in the future.
+
 ## Product context (read docs first)
 
 MicroFlash is a **microlearning-first SRS** app:
