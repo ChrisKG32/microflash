@@ -327,7 +327,6 @@ clerkId: user_local_dev
 - **Seed Data:** Add seed data for decks and cards. Ensure this contains some math written in Markdown and LaTeX, so we can quickly test the features.
 - **Dependencies:** E3.2
 
-
 **Libraries:** `react-native-markdown-display` + `react-native-mathjax-svg`
 
 #### E5.2 — Client: Card Editor (create/edit/delete) + preview
@@ -350,28 +349,35 @@ clerkId: user_local_dev
 
 ### E6 — MVP polish + smoke tests
 
+> **📄 Detailed spec:** [`docs/tickets/E6-MVP-POLISH-SMOKE-TESTS.md`](./E6-MVP-POLISH-SMOKE-TESTS.md)
+
 **Goal:** Stabilize UX and prevent regressions in the core loop.
 
-**Scope:** Error states, loading states, empty states, basic test coverage and manual smoke checklist.
+**Scope:** Error states, loading states, empty states, API client hardening (204 handling), navigation edge polish, automated smoke tests (server + client), and manual smoke checklist.
 
-**DoD:** Defined smoke test plan passes.
+**DoD:** All E6 sub-tickets complete; automated tests pass in `pnpm test`; manual smoke checklist passes.
 
 **Dependencies:** E2–E5
 
-**Smoke test checklist:**
+**Sub-tickets:**
 
-- [ ] Create deck → create card → card appears in deck
-- [ ] Start sprint from Home → review all cards → complete → return to Home
-- [ ] Start sprint from Deck Detail → review → complete → return to Deck Detail
-- [ ] Leave sprint mid-way → return within 30 min → resume works
-- [ ] Leave sprint mid-way → wait 30+ min → sprint auto-abandoned, cards snoozed
-- [ ] Receive push notification → tap → Sprint Review opens → back returns to Home
-- [ ] Snooze push notification → sprint abandoned, cards snoozed ≥2h
-- [ ] Toggle notifications off → no pushes sent
-- [ ] Adjust cooldown/max per day → server respects new values
-- [ ] Card content with markdown renders correctly
-- [ ] Card content with LaTeX renders correctly
-- [ ] Priority slider updates persist and affect sprint ordering
+| Ticket | Description                           | Effort |
+| ------ | ------------------------------------- | ------ |
+| E6.1   | Polish backlog audit                  | XS     |
+| E6.2   | Client: Normalize loading/empty/error | S-M    |
+| E6.3   | Client: Fix API client 204 handling   | S      |
+| E6.4   | Client: Navigation edge polish        | S      |
+| E6.5   | Server: Lifecycle + error shape audit | S      |
+| E6.6   | Server: Automated smoke tests         | S-M    |
+| E6.7   | Client: Automated smoke tests         | S      |
+| E6.8   | Manual smoke checklist + release gate | S      |
+
+**Explicitly OUT of scope (deferred to E7):**
+
+- Quiet hours
+- Backlog threshold notifications
+- Anki import flow
+- Full onboarding + Clerk authentication gating
 
 ---
 
