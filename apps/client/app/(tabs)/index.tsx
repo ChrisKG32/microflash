@@ -1,4 +1,14 @@
-import { useState, useCallback } from 'react';
+/**
+ * Home Screen (Command Center)
+ *
+ * The primary entry point for the app. Shows:
+ * - Due/overdue card counts
+ * - Resume sprint CTA (if resumable sprint exists)
+ * - Start Sprint button
+ * - Empty state when nothing is due
+ */
+
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,30 +18,53 @@ import {
   ScrollView,
   RefreshControl,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, router } from 'expo-router';
 
-import { getDueCards, submitReview, type Card } from '@/lib/api';
+import {
+  getHomeSummary,
+  startSprint,
+  type HomeSummary,
+  type SprintSource,
+} from '@/lib/api';
 
-type Rating = 'AGAIN' | 'HARD' | 'GOOD' | 'EASY';
+/**
+ * Duration in milliseconds to show the resume CTA after Home becomes active.
+ */
+const RESUME_CTA_DURATION_MS = 5000;
 
-export default function ReviewScreen() {
-  const [cards, setCards] = useState<Card[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [showAnswer, setShowAnswer] = useState(false);
+export default function HomeScreen() {
+  const [summary, setSummary] = useState<HomeSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [startingSprintSource, setStartingSprintSource] =
+    useState<SprintSource | null>(null);
 
-  const fetchDueCards = useCallback(async () => {
+  // Resume CTA visibility state
+  const [showResumeCTA, setShowResumeCTA] = useState(false);
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchSummary = useCallback(async () => {
     try {
       setError(null);
-      const { cards: dueCards } = await getDueCards();
-      setCards(dueCards);
-      setCurrentIndex(0);
-      setShowAnswer(false);
+      const { summary: fetchedSummary } = await getHomeSummary();
+      setSummary(fetchedSummary);
+
+      // Show resume CTA if there's a resumable sprint
+      if (fetchedSummary.resumableSprint) {
+        setShowResumeCTA(true);
+        // Auto-hide after 5 seconds
+        if (resumeTimerRef.current) {
+          clearTimeout(resumeTimerRef.current);
+        }
+        resumeTimerRef.current = setTimeout(() => {
+          setShowResumeCTA(false);
+        }, RESUME_CTA_DURATION_MS);
+      } else {
+        setShowResumeCTA(false);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load cards');
+      setError(err instanceof Error ? err.message : 'Failed to load summary');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -41,45 +74,79 @@ export default function ReviewScreen() {
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      fetchDueCards();
-    }, [fetchDueCards]),
+      fetchSummary();
+
+      // Cleanup timer on unfocus
+      return () => {
+        if (resumeTimerRef.current) {
+          clearTimeout(resumeTimerRef.current);
+        }
+      };
+    }, [fetchSummary]),
   );
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (resumeTimerRef.current) {
+        clearTimeout(resumeTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchDueCards();
+    fetchSummary();
   };
 
-  const handleRating = async (rating: Rating) => {
-    const card = cards[currentIndex];
-    if (!card || submitting) return;
+  const handleStartSprint = async () => {
+    if (startingSprintSource) return; // Prevent double-tap
 
+    setStartingSprintSource('HOME');
     try {
-      setSubmitting(true);
-      await submitReview({ cardId: card.id, rating });
-
-      // Move to next card or refetch
-      if (currentIndex < cards.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-        setShowAnswer(false);
-      } else {
-        // Refetch to get any new due cards
-        await fetchDueCards();
-      }
+      const { sprint } = await startSprint({ source: 'HOME' });
+      router.push({
+        pathname: '/sprint/[id]',
+        params: {
+          id: sprint.id,
+          returnTo: '/',
+          launchSource: 'HOME',
+        },
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit review');
+      if (err instanceof Error && err.message.includes('No cards')) {
+        // No eligible cards - refresh to show empty state
+        fetchSummary();
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to start sprint');
+      }
     } finally {
-      setSubmitting(false);
+      setStartingSprintSource(null);
     }
   };
 
-  const currentCard = cards[currentIndex];
+  const handleResumeSprint = () => {
+    if (!summary?.resumableSprint) return;
+
+    router.push({
+      pathname: '/sprint/[id]',
+      params: {
+        id: summary.resumableSprint.id,
+        returnTo: '/',
+        launchSource: 'HOME',
+      },
+    });
+  };
+
+  const handleReviewAhead = () => {
+    router.push('/browse');
+  };
 
   if (loading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" />
-        <Text style={styles.loadingText}>Loading due cards...</Text>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
@@ -100,105 +167,102 @@ export default function ReviewScreen() {
     );
   }
 
-  if (!currentCard) {
-    return (
-      <ScrollView
-        contentContainerStyle={styles.centered}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-      >
-        <Text style={styles.emptyIcon}>🎉</Text>
-        <Text style={styles.emptyTitle}>All caught up!</Text>
-        <Text style={styles.emptyText}>No cards due for review right now.</Text>
-        <Text style={styles.emptyHint}>
-          Pull down to refresh or add cards in the Decks tab.
-        </Text>
-      </ScrollView>
-    );
-  }
+  const hasDueCards = summary && summary.dueCount > 0;
 
   return (
-    <View style={styles.container}>
-      {/* Progress */}
-      <View style={styles.progress}>
-        <Text style={styles.progressText}>
-          Card {currentIndex + 1} of {cards.length}
-        </Text>
-        {currentCard.deckTitle && (
-          <Text style={styles.deckTitle}>{currentCard.deckTitle}</Text>
-        )}
-      </View>
-
-      {/* Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Question</Text>
-        <Text style={styles.cardText}>{currentCard.front}</Text>
-
-        {showAnswer && (
-          <>
-            <View style={styles.divider} />
-            <Text style={styles.cardLabel}>Answer</Text>
-            <Text style={styles.cardText}>{currentCard.back}</Text>
-          </>
-        )}
-      </View>
-
-      {/* Actions */}
-      {!showAnswer ? (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+      }
+    >
+      {/* Resume Sprint CTA */}
+      {showResumeCTA && summary?.resumableSprint && (
         <TouchableOpacity
-          style={styles.showAnswerButton}
-          onPress={() => setShowAnswer(true)}
+          style={styles.resumeBanner}
+          onPress={handleResumeSprint}
         >
-          <Text style={styles.showAnswerText}>Show Answer</Text>
+          <View style={styles.resumeContent}>
+            <Text style={styles.resumeTitle}>Resume Sprint</Text>
+            <Text style={styles.resumeSubtext}>
+              {summary.resumableSprint.progress.reviewed} of{' '}
+              {summary.resumableSprint.progress.total} cards reviewed
+              {summary.resumableSprint.deckTitle &&
+                ` - ${summary.resumableSprint.deckTitle}`}
+            </Text>
+          </View>
+          <Text style={styles.resumeArrow}>{'>'}</Text>
         </TouchableOpacity>
+      )}
+
+      {/* Main Content */}
+      {hasDueCards ? (
+        <View style={styles.dueSection}>
+          {/* Due Count Card */}
+          <View style={styles.statsCard}>
+            <Text style={styles.statsNumber}>{summary.dueCount}</Text>
+            <Text style={styles.statsLabel}>cards due</Text>
+            {summary.overdueCount > 0 && (
+              <Text style={styles.overdueText}>
+                {summary.overdueCount} overdue
+              </Text>
+            )}
+          </View>
+
+          {/* Start Sprint Button */}
+          <TouchableOpacity
+            style={[
+              styles.startButton,
+              startingSprintSource && styles.buttonDisabled,
+            ]}
+            onPress={handleStartSprint}
+            disabled={!!startingSprintSource}
+          >
+            {startingSprintSource ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.startButtonText}>Start Sprint</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       ) : (
-        <View style={styles.ratingButtons}>
+        <View style={styles.emptySection}>
+          <Text style={styles.emptyIcon}>🎉</Text>
+          <Text style={styles.emptyTitle}>You're all caught up!</Text>
+          <Text style={styles.emptyText}>
+            No cards are due for review right now.
+          </Text>
           <TouchableOpacity
-            style={[styles.ratingButton, styles.againButton]}
-            onPress={() => handleRating('AGAIN')}
-            disabled={submitting}
+            style={styles.reviewAheadButton}
+            onPress={handleReviewAhead}
           >
-            <Text style={styles.ratingButtonText}>Again</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.ratingButton, styles.hardButton]}
-            onPress={() => handleRating('HARD')}
-            disabled={submitting}
-          >
-            <Text style={styles.ratingButtonText}>Hard</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.ratingButton, styles.goodButton]}
-            onPress={() => handleRating('GOOD')}
-            disabled={submitting}
-          >
-            <Text style={styles.ratingButtonText}>Good</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.ratingButton, styles.easyButton]}
-            onPress={() => handleRating('EASY')}
-            disabled={submitting}
-          >
-            <Text style={styles.ratingButtonText}>Easy</Text>
+            <Text style={styles.reviewAheadText}>Review Ahead</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {submitting && (
-        <View style={styles.submittingOverlay}>
-          <ActivityIndicator color="#fff" />
+      {/* Notification Status (subtle) */}
+      {summary && !summary.notificationsEnabled && (
+        <View style={styles.notificationWarning}>
+          <Text style={styles.notificationWarningText}>
+            Notifications are disabled. Enable them in Settings to get reminded
+            when cards are due.
+          </Text>
         </View>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
     backgroundColor: '#f5f5f5',
+  },
+  content: {
+    padding: 16,
+    paddingBottom: 32,
   },
   centered: {
     flex: 1,
@@ -229,6 +293,89 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  // Resume Banner
+  resumeBanner: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  resumeContent: {
+    flex: 1,
+  },
+  resumeTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  resumeSubtext: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+  },
+  resumeArrow: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  // Due Section
+  dueSection: {
+    alignItems: 'center',
+    paddingTop: 40,
+  },
+  statsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    marginBottom: 24,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statsNumber: {
+    fontSize: 64,
+    fontWeight: '700',
+    color: '#2196f3',
+  },
+  statsLabel: {
+    fontSize: 18,
+    color: '#666',
+    marginTop: 4,
+  },
+  overdueText: {
+    fontSize: 14,
+    color: '#f44336',
+    marginTop: 8,
+  },
+  startButton: {
+    backgroundColor: '#2196f3',
+    paddingHorizontal: 48,
+    paddingVertical: 16,
+    borderRadius: 12,
+    minWidth: 200,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  startButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  // Empty Section
+  emptySection: {
+    alignItems: 'center',
+    paddingTop: 60,
+  },
   emptyIcon: {
     fontSize: 64,
     marginBottom: 16,
@@ -236,103 +383,38 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: '600',
+    color: '#333',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+    marginBottom: 24,
   },
-  emptyHint: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  progress: {
-    marginBottom: 16,
-  },
-  progressText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  deckTitle: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 2,
-  },
-  card: {
-    flex: 1,
+  reviewAheadButton: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardLabel: {
-    fontSize: 12,
-    color: '#999',
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  cardText: {
-    fontSize: 18,
-    lineHeight: 26,
-    color: '#333',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#eee',
-    marginVertical: 20,
-  },
-  showAnswerButton: {
-    backgroundColor: '#2196f3',
-    padding: 16,
+    borderWidth: 2,
+    borderColor: '#2196f3',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 16,
   },
-  showAnswerText: {
-    color: '#fff',
-    fontSize: 18,
+  reviewAheadText: {
+    color: '#2196f3',
+    fontSize: 16,
     fontWeight: '600',
   },
-  ratingButtons: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 16,
-  },
-  ratingButton: {
-    flex: 1,
-    padding: 16,
+  // Notification Warning
+  notificationWarning: {
+    backgroundColor: '#FFF3E0',
     borderRadius: 8,
-    alignItems: 'center',
+    padding: 12,
+    marginTop: 24,
   },
-  ratingButtonText: {
-    color: '#fff',
+  notificationWarningText: {
+    color: '#E65100',
     fontSize: 14,
-    fontWeight: '600',
-  },
-  againButton: {
-    backgroundColor: '#d32f2f',
-  },
-  hardButton: {
-    backgroundColor: '#f57c00',
-  },
-  goodButton: {
-    backgroundColor: '#388e3c',
-  },
-  easyButton: {
-    backgroundColor: '#1976d2',
-  },
-  submittingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 12,
+    textAlign: 'center',
   },
 });

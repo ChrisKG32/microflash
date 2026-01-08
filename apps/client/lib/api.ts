@@ -148,8 +148,137 @@ export async function getDueCards(): Promise<{ cards: Card[]; total: number }> {
 }
 
 // =============================================================================
+// Home API Methods
+// =============================================================================
+
+export type SprintStatus = 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'ABANDONED';
+export type SprintSource = 'HOME' | 'DECK' | 'PUSH';
+export type CardResult = 'PASS' | 'FAIL' | 'SKIP';
+export type Rating = 'AGAIN' | 'HARD' | 'GOOD' | 'EASY';
+
+export interface SprintProgress {
+  total: number;
+  reviewed: number;
+  remaining: number;
+}
+
+export interface ResumableSprint {
+  id: string;
+  resumableUntil: string | null;
+  progress: SprintProgress;
+  deckTitle: string | null;
+}
+
+export interface HomeSummary {
+  dueCount: number;
+  overdueCount: number;
+  resumableSprint: ResumableSprint | null;
+  nextEligiblePushTime: string | null;
+  notificationsEnabled: boolean;
+  hasPushToken: boolean;
+}
+
+/**
+ * Get home screen summary data.
+ */
+export async function getHomeSummary(): Promise<{ summary: HomeSummary }> {
+  return request('/api/home/summary');
+}
+
+// =============================================================================
 // Sprint API Methods
 // =============================================================================
+
+export interface CardInSprint {
+  id: string;
+  front: string;
+  back: string;
+  priority: number;
+  deckId: string;
+  deckTitle?: string;
+  state: string;
+  nextReviewDate: string;
+  snoozedUntil: string | null;
+}
+
+export interface SprintCard {
+  id: string;
+  order: number;
+  result: CardResult | null;
+  reviewedAt: string | null;
+  card: CardInSprint;
+}
+
+export interface Sprint {
+  id: string;
+  status: SprintStatus;
+  source: SprintSource;
+  deckId: string | null;
+  deckTitle: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  resumableUntil: string | null;
+  abandonedAt: string | null;
+  cards: SprintCard[];
+  progress: SprintProgress;
+}
+
+export interface SprintStats {
+  totalCards: number;
+  reviewedCards: number;
+  passCount: number;
+  failCount: number;
+  skipCount: number;
+  durationSeconds: number | null;
+}
+
+/**
+ * Start a new sprint or resume an existing one.
+ */
+export async function startSprint(data?: {
+  deckId?: string;
+  source?: SprintSource;
+}): Promise<{ sprint: Sprint; resumed: boolean }> {
+  return request('/api/sprints/start', {
+    method: 'POST',
+    body: JSON.stringify(data ?? {}),
+  });
+}
+
+/**
+ * Get a sprint by ID.
+ */
+export async function getSprint(sprintId: string): Promise<{ sprint: Sprint }> {
+  return request(`/api/sprints/${sprintId}`);
+}
+
+/**
+ * Submit a review for a card in a sprint.
+ */
+export async function submitSprintReview(
+  sprintId: string,
+  data: { cardId: string; rating: Rating },
+): Promise<{
+  sprint: Sprint;
+  updatedCard: { id: string; nextReviewDate: string; state: string };
+}> {
+  return request(`/api/sprints/${sprintId}/review`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Complete a sprint.
+ */
+export async function completeSprint(
+  sprintId: string,
+): Promise<{ sprint: Sprint; stats: SprintStats }> {
+  return request(`/api/sprints/${sprintId}/complete`, {
+    method: 'POST',
+  });
+}
 
 /**
  * Abandon a sprint and snooze remaining cards.
@@ -157,8 +286,8 @@ export async function getDueCards(): Promise<{ cards: Card[]; total: number }> {
  * @param sprintId - The sprint to abandon
  */
 export async function abandonSprint(sprintId: string): Promise<{
-  success: boolean;
-  message: string;
+  sprint: Sprint;
+  snoozedCardCount: number;
 }> {
   return request(`/api/sprints/${sprintId}/abandon`, {
     method: 'POST',
