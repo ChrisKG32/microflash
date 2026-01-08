@@ -9,13 +9,14 @@
  * - Inline: $...$ or \(...\)
  * - Block: $$...$$ or \[...\]
  *
- * Invalid LaTeX gracefully falls back to showing [Invalid math] text.
+ * Uses KaTeX auto-render via WebView for content with math.
+ * Uses native Markdown for content without math (better performance).
  */
 
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, StyleProp, TextStyle } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, StyleSheet, StyleProp, TextStyle } from 'react-native';
 import Markdown from 'react-native-markdown-display';
-import { MathJaxSvg } from 'react-native-mathjax-html-to-text-svg';
+import { WebView } from 'react-native-webview';
 
 interface CardContentProps {
   /** The content string to render (may contain markdown and/or LaTeX) */
@@ -26,157 +27,193 @@ interface CardContentProps {
   color?: string;
 }
 
-/** Segment types for content parsing */
-type SegmentType = 'text' | 'inline-math' | 'block-math';
-
-interface Segment {
-  type: SegmentType;
-  content: string;
+/**
+ * Check if content contains any math delimiters
+ */
+function containsMath(content: string): boolean {
+  // Check for any math delimiters: $, $$, \(, \), \[, \]
+  return /\$|\\\(|\\\)|\\\[|\\\]/.test(content);
 }
 
 /**
- * Parse content into segments of text and math.
- * Handles both delimiter styles: $/$$ and \(\)/\[\]
- * Block delimiters ($$, \[) take precedence over inline ($, \().
+ * Convert basic markdown to HTML for WebView rendering
+ * Handles: bold, italic, code, headers, lists, links
  */
-function parseContent(content: string): Segment[] {
-  const segments: Segment[] = [];
+function markdownToHtml(content: string): string {
+  let html = content;
 
-  // Combined regex to match all math delimiters
-  // Order matters: block delimiters first ($$, \[), then inline ($, \()
-  // Using non-greedy matching to get shortest valid match
-  const mathRegex =
-    /(\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\$[^\$\n]+?\$|\\\([^\)]+?\\\))/g;
+  // Escape HTML entities first (but preserve math delimiters)
+  html = html
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
+  // Headers (must come before bold to avoid conflicts with **)
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
 
-  while ((match = mathRegex.exec(content)) !== null) {
-    // Add text before this match
-    if (match.index > lastIndex) {
-      const textContent = content.slice(lastIndex, match.index);
-      if (textContent.trim()) {
-        segments.push({ type: 'text', content: textContent });
-      } else if (textContent) {
-        // Preserve whitespace-only segments for spacing
-        segments.push({ type: 'text', content: textContent });
-      }
+  // Bold: **text** or __text__
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+
+  // Italic: *text* or _text_ (but not inside math)
+  // Be careful not to match inside $ delimiters
+  html = html.replace(/(?<!\$)\*(?!\*)(.+?)(?<!\*)\*(?!\$)/g, '<em>$1</em>');
+  html = html.replace(/(?<![\\$])_(?!_)(.+?)(?<!_)_(?![\\$])/g, '<em>$1</em>');
+
+  // Inline code: `code`
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // Links: [text](url)
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+  // Unordered lists: - item or * item
+  html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+
+  // Ordered lists: 1. item
+  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+
+  // Wrap consecutive <li> in <ul>
+  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+  // Paragraphs: double newlines
+  html = html.replace(/\n\n+/g, '</p><p>');
+
+  // Single newlines to <br> (but not inside lists)
+  html = html.replace(/(?<!<\/li>)\n(?!<)/g, '<br>');
+
+  // Wrap in paragraph if not already wrapped
+  if (!html.startsWith('<')) {
+    html = '<p>' + html + '</p>';
+  }
+
+  return html;
+}
+
+/**
+ * Generate HTML with KaTeX auto-render for mixed content
+ */
+function generateKaTeXHTML(
+  content: string,
+  fontSize: number,
+  color: string,
+): string {
+  const htmlContent = markdownToHtml(content);
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-
-    const matchedStr = match[0];
-    let mathContent: string;
-    let isBlock: boolean;
-
-    // Determine delimiter type and extract content
-    if (matchedStr.startsWith('$$')) {
-      // Block: $$...$$
-      mathContent = matchedStr.slice(2, -2).trim();
-      isBlock = true;
-    } else if (matchedStr.startsWith('\\[')) {
-      // Block: \[...\]
-      mathContent = matchedStr.slice(2, -2).trim();
-      isBlock = true;
-    } else if (matchedStr.startsWith('$')) {
-      // Inline: $...$
-      mathContent = matchedStr.slice(1, -1).trim();
-      isBlock = false;
-    } else if (matchedStr.startsWith('\\(')) {
-      // Inline: \(...\)
-      mathContent = matchedStr.slice(2, -2).trim();
-      isBlock = false;
-    } else {
-      // Shouldn't happen, but treat as text
-      segments.push({ type: 'text', content: matchedStr });
-      lastIndex = match.index + matchedStr.length;
-      continue;
+    html, body {
+      background-color: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: ${fontSize}px;
+      line-height: 1.5;
+      color: ${color};
+      overflow-x: hidden;
     }
-
-    if (mathContent) {
-      segments.push({
-        type: isBlock ? 'block-math' : 'inline-math',
-        content: mathContent,
+    body {
+      padding: 4px;
+    }
+    p {
+      margin: 0 0 0.5em 0;
+    }
+    p:last-child {
+      margin-bottom: 0;
+    }
+    h1 { font-size: 1.5em; font-weight: bold; margin: 0.5em 0; }
+    h2 { font-size: 1.3em; font-weight: bold; margin: 0.4em 0; }
+    h3 { font-size: 1.1em; font-weight: bold; margin: 0.3em 0; }
+    strong { font-weight: bold; }
+    em { font-style: italic; }
+    code {
+      background-color: #f0f0f0;
+      font-family: monospace;
+      font-size: 0.9em;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    ul, ol {
+      margin: 0.5em 0;
+      padding-left: 1.5em;
+    }
+    li {
+      margin: 0.2em 0;
+    }
+    a {
+      color: #2196f3;
+      text-decoration: underline;
+    }
+    /* KaTeX styling */
+    .katex {
+      font-size: 1em !important;
+    }
+    .katex-display {
+      margin: 0.5em 0 !important;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+    /* Error styling - KaTeX renders invalid LaTeX in this span */
+    .katex-error {
+      color: #cc0000 !important;
+      background-color: #ffebee;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 0.85em;
+    }
+    /* Custom error message styling */
+    .math-error {
+      color: #cc0000;
+      background-color: #ffebee;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-style: italic;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <div id="content">${htmlContent}</div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      renderMathInElement(document.getElementById("content"), {
+        delimiters: [
+          {left: "$$", right: "$$", display: true},
+          {left: "$", right: "$", display: false},
+          {left: "\\\\(", right: "\\\\)", display: false},
+          {left: "\\\\[", right: "\\\\]", display: true}
+        ],
+        throwOnError: false,
+        errorColor: '#cc0000',
+        // Custom error callback to log and style errors
+        errorCallback: function(msg, err) {
+          console.warn('KaTeX error:', msg, err);
+        }
       });
-    }
-
-    lastIndex = match.index + matchedStr.length;
-  }
-
-  // Add remaining text after last match
-  if (lastIndex < content.length) {
-    const remaining = content.slice(lastIndex);
-    if (remaining) {
-      segments.push({ type: 'text', content: remaining });
-    }
-  }
-
-  // If no segments were created, treat entire content as text
-  if (segments.length === 0 && content) {
-    segments.push({ type: 'text', content });
-  }
-
-  return segments;
-}
-
-/**
- * MathRenderer component with error handling.
- * Wraps MathJaxSvg and catches rendering errors.
- */
-function MathRenderer({
-  latex,
-  isBlock,
-  fontSize,
-  color,
-}: {
-  latex: string;
-  isBlock: boolean;
-  fontSize: number;
-  color: string;
-}) {
-  // MathJaxSvg expects the full delimited string
-  const wrappedLatex = isBlock ? `$$${latex}$$` : `$${latex}$`;
-
-  return (
-    <View
-      style={isBlock ? styles.blockMathContainer : styles.inlineMathContainer}
-    >
-      <MathJaxSvg
-        fontSize={fontSize}
-        color={color}
-        style={isBlock ? styles.blockMath : styles.inlineMath}
-      >
-        {wrappedLatex}
-      </MathJaxSvg>
-    </View>
-  );
-}
-
-/**
- * Error boundary wrapper for math rendering.
- * Shows fallback text if MathJax fails.
- */
-class MathErrorBoundary extends React.Component<
-  { children: React.ReactNode; fallback: string },
-  { hasError: boolean }
-> {
-  constructor(props: { children: React.ReactNode; fallback: string }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(): { hasError: boolean } {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.warn('[CardContent] Math rendering error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return <Text style={styles.mathError}>[Invalid math]</Text>;
-    }
-    return this.props.children;
-  }
+      
+      // Send height back to React Native for auto-sizing
+      setTimeout(function() {
+        var height = document.getElementById("content").offsetHeight;
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'height', value: height }));
+      }, 150);
+    });
+  </script>
+</body>
+</html>
+`;
 }
 
 /**
@@ -187,47 +224,52 @@ export function CardContent({
   fontSize = 18,
   color = '#333',
 }: CardContentProps) {
-  // Parse content into segments
-  const segments = useMemo(() => parseContent(content), [content]);
+  const [webViewHeight, setWebViewHeight] = useState(100);
 
   // Check if content has any math
-  const hasMath = segments.some(
-    (s) => s.type === 'inline-math' || s.type === 'block-math',
+  const hasMath = useMemo(() => containsMath(content), [content]);
+
+  // Generate HTML for WebView (only if has math)
+  const html = useMemo(
+    () => (hasMath ? generateKaTeXHTML(content, fontSize, color) : ''),
+    [content, fontSize, color, hasMath],
   );
 
-  // If no math, render pure markdown
+  // If no math, render pure native markdown (better performance)
   if (!hasMath) {
     return (
       <Markdown style={getMarkdownStyles(fontSize, color)}>{content}</Markdown>
     );
   }
 
-  // Render mixed content with math
-  return (
-    <View style={styles.container}>
-      {segments.map((segment, index) => {
-        if (segment.type === 'text') {
-          // Render markdown for text segments
-          return (
-            <Markdown key={index} style={getMarkdownStyles(fontSize, color)}>
-              {segment.content}
-            </Markdown>
-          );
-        }
+  // Render content with math in WebView using KaTeX auto-render
+  const handleMessage = (event: { nativeEvent: { data: string } }) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'height' && typeof data.value === 'number') {
+        setWebViewHeight(Math.max(data.value + 16, 40));
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  };
 
-        // Render math segments with error boundary
-        const isBlock = segment.type === 'block-math';
-        return (
-          <MathErrorBoundary key={index} fallback={segment.content}>
-            <MathRenderer
-              latex={segment.content}
-              isBlock={isBlock}
-              fontSize={fontSize}
-              color={color}
-            />
-          </MathErrorBoundary>
-        );
-      })}
+  return (
+    <View style={[styles.webViewContainer, { height: webViewHeight }]}>
+      <WebView
+        source={{ html }}
+        style={styles.webView}
+        scrollEnabled={false}
+        showsHorizontalScrollIndicator={false}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        onMessage={handleMessage}
+        originWhitelist={['*']}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        androidLayerType="hardware"
+        cacheEnabled={true}
+      />
     </View>
   );
 }
@@ -317,31 +359,13 @@ function getMarkdownStyles(
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'column',
+  webViewContainer: {
+    width: '100%',
+    overflow: 'hidden',
   },
-  inlineMathContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  blockMathContainer: {
-    alignItems: 'center',
-    marginVertical: 12,
-  },
-  inlineMath: {
-    // Inline math styling handled by MathJaxSvg
-  },
-  blockMath: {
-    // Block math styling handled by MathJaxSvg
-  },
-  mathError: {
-    color: '#d32f2f',
-    fontStyle: 'italic',
-    backgroundColor: '#ffebee',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+  webView: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
 });
 
