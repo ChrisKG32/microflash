@@ -30,6 +30,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   getNotificationPreferences,
   updateNotificationPreferences,
+  createDevTestSprintNotification,
+  ApiError,
   type NotificationPreferences,
 } from '@/lib/api';
 
@@ -41,6 +43,7 @@ export default function NotificationControlsScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasOSPermission, setHasOSPermission] = useState<boolean | null>(null);
+  const [schedulingTest, setSchedulingTest] = useState(false);
 
   // Form state
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
@@ -158,6 +161,102 @@ export default function NotificationControlsScreen() {
   const requestPermission = async () => {
     const { status } = await Notifications.requestPermissionsAsync();
     setHasOSPermission(status === 'granted');
+  };
+
+  /**
+   * Schedule a test sprint notification for 30 seconds from now.
+   * Only available in __DEV__ builds.
+   */
+  const scheduleTestNotification = async () => {
+    setSchedulingTest(true);
+    setError(null);
+
+    try {
+      // Ensure we have notification permission
+      const { status: existingStatus } =
+        await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Please enable notifications to test this feature.',
+        );
+        setHasOSPermission(false);
+        return;
+      }
+
+      setHasOSPermission(true);
+
+      // Ensure Android notification channel exists
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'Default',
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+        });
+      }
+
+      // Create a PENDING sprint on the server and get the notification payload
+      const { sprintId, cardCount, notification } =
+        await createDevTestSprintNotification();
+
+      // Schedule a local notification for 30 seconds from now
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: notification.title,
+          body: notification.body,
+          sound: 'default',
+          data: notification.data,
+          // iOS: use categoryIdentifier for interactive actions
+          categoryIdentifier: notification.categoryId,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: 30,
+          // Android: use the default channel
+          ...(Platform.OS === 'android' && { channelId: 'default' }),
+        },
+      });
+
+      Alert.alert(
+        'Test Notification Scheduled',
+        `A sprint notification with ${cardCount} card${cardCount === 1 ? '' : 's'} will appear in 30 seconds.\n\nSprint ID: ${sprintId}\nNotification ID: ${notificationId}`,
+        [
+          { text: 'OK' },
+          {
+            text: 'Cancel Notification',
+            style: 'destructive',
+            onPress: () => {
+              Notifications.cancelScheduledNotificationAsync(notificationId);
+              Alert.alert('Cancelled', 'Test notification cancelled.');
+            },
+          },
+        ],
+      );
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'NO_ELIGIBLE_CARDS') {
+        Alert.alert(
+          'No Cards Due',
+          'Create some cards first, then try again. Cards need to be due for review to create a test sprint.',
+        );
+      } else {
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Failed to schedule notification';
+        setError(message);
+        Alert.alert('Error', message);
+      }
+    } finally {
+      setSchedulingTest(false);
+    }
   };
 
   if (loading) {
@@ -345,6 +444,42 @@ export default function NotificationControlsScreen() {
           </View>
         )}
 
+        {/* Dev Testing Section - only in __DEV__ builds */}
+        {__DEV__ && (
+          <View style={[styles.section, { backgroundColor: colors.card }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Dev Testing
+            </Text>
+            <Text style={[styles.sublabel, { color: colors.textSecondary }]}>
+              Test the notification flow by scheduling a local notification that
+              mimics a real push notification.
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.testButton,
+                schedulingTest && styles.testButtonDisabled,
+              ]}
+              onPress={scheduleTestNotification}
+              disabled={schedulingTest}
+            >
+              {schedulingTest ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.testButtonText}>
+                  Test Sprint Notification (30s)
+                </Text>
+              )}
+            </TouchableOpacity>
+            <Text
+              style={[styles.testDescription, { color: colors.textSecondary }]}
+            >
+              Creates a real PENDING sprint on the server, then schedules a
+              local notification for 30 seconds. Tap the notification to test
+              navigation and the "Snooze 1h" action.
+            </Text>
+          </View>
+        )}
+
         {/* Save Button */}
         <TouchableOpacity
           style={[
@@ -506,5 +641,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  testButton: {
+    backgroundColor: '#FF9500',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  testButtonDisabled: {
+    backgroundColor: '#A0A0A0',
+  },
+  testButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  testDescription: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
   },
 });

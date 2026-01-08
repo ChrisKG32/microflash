@@ -5,6 +5,11 @@ import { requireUser } from '@/middlewares/auth';
 import { validate } from '@/middlewares/validate';
 import { asyncHandler, ApiError } from '@/middlewares/error-handler';
 import { isValidExpoPushToken } from '@/services/push-notifications';
+import { createPendingPushSprint } from '@/services/sprint-service';
+import {
+  prepareNotificationPayload,
+  type UserNotificationGroup,
+} from '@/services/notification-grouping';
 
 const router: RouterType = Router();
 
@@ -252,6 +257,81 @@ router.get(
       lastPushSentAt: userData.lastPushSentAt?.toISOString() ?? null,
       notificationsCountToday: userData.notificationsCountToday,
     });
+  }),
+);
+
+// =============================================================================
+// Dev/Test Endpoints (non-production only)
+// =============================================================================
+
+/**
+ * POST /api/notifications/dev/test-sprint
+ *
+ * Creates a PENDING push sprint and returns the notification payload
+ * so the client can schedule a local notification for testing.
+ *
+ * Only available in non-production environments.
+ *
+ * Response:
+ * - sprintId: string
+ * - cardCount: number
+ * - notification: { title, body, categoryId, data }
+ */
+router.post(
+  '/dev/test-sprint',
+  requireUser,
+  asyncHandler(async (req, res) => {
+    // Guard: only allow in non-production environments
+    if (process.env.NODE_ENV === 'production') {
+      throw new ApiError(
+        404,
+        'NOT_FOUND',
+        'This endpoint is not available in production',
+      );
+    }
+
+    const user = req.user!;
+
+    try {
+      // Create a PENDING push sprint (same as real push flow)
+      const { sprint, cardCount } = await createPendingPushSprint({
+        userId: user.id,
+        sprintSize: user.sprintSize,
+      });
+
+      // Build a minimal UserNotificationGroup for payload preparation
+      const group: UserNotificationGroup = {
+        userId: user.id,
+        clerkId: user.clerkId,
+        pushToken: user.pushToken ?? '',
+        decks: [],
+        totalCards: cardCount,
+        sprintId: sprint.id,
+      };
+
+      // Prepare the notification payload (same as real push flow)
+      const payload = prepareNotificationPayload(group, cardCount);
+
+      res.status(201).json({
+        sprintId: sprint.id,
+        cardCount,
+        notification: {
+          title: payload.title,
+          body: payload.body,
+          categoryId: payload.categoryId,
+          data: payload.data,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'NO_ELIGIBLE_CARDS') {
+        throw new ApiError(
+          404,
+          'NO_ELIGIBLE_CARDS',
+          'No cards are due for review. Create some cards first.',
+        );
+      }
+      throw error;
+    }
   }),
 );
 

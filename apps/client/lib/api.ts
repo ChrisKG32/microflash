@@ -504,3 +504,37 @@ export async function unsnoozeCard(
     method: 'DELETE',
   });
 }
+
+// =============================================================================
+// Dev/Test API Methods (non-production only)
+// =============================================================================
+
+export interface DevTestSprintNotificationResponse {
+  sprintId: string;
+  cardCount: number;
+  notification: {
+    title: string;
+    body: string;
+    categoryId: string;
+    data: {
+      type: 'sprint';
+      sprintId: string;
+      url: string;
+      cardCount: number;
+    };
+  };
+}
+
+/**
+ * Create a test sprint notification for development testing.
+ *
+ * Creates a PENDING push sprint on the server and returns the notification
+ * payload so the client can schedule a local notification.
+ *
+ * Only available in non-production environments.
+ */
+export async function createDevTestSprintNotification(): Promise<DevTestSprintNotificationResponse> {
+  return request('/api/notifications/dev/test-sprint', {
+    method: 'POST',
+  });
+}
