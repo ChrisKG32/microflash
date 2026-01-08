@@ -6,6 +6,11 @@
 
 import { prisma } from '@/lib/prisma';
 import type { SprintStatus, SprintSource } from '@/generated/prisma';
+import {
+  calculateNextReview,
+  type FSRSState,
+  type RatingType,
+} from '@/services/fsrs';
 
 /**
  * Resume window duration in minutes.
@@ -41,6 +46,29 @@ export interface StartSprintResult {
 }
 
 /**
+ * Card with FSRS fields included (for sprint review calculations)
+ */
+export interface CardWithFSRS {
+  id: string;
+  front: string;
+  back: string;
+  priority: number;
+  deckId: string;
+  state: string;
+  nextReviewDate: Date;
+  snoozedUntil: Date | null;
+  // FSRS fields
+  stability: number;
+  difficulty: number;
+  elapsedDays: number;
+  scheduledDays: number;
+  reps: number;
+  lapses: number;
+  lastReview: Date | null;
+  deck: { id: string; title: string };
+}
+
+/**
  * Sprint with cards included
  */
 export interface SprintWithCards {
@@ -59,17 +87,7 @@ export interface SprintWithCards {
     id: string;
     order: number;
     result: string | null;
-    card: {
-      id: string;
-      front: string;
-      back: string;
-      priority: number;
-      deckId: string;
-      state: string;
-      nextReviewDate: Date;
-      snoozedUntil: Date | null;
-      deck: { id: string; title: string };
-    };
+    card: CardWithFSRS;
   }>;
 }
 
@@ -417,6 +435,203 @@ async function abandonSprintInternal(
   ]);
 
   return updatedSprint as SprintWithCards;
+}
+
+/**
+ * Options for submitting a sprint review
+ */
+export interface SubmitSprintReviewOptions {
+  sprintId: string;
+  userId: string;
+  cardId: string;
+  rating: 'AGAIN' | 'HARD' | 'GOOD' | 'EASY';
+}
+
+/**
+ * Result of submitting a sprint review
+ */
+export interface SubmitSprintReviewResult {
+  sprint: SprintWithCards;
+  updatedCard: {
+    id: string;
+    nextReviewDate: Date;
+    state: string;
+  };
+}
+
+/**
+ * Map rating to CardResult for SprintCard.result
+ * AGAIN = FAIL, everything else = PASS
+ */
+function ratingToCardResult(
+  rating: 'AGAIN' | 'HARD' | 'GOOD' | 'EASY',
+): 'PASS' | 'FAIL' {
+  return rating === 'AGAIN' ? 'FAIL' : 'PASS';
+}
+
+/**
+ * Submit a review for a card within a sprint.
+ *
+ * This function:
+ * 1. Validates sprint ownership and state
+ * 2. Validates card belongs to sprint and hasn't been reviewed
+ * 3. Creates Review record
+ * 4. Updates card FSRS state
+ * 5. Updates SprintCard result
+ * 6. Extends sprint resumableUntil
+ */
+export async function submitSprintReview(
+  options: SubmitSprintReviewOptions,
+): Promise<SubmitSprintReviewResult> {
+  const { sprintId, userId, cardId, rating } = options;
+  const now = new Date();
+
+  // Load sprint with cards
+  const sprint = await prisma.sprint.findUnique({
+    where: { id: sprintId },
+    include: {
+      deck: { select: { id: true, title: true } },
+      sprintCards: {
+        orderBy: { order: 'asc' },
+        include: {
+          card: {
+            include: {
+              deck: { select: { id: true, title: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!sprint) {
+    throw new Error('SPRINT_NOT_FOUND');
+  }
+
+  if (sprint.userId !== userId) {
+    throw new Error('SPRINT_NOT_OWNED');
+  }
+
+  // Check if sprint is expired (auto-abandon if needed)
+  if (
+    sprint.status === 'ACTIVE' &&
+    sprint.resumableUntil &&
+    sprint.resumableUntil < now
+  ) {
+    // Auto-abandon the sprint
+    await abandonSprintInternal(sprintId);
+    throw new Error('SPRINT_EXPIRED');
+  }
+
+  // Sprint must be ACTIVE to submit reviews
+  if (sprint.status !== 'ACTIVE') {
+    throw new Error('SPRINT_NOT_ACTIVE');
+  }
+
+  // Find the SprintCard for this card
+  const sprintCard = sprint.sprintCards.find((sc) => sc.card.id === cardId);
+  if (!sprintCard) {
+    throw new Error('CARD_NOT_IN_SPRINT');
+  }
+
+  // Check if already reviewed
+  if (sprintCard.result !== null) {
+    throw new Error('CARD_ALREADY_REVIEWED');
+  }
+
+  // Get the card for FSRS calculation
+  const card = sprintCard.card;
+
+  // Build current FSRS state from card
+  const currentState: FSRSState = {
+    stability: card.stability,
+    difficulty: card.difficulty,
+    elapsedDays: card.elapsedDays,
+    scheduledDays: card.scheduledDays,
+    reps: card.reps,
+    lapses: card.lapses,
+    state: card.state,
+    lastReview: card.lastReview,
+  };
+
+  // Calculate new FSRS state
+  const { state: newState, nextReviewDate } = calculateNextReview(
+    currentState,
+    rating as RatingType,
+    now,
+  );
+
+  // Calculate new resumableUntil
+  const newResumableUntil = new Date(
+    now.getTime() + RESUME_WINDOW_MINUTES * 60000,
+  );
+
+  // Map rating to CardResult
+  const cardResult = ratingToCardResult(rating);
+
+  // Perform all updates in a transaction
+  const [_review, updatedCard, _updatedSprintCard, updatedSprint] =
+    await prisma.$transaction([
+      // Create review record
+      prisma.review.create({
+        data: {
+          cardId,
+          userId,
+          rating,
+        },
+      }),
+      // Update card with new FSRS state
+      prisma.card.update({
+        where: { id: cardId },
+        data: {
+          stability: newState.stability,
+          difficulty: newState.difficulty,
+          elapsedDays: newState.elapsedDays,
+          scheduledDays: newState.scheduledDays,
+          reps: newState.reps,
+          lapses: newState.lapses,
+          state: newState.state,
+          lastReview: newState.lastReview,
+          nextReviewDate,
+          // Reset notification flag since card was just reviewed
+          lastNotificationSent: null,
+          // Clear snooze since card was reviewed
+          snoozedUntil: null,
+        },
+      }),
+      // Update SprintCard result
+      prisma.sprintCard.update({
+        where: { id: sprintCard.id },
+        data: { result: cardResult },
+      }),
+      // Extend sprint resumableUntil
+      prisma.sprint.update({
+        where: { id: sprintId },
+        data: { resumableUntil: newResumableUntil },
+        include: {
+          deck: { select: { id: true, title: true } },
+          sprintCards: {
+            orderBy: { order: 'asc' },
+            include: {
+              card: {
+                include: {
+                  deck: { select: { id: true, title: true } },
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+  return {
+    sprint: updatedSprint as SprintWithCards,
+    updatedCard: {
+      id: updatedCard.id,
+      nextReviewDate: updatedCard.nextReviewDate,
+      state: updatedCard.state,
+    },
+  };
 }
 
 /**

@@ -227,6 +227,22 @@ export type RecordSprintCardResultInput = z.infer<
   typeof recordSprintCardResultSchema
 >;
 
+// Sprint review validation schema (for POST /api/sprints/:id/review)
+export const ratingEnum = z.enum(['AGAIN', 'HARD', 'GOOD', 'EASY'], {
+  error: 'Rating must be one of: AGAIN, HARD, GOOD, EASY',
+});
+
+export const submitSprintReviewSchema = z
+  .object({
+    cardId: z
+      .string({ error: 'Card ID is required' })
+      .min(1, { error: 'Card ID is required' }),
+    rating: ratingEnum,
+  })
+  .strict();
+
+export type SubmitSprintReviewInput = z.infer<typeof submitSprintReviewSchema>;
+
 // User onboarding validation schema
 export const updateOnboardingSchema = z
   .object({

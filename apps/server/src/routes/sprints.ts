@@ -8,10 +8,16 @@ import { Router, type Router as RouterType } from 'express';
 import { requireUser } from '@/middlewares/auth';
 import { validate } from '@/middlewares/validate';
 import { asyncHandler, ApiError } from '@/middlewares/error-handler';
-import { createSprintSchema, type CreateSprintInput } from '@/lib/validation';
+import {
+  createSprintSchema,
+  submitSprintReviewSchema,
+  type CreateSprintInput,
+  type SubmitSprintReviewInput,
+} from '@/lib/validation';
 import {
   startSprint,
   getSprintById,
+  submitSprintReview,
   formatSprintResponse,
 } from '@/services/sprint-service';
 
@@ -98,6 +104,86 @@ router.get(
             'FORBIDDEN',
             'You do not have permission to access this sprint',
           );
+        }
+      }
+      throw error;
+    }
+  }),
+);
+
+/**
+ * POST /api/sprints/:id/review - Submit a review for a card in a sprint
+ *
+ * Grades a card within a sprint, updates FSRS state, and extends resumableUntil.
+ *
+ * Request body:
+ * - cardId: string - The card to review
+ * - rating: 'AGAIN' | 'HARD' | 'GOOD' | 'EASY' - The grade
+ *
+ * Response:
+ * - sprint: SprintDTO (updated)
+ * - updatedCard: { id, nextReviewDate, state }
+ */
+router.post(
+  '/:id/review',
+  requireUser,
+  validate({ body: submitSprintReviewSchema }),
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const { id: sprintId } = req.params;
+    const { cardId, rating } = req.validated!.body as SubmitSprintReviewInput;
+
+    try {
+      const { sprint, updatedCard } = await submitSprintReview({
+        sprintId,
+        userId: user.id,
+        cardId,
+        rating,
+      });
+
+      res.json({
+        sprint: formatSprintResponse(sprint),
+        updatedCard: {
+          id: updatedCard.id,
+          nextReviewDate: updatedCard.nextReviewDate.toISOString(),
+          state: updatedCard.state,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        switch (error.message) {
+          case 'SPRINT_NOT_FOUND':
+            throw new ApiError(404, 'SPRINT_NOT_FOUND', 'Sprint not found');
+          case 'SPRINT_NOT_OWNED':
+            throw new ApiError(
+              403,
+              'FORBIDDEN',
+              'You do not have permission to access this sprint',
+            );
+          case 'SPRINT_EXPIRED':
+            throw new ApiError(
+              409,
+              'SPRINT_EXPIRED',
+              'Sprint has expired and was auto-abandoned. Please start a new sprint.',
+            );
+          case 'SPRINT_NOT_ACTIVE':
+            throw new ApiError(
+              409,
+              'SPRINT_NOT_ACTIVE',
+              'Sprint is not active. Only active sprints can receive reviews.',
+            );
+          case 'CARD_NOT_IN_SPRINT':
+            throw new ApiError(
+              400,
+              'CARD_NOT_IN_SPRINT',
+              'The specified card is not part of this sprint',
+            );
+          case 'CARD_ALREADY_REVIEWED':
+            throw new ApiError(
+              409,
+              'CARD_ALREADY_REVIEWED',
+              'This card has already been reviewed in this sprint',
+            );
         }
       }
       throw error;
