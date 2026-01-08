@@ -302,6 +302,106 @@ export async function startSprint(
 }
 
 /**
+ * Options for creating a PENDING push sprint
+ */
+export interface CreatePendingPushSprintOptions {
+  userId: string;
+  sprintSize: number;
+}
+
+/**
+ * Result of creating a PENDING push sprint
+ */
+export interface CreatePendingPushSprintResult {
+  sprint: SprintWithCards;
+  cardCount: number;
+}
+
+/**
+ * Create a PENDING sprint for push notifications.
+ *
+ * This creates a sprint with source=PUSH and status=PENDING.
+ * The sprint will be activated (PENDING -> ACTIVE) when the user
+ * first accesses it via getSprintById().
+ *
+ * Unlike startSprint(), this does NOT:
+ * - Check for resumable sprints (eligibility engine handles this)
+ * - Set startedAt or resumableUntil (set on first access)
+ *
+ * @param options - User ID and sprint size
+ * @returns Created sprint with card count
+ * @throws Error if no eligible cards available
+ */
+export async function createPendingPushSprint(
+  options: CreatePendingPushSprintOptions,
+): Promise<CreatePendingPushSprintResult> {
+  const { userId, sprintSize } = options;
+
+  // Select eligible cards
+  const eligibleCards = await selectEligibleCards(userId, sprintSize);
+
+  if (eligibleCards.length === 0) {
+    throw new Error('NO_ELIGIBLE_CARDS');
+  }
+
+  // Create sprint with PENDING status (no startedAt, no resumableUntil)
+  const sprint = await prisma.sprint.create({
+    data: {
+      userId,
+      deckId: null, // Push sprints are not deck-constrained
+      status: 'PENDING',
+      source: 'PUSH',
+      // startedAt and resumableUntil are set when user first accesses the sprint
+      sprintCards: {
+        create: eligibleCards.map((card, index) => ({
+          cardId: card.id,
+          order: index + 1,
+        })),
+      },
+    },
+    include: {
+      deck: { select: { id: true, title: true } },
+      sprintCards: {
+        orderBy: { order: 'asc' },
+        include: {
+          card: {
+            include: {
+              deck: { select: { id: true, title: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return {
+    sprint: sprint as SprintWithCards,
+    cardCount: eligibleCards.length,
+  };
+}
+
+/**
+ * Delete a PENDING sprint (cleanup for failed push sends).
+ * Only deletes if sprint is still PENDING.
+ *
+ * @param sprintId - Sprint ID to delete
+ * @returns True if deleted, false if not found or not PENDING
+ */
+export async function deletePendingSprint(sprintId: string): Promise<boolean> {
+  try {
+    const result = await prisma.sprint.deleteMany({
+      where: {
+        id: sprintId,
+        status: 'PENDING',
+      },
+    });
+    return result.count > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Get a sprint by ID with ownership check.
  * If the sprint is expired (past resumableUntil), auto-abandon it.
  */
