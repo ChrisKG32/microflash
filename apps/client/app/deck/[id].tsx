@@ -1,10 +1,18 @@
+/**
+ * Deck Detail Screen
+ *
+ * Shows deck information, cards list, and allows:
+ * - Starting a sprint for this deck
+ * - Navigating to card editor (create/edit)
+ * - Adjusting deck priority
+ */
+
 import { useState, useCallback } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   FlatList,
   RefreshControl,
@@ -12,34 +20,45 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
+import Slider from '@react-native-community/slider';
 
-import { getCards, createCard, startSprint, type Card } from '@/lib/api';
+import {
+  getCards,
+  getDeck,
+  updateDeck,
+  startSprint,
+  type Card,
+  type Deck,
+} from '@/lib/api';
 
 export default function DeckDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+
+  const [deck, setDeck] = useState<Deck | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Create card form
-  const [showForm, setShowForm] = useState(false);
-  const [front, setFront] = useState('');
-  const [back, setBack] = useState('');
-  const [creating, setCreating] = useState(false);
+  const [priority, setPriority] = useState(50);
+  const [savingPriority, setSavingPriority] = useState(false);
   const [startingSprintForDeck, setStartingSprintForDeck] = useState(false);
 
-  const deckTitle = cards[0]?.deckTitle || 'Deck';
-
-  const fetchCards = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     if (!id) return;
 
     try {
       setError(null);
-      const { cards: fetchedCards } = await getCards(id);
-      setCards(fetchedCards);
+      // Fetch deck and cards in parallel
+      const [deckResponse, cardsResponse] = await Promise.all([
+        getDeck(id),
+        getCards(id),
+      ]);
+      setDeck(deckResponse.deck);
+      setCards(cardsResponse.cards);
+      setPriority(deckResponse.deck.priority);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load cards');
+      setError(err instanceof Error ? err.message : 'Failed to load deck');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -49,42 +68,57 @@ export default function DeckDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      fetchCards();
-    }, [fetchCards]),
+      fetchData();
+    }, [fetchData]),
   );
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchCards();
+    fetchData();
   };
 
-  const handleCreateCard = async () => {
-    if (!front.trim() || !back.trim()) {
-      Alert.alert('Error', 'Please enter both front and back of the card');
-      return;
-    }
+  const handlePriorityChange = async (newPriority: number) => {
+    if (!id || !deck) return;
 
-    if (!id) return;
-
+    setSavingPriority(true);
     try {
-      setCreating(true);
-      await createCard({
-        front: front.trim(),
-        back: back.trim(),
-        deckId: id,
+      const { deck: updatedDeck } = await updateDeck(id, {
+        priority: newPriority,
       });
-      setFront('');
-      setBack('');
-      setShowForm(false);
-      await fetchCards();
+      setDeck(updatedDeck);
+      setPriority(updatedDeck.priority);
     } catch (err) {
+      // Revert on error
+      setPriority(deck.priority);
       Alert.alert(
         'Error',
-        err instanceof Error ? err.message : 'Failed to create card',
+        err instanceof Error ? err.message : 'Failed to update priority',
       );
     } finally {
-      setCreating(false);
+      setSavingPriority(false);
     }
+  };
+
+  const handleAddCard = () => {
+    if (!id) return;
+    router.push({
+      pathname: '/card/new',
+      params: {
+        deckId: id,
+        returnTo: `/deck/${id}`,
+      },
+    });
+  };
+
+  const handleEditCard = (cardId: string) => {
+    if (!id) return;
+    router.push({
+      pathname: '/card/[id]',
+      params: {
+        id: cardId,
+        returnTo: `/deck/${id}`,
+      },
+    });
   };
 
   const handleStartSprintForDeck = async () => {
@@ -124,7 +158,11 @@ export default function DeckDetailScreen() {
   };
 
   const renderCard = ({ item }: { item: Card }) => (
-    <View style={styles.cardItem}>
+    <TouchableOpacity
+      style={styles.cardItem}
+      onPress={() => handleEditCard(item.id)}
+      activeOpacity={0.7}
+    >
       <View style={styles.cardContent}>
         <Text style={styles.cardLabel}>Front</Text>
         <Text style={styles.cardText} numberOfLines={2}>
@@ -136,12 +174,15 @@ export default function DeckDetailScreen() {
         </Text>
       </View>
       <View style={styles.cardMeta}>
-        <Text style={styles.cardState}>{item.state}</Text>
+        <View style={styles.cardMetaLeft}>
+          <Text style={styles.cardState}>{item.state}</Text>
+          <Text style={styles.cardPriority}>P: {item.priority}</Text>
+        </View>
         <Text style={styles.cardReps}>
           {item.reps} reps · {item.lapses} lapses
         </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   if (loading) {
@@ -150,7 +191,22 @@ export default function DeckDetailScreen() {
         <Stack.Screen options={{ title: 'Loading...' }} />
         <View style={styles.centered}>
           <ActivityIndicator size="large" />
-          <Text style={styles.loadingText}>Loading cards...</Text>
+          <Text style={styles.loadingText}>Loading deck...</Text>
+        </View>
+      </>
+    );
+  }
+
+  if (error || !deck) {
+    return (
+      <>
+        <Stack.Screen options={{ title: 'Error' }} />
+        <View style={styles.centered}>
+          <Text style={styles.errorIcon}>!</Text>
+          <Text style={styles.errorText}>{error || 'Deck not found'}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       </>
     );
@@ -164,7 +220,7 @@ export default function DeckDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: deckTitle }} />
+      <Stack.Screen options={{ title: deck.title }} />
       <View style={styles.container}>
         {/* Start Sprint for Deck Button */}
         {cards.length > 0 && (
@@ -198,73 +254,49 @@ export default function DeckDetailScreen() {
           </View>
         )}
 
-        {/* Create Card Form */}
-        {showForm ? (
-          <View style={styles.form}>
-            <TextInput
-              style={styles.input}
-              placeholder="Front (question)"
-              value={front}
-              onChangeText={setFront}
-              multiline
-              autoFocus
-              editable={!creating}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Back (answer)"
-              value={back}
-              onChangeText={setBack}
-              multiline
-              editable={!creating}
-            />
-            <View style={styles.formButtons}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => {
-                  setShowForm(false);
-                  setFront('');
-                  setBack('');
-                }}
-                disabled={creating}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.createButton, creating && styles.buttonDisabled]}
-                onPress={handleCreateCard}
-                disabled={creating}
-              >
-                {creating ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.createButtonText}>Add Card</Text>
-                )}
-              </TouchableOpacity>
+        {/* Deck Priority Slider */}
+        <View style={styles.prioritySection}>
+          <View style={styles.priorityHeader}>
+            <Text style={styles.priorityLabel}>Deck Priority</Text>
+            <View style={styles.priorityValueContainer}>
+              <Text style={styles.priorityValue}>{priority}</Text>
+              {savingPriority && (
+                <ActivityIndicator
+                  size="small"
+                  color="#2196f3"
+                  style={styles.savingIndicator}
+                />
+              )}
             </View>
           </View>
-        ) : (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => setShowForm(true)}
-          >
-            <Text style={styles.addButtonText}>+ Add Card</Text>
-          </TouchableOpacity>
-        )}
-
-        {error ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={handleRefresh}
-            >
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
+          <Slider
+            style={styles.slider}
+            minimumValue={0}
+            maximumValue={100}
+            step={1}
+            value={priority}
+            onValueChange={setPriority}
+            onSlidingComplete={handlePriorityChange}
+            minimumTrackTintColor="#2196f3"
+            maximumTrackTintColor="#ddd"
+            thumbTintColor="#2196f3"
+          />
+          <View style={styles.priorityLabels}>
+            <Text style={styles.priorityLabelText}>Low</Text>
+            <Text style={styles.priorityLabelText}>High</Text>
           </View>
-        ) : cards.length === 0 ? (
+          <Text style={styles.priorityHint}>
+            Higher priority decks have their cards appear first in sprints
+          </Text>
+        </View>
+
+        {/* Add Card Button */}
+        <TouchableOpacity style={styles.addButton} onPress={handleAddCard}>
+          <Text style={styles.addButtonText}>+ Add Card</Text>
+        </TouchableOpacity>
+
+        {cards.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>🃏</Text>
             <Text style={styles.emptyTitle}>No cards yet</Text>
             <Text style={styles.emptyText}>
               Add your first card to start learning!
@@ -322,6 +354,55 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
   },
+  // Priority Section
+  prioritySection: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  priorityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  priorityLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  priorityValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  priorityValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2196f3',
+  },
+  savingIndicator: {
+    marginLeft: 8,
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  priorityLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+  priorityLabelText: {
+    fontSize: 12,
+    color: '#999',
+  },
+  priorityHint: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 8,
+  },
+  // Common
   centered: {
     flex: 1,
     justifyContent: 'center',
@@ -333,47 +414,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
-  form: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+  errorIcon: {
+    fontSize: 48,
+    color: '#d32f2f',
+    fontWeight: 'bold',
+    marginBottom: 16,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
+  errorText: {
     fontSize: 16,
-    marginBottom: 12,
-    minHeight: 60,
-    textAlignVertical: 'top',
+    color: '#d32f2f',
+    textAlign: 'center',
+    marginBottom: 16,
   },
-  formButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#eee',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  createButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
+  retryButton: {
     backgroundColor: '#2196f3',
-    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
   },
-  createButtonText: {
-    fontSize: 16,
+  retryButtonText: {
     color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
   },
   buttonDisabled: {
@@ -429,47 +490,29 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#eee',
   },
+  cardMetaLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   cardState: {
     fontSize: 12,
     color: '#2196f3',
     fontWeight: '600',
   },
-  cardReps: {
+  cardPriority: {
     fontSize: 12,
     color: '#999',
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#d32f2f',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#2196f3',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  cardReps: {
+    fontSize: 12,
+    color: '#999',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
   },
   emptyTitle: {
     fontSize: 24,

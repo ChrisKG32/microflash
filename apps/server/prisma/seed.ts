@@ -31,6 +31,16 @@ async function main() {
 
   // Create test users
   console.log('👤 Creating users...');
+
+  // Dev auth user - used for local development with DEV_AUTH=1
+  const devUser = await prisma.user.create({
+    data: {
+      clerkId: 'user_local_dev',
+      pushToken: null,
+      notificationsEnabled: true,
+    },
+  });
+
   const user1 = await prisma.user.create({
     data: {
       clerkId: 'user_test123abc',
@@ -55,10 +65,40 @@ async function main() {
     },
   });
 
-  console.log(`✅ Created ${3} users`);
+  console.log(`✅ Created ${4} users (including dev user)`);
 
   // Create decks with hierarchy
   console.log('📚 Creating decks...');
+
+  // =========================================================================
+  // Dev User decks - for testing markdown + LaTeX rendering
+  // =========================================================================
+  const devMathDeck = await prisma.deck.create({
+    data: {
+      title: 'Math Formulas',
+      description: 'Mathematical formulas with LaTeX',
+      userId: devUser.id,
+      priority: 80,
+    },
+  });
+
+  const devProgrammingDeck = await prisma.deck.create({
+    data: {
+      title: 'Programming Concepts',
+      description: 'Code and programming concepts with markdown',
+      userId: devUser.id,
+      priority: 60,
+    },
+  });
+
+  const devMixedDeck = await prisma.deck.create({
+    data: {
+      title: 'Mixed Content',
+      description: 'Cards with both markdown and LaTeX',
+      userId: devUser.id,
+      priority: 40,
+    },
+  });
 
   // User 1 decks
   const mathDeck = await prisma.deck.create({
@@ -148,7 +188,7 @@ async function main() {
     },
   });
 
-  console.log(`✅ Created ${10} decks (including ${4} subdecks)`);
+  console.log(`✅ Created ${13} decks (including ${4} subdecks + 3 dev decks)`);
 
   // Helper function to create dates in the past/future
   const daysFromNow = (days: number): Date => {
@@ -398,13 +438,154 @@ async function main() {
     }),
   ]);
 
+  // =========================================================================
+  // Dev User cards - for testing markdown + LaTeX rendering
+  // =========================================================================
+  console.log('🧪 Creating dev user cards with markdown + LaTeX...');
+
+  const devMathCards = await Promise.all([
+    // Block LaTeX with $$ delimiters
+    prisma.card.create({
+      data: {
+        front: 'What is the quadratic formula?',
+        back: 'The quadratic formula is:\n\n$$x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$\n\nUsed to solve equations of the form $ax^2 + bx + c = 0$',
+        deckId: devMathDeck.id,
+        priority: 90,
+        state: CardState.NEW,
+        nextReviewDate: new Date(),
+      },
+    }),
+    // Inline LaTeX with $ delimiters
+    prisma.card.create({
+      data: {
+        front: 'What is the Pythagorean theorem?',
+        back: 'For a right triangle: $a^2 + b^2 = c^2$ where $c$ is the hypotenuse.',
+        deckId: devMathDeck.id,
+        priority: 85,
+        state: CardState.NEW,
+        nextReviewDate: new Date(),
+      },
+    }),
+    // Block LaTeX with \[ \] delimiters
+    prisma.card.create({
+      data: {
+        front: 'What is the formula for the area of a circle?',
+        back: 'The area of a circle is:\n\n\\[A = \\pi r^2\\]\n\nwhere \\(r\\) is the radius.',
+        deckId: devMathDeck.id,
+        priority: 80,
+        state: CardState.NEW,
+        nextReviewDate: new Date(),
+      },
+    }),
+    // Inline LaTeX with \( \) delimiters
+    prisma.card.create({
+      data: {
+        front: "What is Euler's identity?",
+        back: "Euler's identity: \\(e^{i\\pi} + 1 = 0\\)\n\nThis connects five fundamental constants: \\(e\\), \\(i\\), \\(\\pi\\), \\(1\\), and \\(0\\).",
+        deckId: devMathDeck.id,
+        priority: 75,
+        state: CardState.NEW,
+        nextReviewDate: new Date(),
+      },
+    }),
+    // Invalid LaTeX (for testing error handling)
+    prisma.card.create({
+      data: {
+        front: 'Test card with invalid LaTeX',
+        back: 'This has invalid math: $\\frac{1}{$ and should show fallback.',
+        deckId: devMathDeck.id,
+        priority: 10,
+        state: CardState.NEW,
+        nextReviewDate: new Date(),
+      },
+    }),
+  ]);
+
+  const devProgrammingCards = await Promise.all([
+    // Markdown with code blocks
+    prisma.card.create({
+      data: {
+        front: 'What is a **closure** in JavaScript?',
+        back: 'A closure is a function that has access to variables from its outer scope.\n\n```javascript\nfunction outer() {\n  let x = 10;\n  return function inner() {\n    return x;\n  };\n}\n```\n\nThe inner function "closes over" the variable `x`.',
+        deckId: devProgrammingDeck.id,
+        priority: 70,
+        state: CardState.NEW,
+        nextReviewDate: new Date(),
+      },
+    }),
+    // Markdown with lists
+    prisma.card.create({
+      data: {
+        front: 'What are the **SOLID** principles?',
+        back: '1. **S**ingle Responsibility\n2. **O**pen/Closed\n3. **L**iskov Substitution\n4. **I**nterface Segregation\n5. **D**ependency Inversion',
+        deckId: devProgrammingDeck.id,
+        priority: 65,
+        state: CardState.NEW,
+        nextReviewDate: new Date(),
+      },
+    }),
+    // Markdown with inline code
+    prisma.card.create({
+      data: {
+        front: 'What is the difference between `let` and `const`?',
+        back: '- `let`: Block-scoped, *can* be reassigned\n- `const`: Block-scoped, *cannot* be reassigned\n\nBoth are hoisted but not initialized (temporal dead zone).',
+        deckId: devProgrammingDeck.id,
+        priority: 60,
+        state: CardState.NEW,
+        nextReviewDate: new Date(),
+      },
+    }),
+  ]);
+
+  const devMixedCards = await Promise.all([
+    // Mixed markdown and LaTeX
+    prisma.card.create({
+      data: {
+        front: 'Explain **Big O notation** for common algorithms',
+        back: '| Algorithm | Time Complexity |\n|-----------|----------------|\n| Binary Search | $O(\\log n)$ |\n| Linear Search | $O(n)$ |\n| Bubble Sort | $O(n^2)$ |\n| Merge Sort | $O(n \\log n)$ |',
+        deckId: devMixedDeck.id,
+        priority: 55,
+        state: CardState.NEW,
+        nextReviewDate: new Date(),
+      },
+    }),
+    // Complex formula with markdown explanation
+    prisma.card.create({
+      data: {
+        front: 'What is the **derivative** of $f(x) = x^n$?',
+        back: "Using the **power rule**:\n\n$$\\frac{d}{dx}x^n = nx^{n-1}$$\n\nFor example:\n- $f(x) = x^3 \\Rightarrow f'(x) = 3x^2$\n- $f(x) = x^{-1} \\Rightarrow f'(x) = -x^{-2}$",
+        deckId: devMixedDeck.id,
+        priority: 50,
+        state: CardState.NEW,
+        nextReviewDate: new Date(),
+      },
+    }),
+    // Blockquote with math
+    prisma.card.create({
+      data: {
+        front: 'State the **Fundamental Theorem of Calculus**',
+        back: '> If $F$ is an antiderivative of $f$ on $[a,b]$, then:\n\n$$\\int_a^b f(x)\\,dx = F(b) - F(a)$$\n\nThis connects *differentiation* and *integration*.',
+        deckId: devMixedDeck.id,
+        priority: 45,
+        state: CardState.NEW,
+        nextReviewDate: new Date(),
+      },
+    }),
+  ]);
+
   const totalCards =
     newCards.length +
     learningCards.length +
     reviewCards.length +
     relearnCards.length +
     dueCards.length +
-    additionalCards.length;
+    additionalCards.length +
+    devMathCards.length +
+    devProgrammingCards.length +
+    devMixedCards.length;
+
+  const devCardCount =
+    devMathCards.length + devProgrammingCards.length + devMixedCards.length;
 
   console.log(`✅ Created ${totalCards} cards`);
   console.log(`   - ${newCards.length} NEW cards`);
@@ -413,6 +594,7 @@ async function main() {
   console.log(`   - ${relearnCards.length} RELEARNING cards`);
   console.log(`   - ${dueCards.length} cards due NOW`);
   console.log(`   - ${additionalCards.length} additional cards`);
+  console.log(`   - ${devCardCount} dev user cards (markdown + LaTeX)`);
 
   // Create sample review history
   console.log('📝 Creating review history...');
@@ -493,10 +675,17 @@ async function main() {
   console.log('🎉 Seed completed successfully!');
   console.log('');
   console.log('📊 Summary:');
-  console.log(`   - Users: 3`);
-  console.log(`   - Decks: 10 (6 parent, 4 subdecks)`);
+  console.log(`   - Users: 4 (including dev user: user_local_dev)`);
+  console.log(`   - Decks: 13 (9 parent, 4 subdecks)`);
   console.log(`   - Cards: ${totalCards}`);
   console.log(`   - Reviews: ${reviews.length}`);
+  console.log('');
+  console.log('💡 Dev user (user_local_dev) has cards with:');
+  console.log('   - LaTeX math (inline $...$ and block $$...$$)');
+  console.log('   - LaTeX math (\\(...\\) and \\[...\\] delimiters)');
+  console.log('   - Markdown formatting (bold, code, lists)');
+  console.log('   - Mixed content (markdown + LaTeX)');
+  console.log('   - Invalid LaTeX (for error handling testing)');
 }
 
 main()

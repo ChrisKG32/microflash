@@ -177,6 +177,14 @@ export default function RootLayout() {
         />
         <Stack.Screen name="browse" options={{ title: 'Review Ahead' }} />
         <Stack.Screen
+          name="card/new"
+          options={{ headerBackTitle: 'Cancel', title: 'New Card' }}
+        />
+        <Stack.Screen
+          name="card/[id]"
+          options={{ headerBackTitle: 'Cancel', title: 'Edit Card' }}
+        />
+        <Stack.Screen
           name="modal"
           options={{ presentation: 'modal', title: 'Modal' }}
         />

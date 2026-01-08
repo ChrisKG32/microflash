@@ -25,6 +25,7 @@ import {
   type SprintCard,
   type Rating,
 } from '@/lib/api';
+import { CardContent } from '@/components/CardContent';
 
 export default function SprintReviewScreen() {
   const { id, returnTo, launchSource, deckId } = useLocalSearchParams<{
@@ -237,14 +238,22 @@ export default function SprintReviewScreen() {
           <View style={styles.card}>
             {/* Front */}
             <Text style={styles.cardLabel}>Question</Text>
-            <Text style={styles.cardText}>{currentCard.card.front}</Text>
+            <CardContent
+              content={currentCard.card.front}
+              fontSize={18}
+              color="#333"
+            />
 
             {/* Back (if revealed) */}
             {showAnswer && (
               <>
                 <View style={styles.divider} />
                 <Text style={styles.cardLabel}>Answer</Text>
-                <Text style={styles.cardText}>{currentCard.card.back}</Text>
+                <CardContent
+                  content={currentCard.card.back}
+                  fontSize={18}
+                  color="#333"
+                />
               </>
             )}
           </View>

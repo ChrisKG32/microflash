@@ -309,7 +309,9 @@ function isUserEligibleForPush(user: User, now: Date): boolean {
 
 ### E5 — Authoring + content rendering
 
-**Goal:** Improve deck/card management and content fidelity for real studying.
+**Goal:** Improve deck/card management and content fidelity for real studying. Create seed data for decks and cards. User for Seed Data:
+id: cmk30jkbh0000ux5ojbnz1c5p
+clerkId: user_local_dev
 
 **Scope:** Card editor (create/edit/delete), markdown+LaTeX rendering, priority sliders.
 
@@ -322,7 +324,9 @@ function isUserEligibleForPush(user: User, now: Date): boolean {
 - **Goal:** Render card front/back per MVP requirement.
 - **Scope:** Shared `<CardContent />` component with Markdown + LaTeX; graceful fallback on invalid LaTeX.
 - **DoD:** Sprint Review uses renderer for front/back; no crashes on invalid input.
+- **Seed Data:** Add seed data for decks and cards. Ensure this contains some math written in Markdown and LaTeX, so we can quickly test the features.
 - **Dependencies:** E3.2
+
 
 **Libraries:** `react-native-markdown-display` + `react-native-mathjax-svg`
 

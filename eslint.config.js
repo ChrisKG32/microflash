@@ -25,7 +25,11 @@ module.exports = [
       ...typescript.configs.recommended.rules,
       '@typescript-eslint/no-unused-vars': [
         'warn',
-        { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
       ],
       // Forbid .js extensions in imports (to prevent ESM-style imports)
       'no-restricted-imports': [
