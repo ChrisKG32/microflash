@@ -216,6 +216,10 @@ export const sprintStatusEnum = z.enum(
   },
 );
 
+export const sprintSourceEnum = z.enum(['HOME', 'DECK', 'PUSH'], {
+  error: 'Source must be one of: HOME, DECK, PUSH',
+});
+
 export const cardResultEnum = z.enum(['PASS', 'FAIL', 'SKIP'], {
   error: 'Result must be one of: PASS, FAIL, SKIP',
 });
@@ -223,6 +227,7 @@ export const cardResultEnum = z.enum(['PASS', 'FAIL', 'SKIP'], {
 export const createSprintSchema = z
   .object({
     deckId: z.string().optional(), // Optional: constrain sprint to a specific deck
+    source: sprintSourceEnum.optional().default('HOME'), // Where the sprint was started from
   })
   .strict();
 
