@@ -25,6 +25,11 @@ export class ApiError extends Error {
 
 /**
  * Make an authenticated API request.
+ *
+ * Handles:
+ * - 204 No Content responses (returns undefined)
+ * - Non-JSON error bodies gracefully
+ * - Standard JSON responses
  */
 async function request<T>(
   endpoint: string,
@@ -43,14 +48,42 @@ async function request<T>(
     headers,
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    const error = data.error || { code: 'UNKNOWN', message: 'Unknown error' };
-    throw new ApiError(response.status, error.code, error.message);
+  // Handle 204 No Content (e.g., DELETE responses)
+  if (response.status === 204) {
+    return undefined as T;
   }
 
-  return data;
+  // Try to parse JSON, handle non-JSON responses gracefully
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    // Non-JSON response body
+    if (!response.ok) {
+      throw new ApiError(
+        response.status,
+        'UNKNOWN',
+        `Request failed with status ${response.status}`,
+      );
+    }
+    // Successful non-JSON response (shouldn't happen, but handle gracefully)
+    return undefined as T;
+  }
+
+  if (!response.ok) {
+    const errorData = data as { error?: { code?: string; message?: string } };
+    const error = errorData.error || {
+      code: 'UNKNOWN',
+      message: 'Unknown error',
+    };
+    throw new ApiError(
+      response.status,
+      error.code || 'UNKNOWN',
+      error.message || 'Unknown error',
+    );
+  }
+
+  return data as T;
 }
 
 // =============================================================================
