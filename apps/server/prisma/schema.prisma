@@ -26,11 +26,7 @@ enum Rating {
   EASY   // Remembered effortlessly
 }
 
-enum Priority {
-  LOW
-  MEDIUM
-  HIGH
-}
+
 
 enum SprintStatus {
   PENDING
@@ -98,7 +94,7 @@ model Deck {
   id           String   @id @default(cuid())
   title        String
   description  String?
-  priority     Priority @default(MEDIUM)
+  priority     Int      @default(50)
   parentDeckId String?
   userId       String
   createdAt    DateTime @default(now())
@@ -118,7 +114,7 @@ model Card {
   id                   String    @id @default(cuid())
   front                String    @db.Text
   back                 String    @db.Text
-  priority             Priority  @default(MEDIUM)
+  priority             Int       @default(50)
 
   // FSRS Algorithm State
   stability            Float     @default(0)

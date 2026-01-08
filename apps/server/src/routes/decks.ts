@@ -45,6 +45,7 @@ router.get(
       id: parent.id,
       title: parent.title,
       description: parent.description,
+      priority: parent.priority,
       cardCount: parent._count.cards,
       createdAt: parent.createdAt,
       updatedAt: parent.updatedAt,
@@ -52,6 +53,7 @@ router.get(
         id: subdeck.id,
         title: subdeck.title,
         description: subdeck.description,
+        priority: subdeck.priority,
         cardCount: decks.find((d) => d.id === subdeck.id)?._count.cards || 0,
         createdAt: subdeck.createdAt,
         updatedAt: subdeck.updatedAt,
@@ -72,7 +74,7 @@ router.post(
   validate({ body: createDeckSchema }),
   asyncHandler(async (req, res) => {
     const user = req.user!;
-    const { title, description, parentDeckId } = req.validated!
+    const { title, description, parentDeckId, priority } = req.validated!
       .body as CreateDeckInput;
 
     // If parentDeckId is provided, verify it exists and belongs to user
@@ -109,6 +111,7 @@ router.post(
         description: description?.trim() ?? null,
         userId: user.id,
         parentDeckId: parentDeckId ?? null,
+        ...(priority !== undefined && { priority }),
       },
     });
 
@@ -117,6 +120,7 @@ router.post(
         id: deck.id,
         title: deck.title,
         description: deck.description,
+        priority: deck.priority,
         parentDeckId: deck.parentDeckId,
         createdAt: deck.createdAt.toISOString(),
         updatedAt: deck.updatedAt.toISOString(),
@@ -168,6 +172,7 @@ router.get(
         id: deck.id,
         title: deck.title,
         description: deck.description,
+        priority: deck.priority,
         parentDeckId: deck.parentDeckId,
         cardCount: deck._count.cards,
         createdAt: deck.createdAt.toISOString(),
@@ -176,6 +181,7 @@ router.get(
           id: subdeck.id,
           title: subdeck.title,
           description: subdeck.description,
+          priority: subdeck.priority,
           cardCount: subdeck._count.cards,
           createdAt: subdeck.createdAt.toISOString(),
           updatedAt: subdeck.updatedAt.toISOString(),
@@ -271,6 +277,7 @@ router.patch(
       title?: string;
       description?: string | null;
       parentDeckId?: string | null;
+      priority?: number;
     } = {};
 
     if (updates.title !== undefined) {
@@ -282,6 +289,9 @@ router.patch(
     }
     if (updates.parentDeckId !== undefined) {
       updateData.parentDeckId = updates.parentDeckId;
+    }
+    if (updates.priority !== undefined) {
+      updateData.priority = updates.priority;
     }
 
     // Update the deck
@@ -307,6 +317,7 @@ router.patch(
         id: updatedDeck.id,
         title: updatedDeck.title,
         description: updatedDeck.description,
+        priority: updatedDeck.priority,
         parentDeckId: updatedDeck.parentDeckId,
         cardCount: updatedDeck._count.cards,
         createdAt: updatedDeck.createdAt.toISOString(),
@@ -315,6 +326,7 @@ router.patch(
           id: subdeck.id,
           title: subdeck.title,
           description: subdeck.description,
+          priority: subdeck.priority,
           cardCount: subdeck._count.cards,
           createdAt: subdeck.createdAt.toISOString(),
           updatedAt: subdeck.updatedAt.toISOString(),
