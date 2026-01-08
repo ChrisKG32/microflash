@@ -9,7 +9,11 @@ import { requireUser } from '@/middlewares/auth';
 import { validate } from '@/middlewares/validate';
 import { asyncHandler, ApiError } from '@/middlewares/error-handler';
 import { createSprintSchema, type CreateSprintInput } from '@/lib/validation';
-import { startSprint, formatSprintResponse } from '@/services/sprint-service';
+import {
+  startSprint,
+  getSprintById,
+  formatSprintResponse,
+} from '@/services/sprint-service';
 
 const router: RouterType = Router();
 
@@ -54,6 +58,47 @@ router.post(
           'NO_ELIGIBLE_CARDS',
           'No cards are due for review',
         );
+      }
+      throw error;
+    }
+  }),
+);
+
+/**
+ * GET /api/sprints/:id - Get a sprint by ID
+ *
+ * Auto-expire behavior:
+ * - If sprint is ACTIVE but past resumableUntil, auto-abandon it
+ * - If sprint is PENDING, activate it (set startedAt, status=ACTIVE)
+ *
+ * Response:
+ * - sprint: SprintDTO
+ */
+router.get(
+  '/:id',
+  requireUser,
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const { id } = req.params;
+
+    try {
+      const sprint = await getSprintById(id, user.id);
+
+      res.json({
+        sprint: formatSprintResponse(sprint),
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'SPRINT_NOT_FOUND') {
+          throw new ApiError(404, 'SPRINT_NOT_FOUND', 'Sprint not found');
+        }
+        if (error.message === 'SPRINT_NOT_OWNED') {
+          throw new ApiError(
+            403,
+            'FORBIDDEN',
+            'You do not have permission to access this sprint',
+          );
+        }
       }
       throw error;
     }

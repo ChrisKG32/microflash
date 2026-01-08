@@ -116,14 +116,18 @@ jest.mock('@/lib/prisma', () => ({
     },
     sprint: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
     sprintCard: {
       findMany: jest.fn(),
     },
     card: {
       findMany: jest.fn(),
+      updateMany: jest.fn(),
     },
+    $transaction: jest.fn(),
   },
 }));
 
@@ -172,6 +176,36 @@ function createTestApp() {
             message: 'No cards are due for review',
           },
         });
+      }
+      next(error);
+    }
+  });
+
+  // GET /:id
+  sprintsRouter.get('/:id', requireUser, async (req, res, next) => {
+    try {
+      const { getSprintById, formatSprintResponse } = await import(
+        '@/services/sprint-service'
+      );
+      const sprint = await getSprintById(req.params.id, mockUser.id);
+      res.json({
+        sprint: formatSprintResponse(sprint),
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'SPRINT_NOT_FOUND') {
+          return res.status(404).json({
+            error: { code: 'SPRINT_NOT_FOUND', message: 'Sprint not found' },
+          });
+        }
+        if (error.message === 'SPRINT_NOT_OWNED') {
+          return res.status(403).json({
+            error: {
+              code: 'FORBIDDEN',
+              message: 'You do not have permission to access this sprint',
+            },
+          });
+        }
       }
       next(error);
     }
@@ -394,6 +428,191 @@ describe('Sprint Routes', () => {
       expect(response.status).toBe(201);
       expect(response.body.sprint.deckId).toBe('deck-1');
       expect(response.body.sprint.source).toBe('DECK');
+    });
+  });
+
+  describe('GET /api/sprints/:id', () => {
+    it('returns sprint by ID', async () => {
+      const existingSprint = {
+        id: 'sprint-1',
+        userId: 'user-1',
+        deckId: null,
+        status: 'ACTIVE',
+        source: 'HOME',
+        createdAt: now,
+        startedAt: now,
+        completedAt: null,
+        resumableUntil: new Date(now.getTime() + 15 * 60000),
+        abandonedAt: null,
+        deck: null,
+        sprintCards: [
+          {
+            id: 'sc-1',
+            order: 1,
+            result: null,
+            card: {
+              ...mockCards[0],
+              deck: { id: mockDeck.id, title: mockDeck.title },
+            },
+          },
+        ],
+      };
+
+      (mockedPrisma.sprint.findUnique as jest.Mock).mockResolvedValue(
+        existingSprint,
+      );
+
+      const response = await request(app).get('/api/sprints/sprint-1');
+
+      expect(response.status).toBe(200);
+      expect(response.body.sprint.id).toBe('sprint-1');
+      expect(response.body.sprint.status).toBe('ACTIVE');
+    });
+
+    it('returns 404 for non-existent sprint', async () => {
+      (mockedPrisma.sprint.findUnique as jest.Mock).mockResolvedValue(null);
+
+      const response = await request(app).get('/api/sprints/non-existent');
+
+      expect(response.status).toBe(404);
+      expect(response.body.error.code).toBe('SPRINT_NOT_FOUND');
+    });
+
+    it('returns 403 for sprint owned by another user', async () => {
+      const otherUserSprint = {
+        id: 'sprint-other',
+        userId: 'other-user',
+        deckId: null,
+        status: 'ACTIVE',
+        source: 'HOME',
+        createdAt: now,
+        startedAt: now,
+        completedAt: null,
+        resumableUntil: new Date(now.getTime() + 15 * 60000),
+        abandonedAt: null,
+        deck: null,
+        sprintCards: [],
+      };
+
+      (mockedPrisma.sprint.findUnique as jest.Mock).mockResolvedValue(
+        otherUserSprint,
+      );
+
+      const response = await request(app).get('/api/sprints/sprint-other');
+
+      expect(response.status).toBe(403);
+      expect(response.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('auto-abandons expired sprint and snoozes remaining cards', async () => {
+      const expiredResumableUntil = new Date(now.getTime() - 5 * 60000); // 5 min ago
+
+      const expiredSprint = {
+        id: 'sprint-expired',
+        userId: 'user-1',
+        deckId: null,
+        status: 'ACTIVE',
+        source: 'HOME',
+        createdAt: new Date(now.getTime() - 60 * 60000),
+        startedAt: new Date(now.getTime() - 60 * 60000),
+        completedAt: null,
+        resumableUntil: expiredResumableUntil,
+        abandonedAt: null,
+        deck: null,
+        sprintCards: [
+          {
+            id: 'sc-1',
+            order: 1,
+            result: 'PASS',
+            card: {
+              ...mockCards[0],
+              deck: { id: mockDeck.id, title: mockDeck.title },
+            },
+          },
+          {
+            id: 'sc-2',
+            order: 2,
+            result: null, // Unreviewed - should be snoozed
+            card: {
+              ...mockCards[1],
+              deck: { id: mockDeck.id, title: mockDeck.title },
+            },
+          },
+        ],
+      };
+
+      (mockedPrisma.sprint.findUnique as jest.Mock).mockResolvedValue(
+        expiredSprint,
+      );
+
+      // Mock finding unreviewed cards
+      (mockedPrisma.sprintCard.findMany as jest.Mock).mockResolvedValue([
+        { cardId: 'card-2' },
+      ]);
+
+      // Mock transaction for abandon
+      const abandonedSprint = {
+        ...expiredSprint,
+        status: 'ABANDONED',
+        abandonedAt: now,
+      };
+      (mockedPrisma.$transaction as jest.Mock).mockResolvedValue([
+        abandonedSprint,
+      ]);
+
+      const response = await request(app).get('/api/sprints/sprint-expired');
+
+      expect(response.status).toBe(200);
+      expect(response.body.sprint.status).toBe('ABANDONED');
+      expect(response.body.sprint.abandonedAt).toBeDefined();
+    });
+
+    it('activates PENDING sprint on first access', async () => {
+      const pendingSprint = {
+        id: 'sprint-pending',
+        userId: 'user-1',
+        deckId: null,
+        status: 'PENDING',
+        source: 'PUSH',
+        createdAt: now,
+        startedAt: null,
+        completedAt: null,
+        resumableUntil: null,
+        abandonedAt: null,
+        deck: null,
+        sprintCards: [
+          {
+            id: 'sc-1',
+            order: 1,
+            result: null,
+            card: {
+              ...mockCards[0],
+              deck: { id: mockDeck.id, title: mockDeck.title },
+            },
+          },
+        ],
+      };
+
+      (mockedPrisma.sprint.findUnique as jest.Mock).mockResolvedValue(
+        pendingSprint,
+      );
+
+      const activatedSprint = {
+        ...pendingSprint,
+        status: 'ACTIVE',
+        startedAt: now,
+        resumableUntil: new Date(now.getTime() + 30 * 60000),
+      };
+      (mockedPrisma.sprint.update as jest.Mock).mockResolvedValue(
+        activatedSprint,
+      );
+
+      const response = await request(app).get('/api/sprints/sprint-pending');
+
+      expect(response.status).toBe(200);
+      expect(response.body.sprint.status).toBe('ACTIVE');
+      expect(response.body.sprint.startedAt).toBeDefined();
+      expect(response.body.sprint.resumableUntil).toBeDefined();
     });
   });
 });
