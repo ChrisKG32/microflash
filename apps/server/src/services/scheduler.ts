@@ -21,7 +21,7 @@ async function runNotificationCheck(): Promise<void> {
   try {
     const result = await sendDueCardNotifications();
     console.log(
-      `[Scheduler] Notification check complete - ${result.totalCardsFound} cards found, ${result.successfulNotifications} notifications sent`,
+      `[Scheduler] Notification check complete - ${result.totalUsersChecked} users checked, ${result.successfulNotifications} notifications sent`,
     );
   } catch (error) {
     console.error('[Scheduler] Error:', error);
