@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 
-import { startSprint, type SprintSource } from '@/lib/api';
+import { startSprint, ApiError, type SprintSource } from '@/lib/api';
 
 export default function SprintCompleteScreen() {
   const {
@@ -85,12 +85,10 @@ export default function SprintCompleteScreen() {
         },
       });
     } catch (err) {
-      if (err instanceof Error) {
-        if (err.message.includes('No cards')) {
-          setError('No more cards are due for review right now.');
-        } else {
-          setError(err.message);
-        }
+      if (err instanceof ApiError && err.code === 'NO_ELIGIBLE_CARDS') {
+        setError('No more cards are due for review right now.');
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
         setError('Failed to start new sprint');
       }

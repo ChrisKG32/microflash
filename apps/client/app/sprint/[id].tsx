@@ -21,6 +21,7 @@ import {
   getSprint,
   submitSprintReview,
   completeSprint,
+  ApiError,
   type Sprint,
   type SprintCard,
   type Rating,
@@ -54,14 +55,16 @@ export default function SprintReviewScreen() {
         setError('This sprint has expired. Please start a new sprint.');
       }
     } catch (err) {
-      if (err instanceof Error) {
-        if (err.message.includes('not found')) {
+      if (err instanceof ApiError) {
+        if (err.code === 'SPRINT_NOT_FOUND') {
           setError('Sprint not found. It may have been deleted.');
-        } else if (err.message.includes('expired')) {
+        } else if (err.code === 'SPRINT_EXPIRED') {
           setError('This sprint has expired. Please start a new sprint.');
         } else {
           setError(err.message);
         }
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
         setError('Failed to load sprint');
       }
@@ -139,16 +142,18 @@ export default function SprintReviewScreen() {
         }
       }
     } catch (err) {
-      if (err instanceof Error) {
-        if (err.message.includes('expired')) {
+      if (err instanceof ApiError) {
+        if (err.code === 'SPRINT_EXPIRED') {
           setError('This sprint has expired. Please start a new sprint.');
           setSprint(null);
-        } else if (err.message.includes('already reviewed')) {
+        } else if (err.code === 'CARD_ALREADY_REVIEWED') {
           // Card was already reviewed, refresh sprint
           fetchSprint();
         } else {
           setError(err.message);
         }
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
         setError('Failed to submit review');
       }
