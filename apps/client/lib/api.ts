@@ -327,7 +327,11 @@ export async function submitReview(data: {
 
 export interface NotificationPreferences {
   notificationsEnabled: boolean;
+  notificationCooldownMinutes: number;
+  maxNotificationsPerDay: number;
   hasPushToken: boolean;
+  lastPushSentAt: string | null;
+  notificationsCountToday: number;
 }
 
 /**
@@ -350,19 +354,25 @@ export async function getNotificationPreferences(): Promise<NotificationPreferen
   return request('/api/notifications/preferences');
 }
 
+export interface UpdateNotificationPreferencesRequest {
+  notificationsEnabled?: boolean;
+  notificationCooldownMinutes?: number;
+  maxNotificationsPerDay?: number;
+}
+
 /**
  * Update notification preferences.
  */
 export async function updateNotificationPreferences(
-  notificationsEnabled: boolean,
+  prefs: UpdateNotificationPreferencesRequest,
 ): Promise<{
   success: boolean;
   message: string;
-  notificationsEnabled: boolean;
+  prefs: NotificationPreferences;
 }> {
   return request('/api/notifications/preferences', {
     method: 'PATCH',
-    body: JSON.stringify({ notificationsEnabled }),
+    body: JSON.stringify(prefs),
   });
 }
 

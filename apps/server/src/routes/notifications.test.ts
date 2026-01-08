@@ -235,6 +235,11 @@ describe('Notifications Routes', () => {
       (mockPrisma.user.update as jest.Mock).mockResolvedValue({
         id: 'user-1',
         notificationsEnabled: false,
+        notificationCooldownMinutes: 120,
+        maxNotificationsPerDay: 10,
+        pushToken: 'ExponentPushToken[xxx]',
+        lastPushSentAt: null,
+        notificationsCountToday: 0,
       });
 
       const response = await request(app)
@@ -243,25 +248,79 @@ describe('Notifications Routes', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.notificationsEnabled).toBe(false);
+      expect(response.body.prefs.notificationsEnabled).toBe(false);
     });
 
-    it('should require notificationsEnabled in body', async () => {
+    it('should update cooldown and max per day', async () => {
+      (mockPrisma.user.update as jest.Mock).mockResolvedValue({
+        id: 'user-1',
+        notificationsEnabled: true,
+        notificationCooldownMinutes: 180,
+        maxNotificationsPerDay: 5,
+        pushToken: 'ExponentPushToken[xxx]',
+        lastPushSentAt: null,
+        notificationsCountToday: 0,
+      });
+
+      const response = await request(app)
+        .patch('/api/notifications/preferences')
+        .send({
+          notificationCooldownMinutes: 180,
+          maxNotificationsPerDay: 5,
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.prefs.notificationCooldownMinutes).toBe(180);
+      expect(response.body.prefs.maxNotificationsPerDay).toBe(5);
+    });
+
+    it('should reject cooldown less than 120 minutes', async () => {
+      const response = await request(app)
+        .patch('/api/notifications/preferences')
+        .send({ notificationCooldownMinutes: 60 });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should allow empty body (no changes)', async () => {
+      (mockPrisma.user.update as jest.Mock).mockResolvedValue({
+        id: 'user-1',
+        notificationsEnabled: true,
+        notificationCooldownMinutes: 120,
+        maxNotificationsPerDay: 10,
+        pushToken: 'ExponentPushToken[xxx]',
+        lastPushSentAt: null,
+        notificationsCountToday: 0,
+      });
+
       const response = await request(app)
         .patch('/api/notifications/preferences')
         .send({});
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(200);
     });
   });
 
   describe('GET /api/notifications/preferences', () => {
-    it('should return notification preferences', async () => {
+    it('should return full notification preferences', async () => {
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
+        notificationsEnabled: true,
+        notificationCooldownMinutes: 120,
+        maxNotificationsPerDay: 10,
+        pushToken: 'ExponentPushToken[xxx]',
+        lastPushSentAt: new Date('2024-01-15T10:00:00.000Z'),
+        notificationsCountToday: 3,
+      });
+
       const response = await request(app).get('/api/notifications/preferences');
 
       expect(response.status).toBe(200);
       expect(response.body.notificationsEnabled).toBe(true);
+      expect(response.body.notificationCooldownMinutes).toBe(120);
+      expect(response.body.maxNotificationsPerDay).toBe(10);
       expect(response.body.hasPushToken).toBe(true);
+      expect(response.body.lastPushSentAt).toBe('2024-01-15T10:00:00.000Z');
+      expect(response.body.notificationsCountToday).toBe(3);
     });
   });
 });
