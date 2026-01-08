@@ -1,108 +1,41 @@
-import React, { useState } from 'react';
+/**
+ * Settings Screen
+ *
+ * Central place for app settings including notification controls and account.
+ */
+
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
 } from 'react-native';
+import { router } from 'expo-router';
 
-import { useNotifications } from '@/hooks/use-notifications';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useNotifications } from '@/hooks/use-notifications';
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
-
-  const {
-    hasPermission,
-    expoPushToken,
-    isDevice,
-    lastNotification,
-    isLoading,
-    error,
-    requestPermissions,
-    scheduleLocalNotification,
-    cancelAllNotifications,
-  } = useNotifications();
-
-  const [scheduledIds, setScheduledIds] = useState<string[]>([]);
-
-  const handleRequestPermissions = async () => {
-    const granted = await requestPermissions();
-    if (granted) {
-      Alert.alert('Success', 'Notification permissions granted!');
-    } else {
-      Alert.alert(
-        'Permission Denied',
-        'Please enable notifications in Settings to receive reminders.',
-      );
-    }
-  };
-
-  const handleScheduleNotification = async (delaySeconds: number) => {
-    if (!hasPermission) {
-      Alert.alert(
-        'Permission Required',
-        'Please grant notification permissions first.',
-      );
-      return;
-    }
-
-    try {
-      // Use the due_cards category to test action buttons
-      // Note: This uses a mock sprintId for testing; real sprints are created server-side
-      const testSprintId = 'test-sprint-' + Date.now();
-      const id = await scheduleLocalNotification(
-        'Time for a micro-sprint!',
-        `3 cards ready for review (Test - ${delaySeconds}s delay)`,
-        delaySeconds,
-        {
-          categoryIdentifier: 'due_cards',
-          data: {
-            type: 'sprint',
-            sprintId: testSprintId,
-            url: `/sprint/${testSprintId}`,
-          },
-        },
-      );
-      setScheduledIds((prev) => [...prev, id]);
-      Alert.alert(
-        'Scheduled',
-        `Notification will appear in ${delaySeconds} seconds with action buttons.`,
-      );
-    } catch (err) {
-      Alert.alert('Error', 'Failed to schedule notification');
-      console.error(err);
-    }
-  };
-
-  const handleCancelAll = async () => {
-    await cancelAllNotifications();
-    setScheduledIds([]);
-    Alert.alert('Cancelled', 'All scheduled notifications cancelled.');
-  };
+  const { hasPermission, expoPushToken } = useNotifications();
 
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
     >
-      <Text style={[styles.title, { color: colors.text }]}>
-        Notification Testing
-      </Text>
-
-      {/* Status Section */}
+      {/* Notifications Section */}
       <View style={[styles.section, { backgroundColor: colors.card }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Status
+          Notifications
         </Text>
 
         <View style={styles.statusRow}>
           <Text style={[styles.label, { color: colors.textSecondary }]}>
-            Permission:
+            Permission
           </Text>
           <Text
             style={[
@@ -110,152 +43,71 @@ export default function SettingsScreen() {
               { color: hasPermission ? '#4CAF50' : '#F44336' },
             ]}
           >
-            {isLoading ? 'Checking...' : hasPermission ? 'Granted' : 'Denied'}
+            {hasPermission ? 'Granted' : 'Denied'}
           </Text>
         </View>
 
         <View style={styles.statusRow}>
           <Text style={[styles.label, { color: colors.textSecondary }]}>
-            Physical Device:
-          </Text>
-          <Text
-            style={[styles.value, { color: isDevice ? '#4CAF50' : '#FF9800' }]}
-          >
-            {isDevice ? 'Yes' : 'No (Simulator)'}
-          </Text>
-        </View>
-
-        <View style={styles.statusRow}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>
-            Push Token:
+            Push Token
           </Text>
           <Text
             style={[
               styles.value,
               { color: expoPushToken ? '#4CAF50' : colors.textSecondary },
             ]}
-            numberOfLines={1}
           >
-            {expoPushToken
-              ? `${expoPushToken.slice(0, 30)}...`
-              : 'N/A (simulator)'}
+            {expoPushToken ? 'Registered' : 'Not registered'}
           </Text>
         </View>
 
-        {error && (
-          <View style={styles.statusRow}>
-            <Text style={[styles.label, { color: '#F44336' }]}>Error:</Text>
-            <Text style={[styles.value, { color: '#F44336' }]}>{error}</Text>
-          </View>
-        )}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push('/notification-controls')}
+        >
+          <Text style={[styles.menuItemText, { color: colors.text }]}>
+            Notification Controls
+          </Text>
+          <Text style={[styles.chevron, { color: colors.textSecondary }]}>
+            {'>'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Permission Section */}
-      {!hasPermission && (
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Enable Notifications
-          </Text>
-          <Text style={[styles.description, { color: colors.textSecondary }]}>
-            Grant permission to receive reminders when cards are due for review.
-          </Text>
-          <TouchableOpacity
-            style={[styles.button, styles.primaryButton]}
-            onPress={handleRequestPermissions}
-          >
-            <Text style={styles.buttonText}>Request Permission</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Test Notifications Section */}
+      {/* Sprint Preferences Section */}
       <View style={[styles.section, { backgroundColor: colors.card }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Test Local Notifications
+          Sprint Preferences
         </Text>
         <Text style={[styles.description, { color: colors.textSecondary }]}>
-          Schedule a local notification to test the notification system.
-          {!isDevice &&
-            ' Note: Remote push notifications require a physical device.'}
+          Sprint size and preferences will be configurable in a future update.
         </Text>
-
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              styles.testButton,
-              !hasPermission && styles.buttonDisabled,
-            ]}
-            onPress={() => handleScheduleNotification(3)}
-            disabled={!hasPermission}
-          >
-            <Text style={styles.buttonText}>3 sec</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.button,
-              styles.testButton,
-              !hasPermission && styles.buttonDisabled,
-            ]}
-            onPress={() => handleScheduleNotification(10)}
-            disabled={!hasPermission}
-          >
-            <Text style={styles.buttonText}>10 sec</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.button,
-              styles.testButton,
-              !hasPermission && styles.buttonDisabled,
-            ]}
-            onPress={() => handleScheduleNotification(30)}
-            disabled={!hasPermission}
-          >
-            <Text style={styles.buttonText}>30 sec</Text>
-          </TouchableOpacity>
-        </View>
-
-        {scheduledIds.length > 0 && (
-          <TouchableOpacity
-            style={[styles.button, styles.cancelButton]}
-            onPress={handleCancelAll}
-          >
-            <Text style={styles.buttonText}>
-              Cancel All ({scheduledIds.length})
-            </Text>
-          </TouchableOpacity>
-        )}
       </View>
 
-      {/* Last Notification Section */}
-      {lastNotification && (
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Last Received Notification
-          </Text>
-          <Text style={[styles.code, { color: colors.textSecondary }]}>
-            Title: {lastNotification.request.content.title}
-          </Text>
-          <Text style={[styles.code, { color: colors.textSecondary }]}>
-            Body: {lastNotification.request.content.body}
-          </Text>
-          <Text style={[styles.code, { color: colors.textSecondary }]}>
-            Data: {JSON.stringify(lastNotification.request.content.data)}
-          </Text>
-        </View>
-      )}
-
-      {/* Info Section */}
+      {/* Account Section */}
       <View style={[styles.section, { backgroundColor: colors.card }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          About Push Notifications
+          Account
         </Text>
         <Text style={[styles.description, { color: colors.textSecondary }]}>
-          {isDevice
-            ? 'You are on a physical device. Remote push notifications from the server will work once your Apple Developer account is active and credentials are configured.'
-            : 'You are on a simulator. Local notifications work here, but remote push notifications require a physical device with proper APNs credentials.'}
+          Account management will be available once Clerk authentication is
+          fully integrated.
+        </Text>
+      </View>
+
+      {/* About Section */}
+      <View style={[styles.section, { backgroundColor: colors.card }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>About</Text>
+        <View style={styles.statusRow}>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>
+            Version
+          </Text>
+          <Text style={[styles.value, { color: colors.textSecondary }]}>
+            MVP
+          </Text>
+        </View>
+        <Text style={[styles.description, { color: colors.textSecondary }]}>
+          MicroFlash - Microlearning-first spaced repetition
         </Text>
       </View>
     </ScrollView>
@@ -270,11 +122,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
   section: {
     borderRadius: 12,
     padding: 16,
@@ -283,12 +130,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   description: {
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 12,
   },
   statusRow: {
     flexDirection: 'row',
@@ -304,44 +150,18 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 14,
     fontWeight: '500',
-    flex: 1,
-    textAlign: 'right',
   },
-  button: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButton: {
-    backgroundColor: '#007AFF',
-  },
-  testButton: {
-    backgroundColor: '#34C759',
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  cancelButton: {
-    backgroundColor: '#FF3B30',
-    marginTop: 12,
-  },
-  buttonDisabled: {
-    backgroundColor: '#999',
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonRow: {
+  menuItem: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
     marginTop: 8,
   },
-  code: {
-    fontFamily: 'monospace',
-    fontSize: 12,
-    marginTop: 4,
+  menuItemText: {
+    fontSize: 16,
+  },
+  chevron: {
+    fontSize: 18,
   },
 });
