@@ -18,6 +18,8 @@ import {
   startSprint,
   getSprintById,
   submitSprintReview,
+  completeSprint,
+  abandonSprint,
   formatSprintResponse,
 } from '@/services/sprint-service';
 
@@ -183,6 +185,111 @@ router.post(
               409,
               'CARD_ALREADY_REVIEWED',
               'This card has already been reviewed in this sprint',
+            );
+        }
+      }
+      throw error;
+    }
+  }),
+);
+
+/**
+ * POST /api/sprints/:id/complete - Complete a sprint
+ *
+ * Marks a sprint as completed after all cards have been reviewed.
+ * Idempotent: calling on an already completed sprint returns success.
+ *
+ * Response:
+ * - sprint: SprintDTO
+ * - stats: { totalCards, reviewedCards, passCount, failCount, skipCount, durationSeconds }
+ */
+router.post(
+  '/:id/complete',
+  requireUser,
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const { id: sprintId } = req.params;
+
+    try {
+      const { sprint, stats } = await completeSprint(sprintId, user.id);
+
+      res.json({
+        sprint: formatSprintResponse(sprint),
+        stats,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        switch (error.message) {
+          case 'SPRINT_NOT_FOUND':
+            throw new ApiError(404, 'SPRINT_NOT_FOUND', 'Sprint not found');
+          case 'SPRINT_NOT_OWNED':
+            throw new ApiError(
+              403,
+              'FORBIDDEN',
+              'You do not have permission to access this sprint',
+            );
+          case 'SPRINT_ABANDONED':
+            throw new ApiError(
+              409,
+              'SPRINT_ABANDONED',
+              'Cannot complete an abandoned sprint',
+            );
+          case 'SPRINT_NOT_ACTIVE':
+            throw new ApiError(
+              409,
+              'SPRINT_NOT_ACTIVE',
+              'Sprint is not active. Only active sprints can be completed.',
+            );
+          case 'SPRINT_INCOMPLETE':
+            throw new ApiError(
+              400,
+              'SPRINT_INCOMPLETE',
+              'Cannot complete sprint: not all cards have been reviewed',
+            );
+        }
+      }
+      throw error;
+    }
+  }),
+);
+
+/**
+ * POST /api/sprints/:id/abandon - Abandon a sprint
+ *
+ * Explicitly abandons a sprint and snoozes remaining unreviewed cards for 2 hours.
+ * Idempotent: calling on an already abandoned/completed sprint returns success.
+ *
+ * Response:
+ * - sprint: SprintDTO
+ * - snoozedCardCount: number
+ */
+router.post(
+  '/:id/abandon',
+  requireUser,
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const { id: sprintId } = req.params;
+
+    try {
+      const { sprint, snoozedCardCount } = await abandonSprint(
+        sprintId,
+        user.id,
+      );
+
+      res.json({
+        sprint: formatSprintResponse(sprint),
+        snoozedCardCount,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        switch (error.message) {
+          case 'SPRINT_NOT_FOUND':
+            throw new ApiError(404, 'SPRINT_NOT_FOUND', 'Sprint not found');
+          case 'SPRINT_NOT_OWNED':
+            throw new ApiError(
+              403,
+              'FORBIDDEN',
+              'You do not have permission to access this sprint',
             );
         }
       }

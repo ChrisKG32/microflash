@@ -635,6 +635,151 @@ export async function submitSprintReview(
 }
 
 /**
+ * Stats for a completed sprint
+ */
+export interface SprintCompletionStats {
+  totalCards: number;
+  reviewedCards: number;
+  passCount: number;
+  failCount: number;
+  skipCount: number;
+  durationSeconds: number | null;
+}
+
+/**
+ * Result of completing a sprint
+ */
+export interface CompleteSprintResult {
+  sprint: SprintWithCards;
+  stats: SprintCompletionStats;
+}
+
+/**
+ * Complete a sprint after all cards have been reviewed.
+ *
+ * Requirements:
+ * - Sprint must exist and be owned by user
+ * - Sprint must be ACTIVE
+ * - All SprintCards must have a result (no unreviewed cards)
+ *
+ * Idempotent: If already COMPLETED, returns the sprint with stats.
+ */
+export async function completeSprint(
+  sprintId: string,
+  userId: string,
+): Promise<CompleteSprintResult> {
+  // Load sprint with cards
+  const sprint = await prisma.sprint.findUnique({
+    where: { id: sprintId },
+    include: {
+      deck: { select: { id: true, title: true } },
+      sprintCards: {
+        orderBy: { order: 'asc' },
+        include: {
+          card: {
+            include: {
+              deck: { select: { id: true, title: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!sprint) {
+    throw new Error('SPRINT_NOT_FOUND');
+  }
+
+  if (sprint.userId !== userId) {
+    throw new Error('SPRINT_NOT_OWNED');
+  }
+
+  // Calculate stats (needed for both idempotent return and new completion)
+  const calculateStats = (
+    sprintData: typeof sprint,
+    completedAt: Date | null,
+  ): SprintCompletionStats => {
+    const passCount = sprintData.sprintCards.filter(
+      (sc) => sc.result === 'PASS',
+    ).length;
+    const failCount = sprintData.sprintCards.filter(
+      (sc) => sc.result === 'FAIL',
+    ).length;
+    const skipCount = sprintData.sprintCards.filter(
+      (sc) => sc.result === 'SKIP',
+    ).length;
+
+    let durationSeconds: number | null = null;
+    if (sprintData.startedAt && completedAt) {
+      durationSeconds = Math.round(
+        (completedAt.getTime() - sprintData.startedAt.getTime()) / 1000,
+      );
+    }
+
+    return {
+      totalCards: sprintData.sprintCards.length,
+      reviewedCards: passCount + failCount + skipCount,
+      passCount,
+      failCount,
+      skipCount,
+      durationSeconds,
+    };
+  };
+
+  // If already completed, return idempotently with stats
+  if (sprint.status === 'COMPLETED') {
+    return {
+      sprint: sprint as SprintWithCards,
+      stats: calculateStats(sprint, sprint.completedAt),
+    };
+  }
+
+  // Cannot complete an abandoned sprint
+  if (sprint.status === 'ABANDONED') {
+    throw new Error('SPRINT_ABANDONED');
+  }
+
+  // Sprint must be ACTIVE
+  if (sprint.status !== 'ACTIVE') {
+    throw new Error('SPRINT_NOT_ACTIVE');
+  }
+
+  // Check if all cards have been reviewed
+  const unreviewedCards = sprint.sprintCards.filter((sc) => sc.result === null);
+  if (unreviewedCards.length > 0) {
+    throw new Error('SPRINT_INCOMPLETE');
+  }
+
+  // Complete the sprint
+  const now = new Date();
+  const completedSprint = await prisma.sprint.update({
+    where: { id: sprintId },
+    data: {
+      status: 'COMPLETED',
+      completedAt: now,
+    },
+    include: {
+      deck: { select: { id: true, title: true } },
+      sprintCards: {
+        orderBy: { order: 'asc' },
+        include: {
+          card: {
+            include: {
+              deck: { select: { id: true, title: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return {
+    sprint: completedSprint as SprintWithCards,
+    stats: calculateStats(completedSprint, now),
+  };
+}
+
+/**
  * Explicitly abandon a sprint.
  * Returns the number of cards that were snoozed.
  */
