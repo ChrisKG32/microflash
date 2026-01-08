@@ -23,6 +23,7 @@ import { useFocusEffect, router } from 'expo-router';
 import {
   getHomeSummary,
   startSprint,
+  ApiError,
   type HomeSummary,
   type SprintSource,
 } from '@/lib/api';
@@ -114,7 +115,7 @@ export default function HomeScreen() {
         },
       });
     } catch (err) {
-      if (err instanceof Error && err.message.includes('No cards')) {
+      if (err instanceof ApiError && err.code === 'NO_ELIGIBLE_CARDS') {
         // No eligible cards - refresh to show empty state
         fetchSummary();
       } else {

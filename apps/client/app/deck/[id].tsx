@@ -27,6 +27,7 @@ import {
   getDeck,
   updateDeck,
   startSprint,
+  ApiError,
   type Card,
   type Deck,
 } from '@/lib/api';
@@ -141,7 +142,7 @@ export default function DeckDetailScreen() {
         },
       });
     } catch (err) {
-      if (err instanceof Error && err.message.includes('No cards')) {
+      if (err instanceof ApiError && err.code === 'NO_ELIGIBLE_CARDS') {
         Alert.alert(
           'No Cards Due',
           'There are no cards due for review in this deck right now.',
