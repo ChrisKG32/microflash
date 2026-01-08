@@ -69,6 +69,7 @@ export interface Deck {
   id: string;
   title: string;
   description: string | null;
+  priority: number;
   cardCount: number;
   createdAt: string;
   updatedAt: string;
@@ -79,6 +80,7 @@ export interface Card {
   id: string;
   front: string;
   back: string;
+  priority: number;
   deckId: string;
   deckTitle?: string;
   state: 'NEW' | 'LEARNING' | 'REVIEW' | 'RELEARNING';

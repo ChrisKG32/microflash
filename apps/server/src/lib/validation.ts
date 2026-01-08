@@ -9,12 +9,14 @@ import { z } from 'zod';
  * Note: Zod 4 uses { error: "message" } instead of { required_error, message }
  */
 
-// Shared enums
-export const priorityEnum = z.enum(['LOW', 'MEDIUM', 'HIGH'], {
-  error: 'Priority must be one of: LOW, MEDIUM, HIGH',
-});
+// Priority validation (numeric 0-100)
+export const prioritySchema = z
+  .number({ error: 'Priority must be a number' })
+  .int({ error: 'Priority must be an integer' })
+  .min(0, { error: 'Priority must be at least 0' })
+  .max(100, { error: 'Priority must be at most 100' });
 
-export type Priority = z.infer<typeof priorityEnum>;
+export type Priority = z.infer<typeof prioritySchema>;
 
 // Card validation schemas
 export const createCardSchema = z
@@ -30,7 +32,7 @@ export const createCardSchema = z
     deckId: z
       .string({ error: 'Deck ID is required' })
       .min(1, { error: 'Deck ID is required' }),
-    priority: priorityEnum.optional(),
+    priority: prioritySchema.optional(),
   })
   .strict();
 
@@ -50,7 +52,7 @@ export const updateCardSchema = z
       .max(10000, { error: 'Back is too long (max 10000 characters)' })
       .optional(),
     deckId: z.string().min(1, { error: 'Deck ID cannot be empty' }).optional(),
-    priority: priorityEnum.optional(),
+    priority: prioritySchema.optional(),
   })
   .strict();
 
@@ -68,7 +70,7 @@ export const createDeckSchema = z
       .max(1000, { error: 'Description is too long (max 1000 characters)' })
       .optional(),
     parentDeckId: z.string().optional(),
-    priority: priorityEnum.optional(),
+    priority: prioritySchema.optional(),
   })
   .strict();
 
@@ -88,7 +90,7 @@ export const updateDeckSchema = z
       .nullable()
       .optional(),
     parentDeckId: z.string().nullable().optional(),
-    priority: priorityEnum.optional(),
+    priority: prioritySchema.optional(),
   })
   .strict();
 

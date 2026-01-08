@@ -52,6 +52,7 @@ router.get(
         id: card.id,
         front: card.front,
         back: card.back,
+        priority: card.priority,
         deckId: card.deckId,
         deckTitle: card.deck.title,
         state: card.state,
@@ -104,6 +105,7 @@ router.post(
         id: card.id,
         front: card.front,
         back: card.back,
+        priority: card.priority,
         deckId: card.deckId,
         deckTitle: card.deck.title,
         state: card.state,
@@ -159,6 +161,7 @@ router.get(
         id: card.id,
         front: card.front,
         back: card.back,
+        priority: card.priority,
         deckId: card.deckId,
         deckTitle: card.deck.title,
         state: card.state,
@@ -183,7 +186,8 @@ router.post(
     const user = req.user!;
 
     // Body is validated and typed by validate middleware
-    const { front, back, deckId } = req.validated!.body as CreateCardInput;
+    const { front, back, deckId, priority } = req.validated!
+      .body as CreateCardInput;
 
     // Verify deck exists and belongs to user
     const deck = await prisma.deck.findUnique({
@@ -212,6 +216,7 @@ router.post(
         front: front.trim(),
         back: back.trim(),
         deckId,
+        ...(priority !== undefined && { priority }),
         // FSRS state fields
         stability: fsrsState.stability,
         difficulty: fsrsState.difficulty,
@@ -231,6 +236,7 @@ router.post(
         id: card.id,
         front: card.front,
         back: card.back,
+        priority: card.priority,
         deckId: card.deckId,
         // FSRS state
         state: card.state,
@@ -286,6 +292,7 @@ router.get(
         id: card.id,
         front: card.front,
         back: card.back,
+        priority: card.priority,
         deckId: card.deckId,
         deckTitle: card.deck.title,
         // FSRS state
@@ -368,6 +375,7 @@ router.patch(
       front?: string;
       back?: string;
       deckId?: string;
+      priority?: number;
     } = {};
 
     if (updates.front !== undefined) {
@@ -378,6 +386,9 @@ router.patch(
     }
     if (updates.deckId !== undefined) {
       updateData.deckId = updates.deckId;
+    }
+    if (updates.priority !== undefined) {
+      updateData.priority = updates.priority;
     }
 
     // Update the card
@@ -399,6 +410,7 @@ router.patch(
         id: updatedCard.id,
         front: updatedCard.front,
         back: updatedCard.back,
+        priority: updatedCard.priority,
         deckId: updatedCard.deckId,
         deckTitle: updatedCard.deck.title,
         // FSRS state
