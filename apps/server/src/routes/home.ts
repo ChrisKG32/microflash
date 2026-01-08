@@ -12,6 +12,7 @@ import {
   findResumableSprint,
   calculateProgress,
 } from '@/services/sprint-service';
+import { getUserPushEligibility } from '@/services/notification-eligibility';
 
 const router: RouterType = Router();
 
@@ -67,13 +68,17 @@ router.get(
       };
     }
 
+    // Compute next eligible push time using eligibility engine
+    const eligibility = await getUserPushEligibility(user, now);
+    const nextEligiblePushTime =
+      eligibility.nextEligibleAt?.toISOString() ?? null;
+
     res.json({
       summary: {
         dueCount,
         overdueCount,
         resumableSprint: resumableSprintDTO,
-        // nextEligiblePushTime is null until E4.1 implements eligibility engine
-        nextEligiblePushTime: null,
+        nextEligiblePushTime,
         notificationsEnabled: user.notificationsEnabled,
         hasPushToken: !!user.pushToken,
       },
