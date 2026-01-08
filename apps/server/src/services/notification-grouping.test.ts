@@ -274,6 +274,7 @@ describe('Notification Grouping Service', () => {
         type: 'sprint',
         sprintId: 'sprint-123',
         url: '/sprint/sprint-123',
+        cardCount: 5,
       });
     });
 

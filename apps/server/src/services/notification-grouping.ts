@@ -182,6 +182,7 @@ export function prepareNotificationPayload(
     type: 'sprint';
     sprintId: string;
     url: string;
+    cardCount: number;
   };
 } {
   if (!group.sprintId) {
@@ -189,6 +190,8 @@ export function prepareNotificationPayload(
       'sprintId must be set on group before preparing notification payload',
     );
   }
+
+  const cardCount = sprintSize ?? Math.min(group.totalCards, 10);
 
   return {
     title: generateNotificationTitle(),
@@ -198,6 +201,7 @@ export function prepareNotificationPayload(
       type: 'sprint',
       sprintId: group.sprintId,
       url: `/sprint/${group.sprintId}`,
+      cardCount,
     },
   };
 }
