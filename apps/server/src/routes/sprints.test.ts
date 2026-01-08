@@ -5,7 +5,7 @@
 import request from 'supertest';
 import express from 'express';
 import { Router } from 'express';
-import type { User, Deck, Card, Sprint, SprintCard } from '@/generated/prisma';
+import type { User, Deck, Card } from '@/generated/prisma';
 
 // Mock user for tests
 const mockUser: User = {
@@ -1409,6 +1409,153 @@ describe('Sprint Routes', () => {
 
       expect(response.status).toBe(403);
       expect(response.body.error.code).toBe('FORBIDDEN');
+    });
+  });
+
+  describe('Sprint Card Priority Ordering', () => {
+    it('orders cards by card priority DESC then deck priority DESC', async () => {
+      // No existing resumable sprint
+      (mockedPrisma.sprint.findFirst as jest.Mock).mockResolvedValue(null);
+
+      // User sprint size
+      (mockedPrisma.user.findUnique as jest.Mock).mockResolvedValue({
+        sprintSize: 10,
+      });
+
+      // No cards in active sprints
+      (mockedPrisma.sprintCard.findMany as jest.Mock).mockResolvedValue([]);
+
+      // Cards with different priorities from different decks
+      const highPriorityDeck = {
+        id: 'deck-high',
+        title: 'High Priority Deck',
+        priority: 90,
+      };
+      const lowPriorityDeck = {
+        id: 'deck-low',
+        title: 'Low Priority Deck',
+        priority: 30,
+      };
+
+      const cardsWithPriorities = [
+        {
+          ...mockCards[0],
+          id: 'card-low-priority',
+          priority: 20,
+          deck: lowPriorityDeck,
+        },
+        {
+          ...mockCards[1],
+          id: 'card-high-priority',
+          priority: 90,
+          deck: highPriorityDeck,
+        },
+        {
+          ...mockCards[2],
+          id: 'card-medium-priority',
+          priority: 50,
+          deck: highPriorityDeck,
+        },
+        {
+          ...mockCards[0],
+          id: 'card-same-priority-high-deck',
+          priority: 50,
+          deck: highPriorityDeck,
+        },
+        {
+          ...mockCards[1],
+          id: 'card-same-priority-low-deck',
+          priority: 50,
+          deck: lowPriorityDeck,
+        },
+      ];
+
+      (mockedPrisma.card.findMany as jest.Mock).mockResolvedValue(
+        cardsWithPriorities,
+      );
+
+      // Created sprint - cards should be ordered by priority
+      const createdSprint = {
+        id: 'sprint-priority-test',
+        userId: 'user-1',
+        deckId: null,
+        status: 'ACTIVE',
+        source: 'HOME',
+        createdAt: now,
+        startedAt: now,
+        completedAt: null,
+        resumableUntil: new Date(now.getTime() + 30 * 60000),
+        abandonedAt: null,
+        deck: null,
+        sprintCards: [
+          // Expected order: card-high-priority (90), card-same-priority-high-deck (50, deck 90),
+          // card-medium-priority (50, deck 90), card-same-priority-low-deck (50, deck 30),
+          // card-low-priority (20)
+          {
+            id: 'sc-1',
+            order: 1,
+            result: null,
+            card: cardsWithPriorities[1], // card-high-priority (90)
+          },
+          {
+            id: 'sc-2',
+            order: 2,
+            result: null,
+            card: cardsWithPriorities[3], // card-same-priority-high-deck (50, deck 90)
+          },
+          {
+            id: 'sc-3',
+            order: 3,
+            result: null,
+            card: cardsWithPriorities[2], // card-medium-priority (50, deck 90)
+          },
+          {
+            id: 'sc-4',
+            order: 4,
+            result: null,
+            card: cardsWithPriorities[4], // card-same-priority-low-deck (50, deck 30)
+          },
+          {
+            id: 'sc-5',
+            order: 5,
+            result: null,
+            card: cardsWithPriorities[0], // card-low-priority (20)
+          },
+        ],
+      };
+      (mockedPrisma.sprint.create as jest.Mock).mockResolvedValue(
+        createdSprint,
+      );
+
+      const response = await request(app)
+        .post('/api/sprints/start')
+        .send({ source: 'HOME' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.sprint.cards).toHaveLength(5);
+
+      // Verify the order: highest card priority first
+      const cardIds = response.body.sprint.cards.map(
+        (sc: { card: { id: string } }) => sc.card.id,
+      );
+      expect(cardIds[0]).toBe('card-high-priority'); // Priority 90
+      expect(cardIds[4]).toBe('card-low-priority'); // Priority 20
+
+      // Cards with same priority should be ordered by deck priority
+      // card-same-priority-high-deck (deck 90) should come before card-same-priority-low-deck (deck 30)
+      const sameCardPriorityIndices = cardIds.reduce(
+        (acc: { [key: string]: number }, id: string, idx: number) => {
+          if (id.includes('same-priority')) {
+            acc[id] = idx;
+          }
+          return acc;
+        },
+        {},
+      );
+
+      expect(
+        sameCardPriorityIndices['card-same-priority-high-deck'],
+      ).toBeLessThan(sameCardPriorityIndices['card-same-priority-low-deck']);
     });
   });
 });

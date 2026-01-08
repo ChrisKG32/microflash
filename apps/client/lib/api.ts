@@ -123,10 +123,45 @@ export async function createDeck(data: {
   title: string;
   description?: string;
   parentDeckId?: string;
+  priority?: number;
 }): Promise<{ deck: Deck }> {
   return request('/api/decks', {
     method: 'POST',
     body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Get a single deck by ID.
+ */
+export async function getDeck(deckId: string): Promise<{ deck: Deck }> {
+  return request(`/api/decks/${deckId}`);
+}
+
+/**
+ * Update a deck.
+ */
+export async function updateDeck(
+  deckId: string,
+  data: {
+    title?: string;
+    description?: string | null;
+    parentDeckId?: string | null;
+    priority?: number;
+  },
+): Promise<{ deck: Deck }> {
+  return request(`/api/decks/${deckId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Delete a deck.
+ */
+export async function deleteDeck(deckId: string): Promise<void> {
+  return request(`/api/decks/${deckId}`, {
+    method: 'DELETE',
   });
 }
 
@@ -301,10 +336,45 @@ export async function createCard(data: {
   front: string;
   back: string;
   deckId: string;
+  priority?: number;
 }): Promise<{ card: Card }> {
   return request('/api/cards', {
     method: 'POST',
     body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Get a single card by ID.
+ */
+export async function getCard(cardId: string): Promise<{ card: Card }> {
+  return request(`/api/cards/${cardId}`);
+}
+
+/**
+ * Update a card.
+ */
+export async function updateCard(
+  cardId: string,
+  data: {
+    front?: string;
+    back?: string;
+    deckId?: string;
+    priority?: number;
+  },
+): Promise<{ card: Card }> {
+  return request(`/api/cards/${cardId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Delete a card.
+ */
+export async function deleteCard(cardId: string): Promise<void> {
+  return request(`/api/cards/${cardId}`, {
+    method: 'DELETE',
   });
 }
 
