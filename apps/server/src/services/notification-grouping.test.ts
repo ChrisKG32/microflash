@@ -53,13 +53,11 @@ describe('Notification Grouping Service', () => {
 
       const mathDeck = result[0].decks.find((d) => d.deckTitle === 'Math');
       expect(mathDeck?.cardCount).toBe(2);
-      expect(mathDeck?.cardIds).toEqual(['card-1', 'card-2']);
 
       const scienceDeck = result[0].decks.find(
         (d) => d.deckTitle === 'Science',
       );
       expect(scienceDeck?.cardCount).toBe(1);
-      expect(scienceDeck?.cardIds).toEqual(['card-3']);
     });
 
     it('should handle multiple users', () => {
@@ -100,6 +98,16 @@ describe('Notification Grouping Service', () => {
 
       expect(result[0].pushToken).toBe('my-push-token');
     });
+
+    it('should not include sprintId by default (set by scheduler)', () => {
+      const cards: DueCardWithRelations[] = [
+        createMockCard('card-1', 'deck-1', 'Math', 'user-1'),
+      ];
+
+      const result = groupCardsByUserAndDeck(cards);
+
+      expect(result[0].sprintId).toBeUndefined();
+    });
   });
 
   describe('generateNotificationMessage', () => {
@@ -114,15 +122,14 @@ describe('Notification Grouping Service', () => {
             deckTitle: 'Math',
             parentDeckId: null,
             cardCount: 1,
-            cardIds: ['card-1'],
           },
         ],
         totalCards: 1,
-        includedCardIds: ['card-1'],
-        overflowCardIds: [],
       };
 
-      expect(generateNotificationMessage(group)).toBe('1 card ready in Math');
+      expect(generateNotificationMessage(group, 1)).toBe(
+        '1 card ready in Math',
+      );
     });
 
     it('should generate message for multiple cards in single deck', () => {
@@ -135,16 +142,15 @@ describe('Notification Grouping Service', () => {
             deckId: 'deck-1',
             deckTitle: 'Math',
             parentDeckId: null,
-            cardCount: 3,
-            cardIds: ['card-1', 'card-2', 'card-3'],
+            cardCount: 5,
           },
         ],
-        totalCards: 3,
-        includedCardIds: ['card-1', 'card-2', 'card-3'],
-        overflowCardIds: [],
+        totalCards: 5,
       };
 
-      expect(generateNotificationMessage(group)).toBe('3 cards ready in Math');
+      expect(generateNotificationMessage(group, 5)).toBe(
+        '5 cards ready in Math',
+      );
     });
 
     it('should generate message for multiple decks', () => {
@@ -158,27 +164,23 @@ describe('Notification Grouping Service', () => {
             deckTitle: 'Math',
             parentDeckId: null,
             cardCount: 2,
-            cardIds: ['card-1', 'card-2'],
           },
           {
             deckId: 'deck-2',
             deckTitle: 'Science',
             parentDeckId: null,
-            cardCount: 1,
-            cardIds: ['card-3'],
+            cardCount: 3,
           },
         ],
-        totalCards: 3,
-        includedCardIds: ['card-1', 'card-2', 'card-3'],
-        overflowCardIds: [],
+        totalCards: 5,
       };
 
-      expect(generateNotificationMessage(group)).toBe(
-        '3 cards ready for review',
+      expect(generateNotificationMessage(group, 5)).toBe(
+        '5 cards ready for review',
       );
     });
 
-    it('should generate message based on included cards count', () => {
+    it('should use sprintSize parameter when provided', () => {
       const group: UserNotificationGroup = {
         userId: 'user-1',
         clerkId: 'clerk-1',
@@ -188,61 +190,59 @@ describe('Notification Grouping Service', () => {
             deckId: 'deck-1',
             deckTitle: 'Math',
             parentDeckId: null,
-            cardCount: 1,
-            cardIds: ['card-1'],
-          },
-          {
-            deckId: 'deck-2',
-            deckTitle: 'Science',
-            parentDeckId: null,
-            cardCount: 5,
-            cardIds: ['card-2', 'card-3', 'card-4', 'card-5', 'card-6'],
+            cardCount: 10,
           },
         ],
-        totalCards: 6,
-        // Only 3 cards included (max per notification)
-        includedCardIds: ['card-1', 'card-2', 'card-3'],
-        overflowCardIds: ['card-4', 'card-5', 'card-6'],
+        totalCards: 10,
       };
 
-      // Message should reflect included count (3), not total (6)
-      expect(generateNotificationMessage(group)).toBe(
-        '3 cards ready for review',
+      // Sprint size of 5 should be reflected in message
+      expect(generateNotificationMessage(group, 5)).toBe(
+        '5 cards ready in Math',
       );
     });
 
-    it('should return empty string for zero included cards', () => {
+    it('should cap at 10 cards when no sprintSize provided', () => {
+      const group: UserNotificationGroup = {
+        userId: 'user-1',
+        clerkId: 'clerk-1',
+        pushToken: 'token',
+        decks: [
+          {
+            deckId: 'deck-1',
+            deckTitle: 'Math',
+            parentDeckId: null,
+            cardCount: 50,
+          },
+        ],
+        totalCards: 50,
+      };
+
+      // Should cap at 10 (max sprint size)
+      expect(generateNotificationMessage(group)).toBe('10 cards ready in Math');
+    });
+
+    it('should return empty string for zero cards', () => {
       const group: UserNotificationGroup = {
         userId: 'user-1',
         clerkId: 'clerk-1',
         pushToken: 'token',
         decks: [],
         totalCards: 0,
-        includedCardIds: [],
-        overflowCardIds: [],
       };
 
-      expect(generateNotificationMessage(group)).toBe('');
+      expect(generateNotificationMessage(group, 0)).toBe('');
     });
   });
 
   describe('generateNotificationTitle', () => {
-    it('should return "Time to review!" for single card', () => {
-      expect(generateNotificationTitle(1)).toBe('Time to review!');
-    });
-
-    it('should return "Cards ready for review!" for multiple cards', () => {
-      expect(generateNotificationTitle(2)).toBe('Cards ready for review!');
-      expect(generateNotificationTitle(10)).toBe('Cards ready for review!');
-    });
-
-    it('should return "MicroFlash" for zero cards', () => {
-      expect(generateNotificationTitle(0)).toBe('MicroFlash');
+    it('should return sprint-focused title', () => {
+      expect(generateNotificationTitle()).toBe('Time for a micro-sprint!');
     });
   });
 
   describe('prepareNotificationPayload', () => {
-    it('should prepare complete notification payload', () => {
+    it('should prepare complete notification payload with sprintId', () => {
       const group: UserNotificationGroup = {
         userId: 'user-1',
         clerkId: 'clerk-1',
@@ -253,36 +253,56 @@ describe('Notification Grouping Service', () => {
             deckTitle: 'Math',
             parentDeckId: null,
             cardCount: 2,
-            cardIds: ['card-1', 'card-2'],
           },
           {
             deckId: 'deck-2',
             deckTitle: 'Science',
             parentDeckId: null,
-            cardCount: 1,
-            cardIds: ['card-3'],
+            cardCount: 3,
           },
         ],
-        totalCards: 3,
-        includedCardIds: ['card-1', 'card-2', 'card-3'],
-        overflowCardIds: [],
+        totalCards: 5,
+        sprintId: 'sprint-123',
       };
 
-      const payload = prepareNotificationPayload(group);
+      const payload = prepareNotificationPayload(group, 5);
 
-      expect(payload.title).toBe('Cards ready for review!');
-      expect(payload.body).toBe('3 cards ready for review');
+      expect(payload.title).toBe('Time for a micro-sprint!');
+      expect(payload.body).toBe('5 cards ready for review');
       expect(payload.categoryId).toBe('due_cards');
       expect(payload.data).toEqual({
-        type: 'due_cards',
-        cardIds: ['card-1', 'card-2', 'card-3'],
-        deckIds: ['deck-1', 'deck-2'],
-        totalCards: 3,
-        url: '/review-session?cardIds=card-1,card-2,card-3',
+        type: 'sprint',
+        sprintId: 'sprint-123',
+        url: '/sprint/sprint-123',
       });
     });
 
-    it('should handle single card payload', () => {
+    it('should handle single deck payload', () => {
+      const group: UserNotificationGroup = {
+        userId: 'user-1',
+        clerkId: 'clerk-1',
+        pushToken: 'token',
+        decks: [
+          {
+            deckId: 'deck-1',
+            deckTitle: 'Math',
+            parentDeckId: null,
+            cardCount: 3,
+          },
+        ],
+        totalCards: 3,
+        sprintId: 'sprint-456',
+      };
+
+      const payload = prepareNotificationPayload(group, 3);
+
+      expect(payload.title).toBe('Time for a micro-sprint!');
+      expect(payload.body).toBe('3 cards ready in Math');
+      expect(payload.data.sprintId).toBe('sprint-456');
+      expect(payload.data.url).toBe('/sprint/sprint-456');
+    });
+
+    it('should throw error if sprintId is not set', () => {
       const group: UserNotificationGroup = {
         userId: 'user-1',
         clerkId: 'clerk-1',
@@ -293,20 +313,15 @@ describe('Notification Grouping Service', () => {
             deckTitle: 'Math',
             parentDeckId: null,
             cardCount: 1,
-            cardIds: ['card-1'],
           },
         ],
         totalCards: 1,
-        includedCardIds: ['card-1'],
-        overflowCardIds: [],
+        // sprintId not set
       };
 
-      const payload = prepareNotificationPayload(group);
-
-      expect(payload.title).toBe('Time to review!');
-      expect(payload.body).toBe('1 card ready in Math');
-      expect(payload.data.cardIds).toEqual(['card-1']);
-      expect(payload.data.url).toBe('/review-session?cardIds=card-1');
+      expect(() => prepareNotificationPayload(group)).toThrow(
+        'sprintId must be set on group before preparing notification payload',
+      );
     });
   });
 });
