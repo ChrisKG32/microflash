@@ -8,7 +8,10 @@ import {
   getCandidateUsersForPush,
   userHasDueCards,
 } from '@/services/notification-eligibility';
-import { findResumableSprint } from '@/services/sprint-service';
+import {
+  findResumableSprint,
+  type SprintWithCards,
+} from '@/services/sprint-service';
 import { prisma } from '@/lib/prisma';
 
 // Mock dependencies
@@ -146,7 +149,7 @@ describe('Notification Eligibility Service', () => {
       mockFindResumableSprint.mockResolvedValue({
         id: 'sprint-1',
         resumableUntil,
-      } as any);
+      } as unknown as SprintWithCards);
 
       const user = createMockUser();
       const result = await getUserPushEligibility(user, now);

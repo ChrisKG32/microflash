@@ -7,6 +7,7 @@ import {
 import {
   createPendingPushSprint,
   deletePendingSprint,
+  type SprintWithCards,
 } from '@/services/sprint-service';
 import { sendBatchNotifications } from '@/services/push-notifications';
 import { removeUserPushToken } from '@/services/card-notifications';
@@ -122,7 +123,7 @@ describe('Notification Orchestrator', () => {
     });
     mockUserHasDueCards.mockResolvedValue(true);
     mockCreatePendingPushSprint.mockResolvedValue({
-      sprint: { id: 'sprint-1' } as any,
+      sprint: { id: 'sprint-1' } as unknown as SprintWithCards,
       cardCount: 5,
     });
     mockSendBatchNotifications.mockResolvedValue([
@@ -184,7 +185,7 @@ describe('Notification Orchestrator', () => {
     });
     mockUserHasDueCards.mockResolvedValue(true);
     mockCreatePendingPushSprint.mockResolvedValue({
-      sprint: { id: 'sprint-1' } as any,
+      sprint: { id: 'sprint-1' } as unknown as SprintWithCards,
       cardCount: 5,
     });
     mockSendBatchNotifications.mockResolvedValue([
@@ -217,7 +218,7 @@ describe('Notification Orchestrator', () => {
     });
     mockUserHasDueCards.mockResolvedValue(true);
     mockCreatePendingPushSprint.mockResolvedValue({
-      sprint: { id: 'sprint-1' } as any,
+      sprint: { id: 'sprint-1' } as unknown as SprintWithCards,
       cardCount: 5,
     });
     mockSendBatchNotifications.mockResolvedValue([
@@ -228,7 +229,7 @@ describe('Notification Orchestrator', () => {
       },
     ]);
     mockDeletePendingSprint.mockResolvedValue(true);
-    mockRemoveUserPushToken.mockResolvedValue();
+    mockRemoveUserPushToken.mockResolvedValue(true);
 
     const result = await sendDueCardNotifications();
 
@@ -253,11 +254,11 @@ describe('Notification Orchestrator', () => {
     mockUserHasDueCards.mockResolvedValue(true);
     mockCreatePendingPushSprint
       .mockResolvedValueOnce({
-        sprint: { id: 'sprint-1' } as any,
+        sprint: { id: 'sprint-1' } as unknown as SprintWithCards,
         cardCount: 5,
       })
       .mockResolvedValueOnce({
-        sprint: { id: 'sprint-3' } as any,
+        sprint: { id: 'sprint-3' } as unknown as SprintWithCards,
         cardCount: 3,
       });
     mockSendBatchNotifications.mockResolvedValue([
