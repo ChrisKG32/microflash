@@ -284,6 +284,196 @@ export async function startSprint(
 }
 
 /**
+ * Get a sprint by ID with ownership check.
+ * If the sprint is expired (past resumableUntil), auto-abandon it.
+ */
+export async function getSprintById(
+  sprintId: string,
+  userId: string,
+): Promise<SprintWithCards> {
+  const sprint = await prisma.sprint.findUnique({
+    where: { id: sprintId },
+    include: {
+      deck: { select: { id: true, title: true } },
+      sprintCards: {
+        orderBy: { order: 'asc' },
+        include: {
+          card: {
+            include: {
+              deck: { select: { id: true, title: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!sprint) {
+    throw new Error('SPRINT_NOT_FOUND');
+  }
+
+  if (sprint.userId !== userId) {
+    throw new Error('SPRINT_NOT_OWNED');
+  }
+
+  // Check if sprint needs auto-abandon
+  if (
+    sprint.status === 'ACTIVE' &&
+    sprint.resumableUntil &&
+    sprint.resumableUntil < new Date()
+  ) {
+    // Auto-abandon the sprint
+    const abandonedSprint = await abandonSprintInternal(sprint.id);
+    return abandonedSprint;
+  }
+
+  // If sprint is PENDING and being accessed, activate it
+  if (sprint.status === 'PENDING') {
+    const now = new Date();
+    const resumableUntil = new Date(
+      now.getTime() + RESUME_WINDOW_MINUTES * 60000,
+    );
+
+    const activatedSprint = await prisma.sprint.update({
+      where: { id: sprintId },
+      data: {
+        status: 'ACTIVE',
+        startedAt: now,
+        resumableUntil,
+      },
+      include: {
+        deck: { select: { id: true, title: true } },
+        sprintCards: {
+          orderBy: { order: 'asc' },
+          include: {
+            card: {
+              include: {
+                deck: { select: { id: true, title: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return activatedSprint as SprintWithCards;
+  }
+
+  return sprint as SprintWithCards;
+}
+
+/**
+ * Internal function to abandon a sprint and snooze remaining cards.
+ * Used by both auto-abandon and explicit abandon.
+ */
+async function abandonSprintInternal(
+  sprintId: string,
+): Promise<SprintWithCards> {
+  const now = new Date();
+  const snoozedUntil = new Date(now.getTime() + ABANDON_SNOOZE_MINUTES * 60000);
+
+  // Get unreviewed card IDs
+  const unreviewedCards = await prisma.sprintCard.findMany({
+    where: {
+      sprintId,
+      result: null,
+    },
+    select: { cardId: true },
+  });
+
+  const unreviewedCardIds = unreviewedCards.map((sc) => sc.cardId);
+
+  // Use transaction to update sprint and snooze cards atomically
+  const [updatedSprint] = await prisma.$transaction([
+    prisma.sprint.update({
+      where: { id: sprintId },
+      data: {
+        status: 'ABANDONED',
+        abandonedAt: now,
+      },
+      include: {
+        deck: { select: { id: true, title: true } },
+        sprintCards: {
+          orderBy: { order: 'asc' },
+          include: {
+            card: {
+              include: {
+                deck: { select: { id: true, title: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
+    // Snooze unreviewed cards
+    ...(unreviewedCardIds.length > 0
+      ? [
+          prisma.card.updateMany({
+            where: { id: { in: unreviewedCardIds } },
+            data: { snoozedUntil },
+          }),
+        ]
+      : []),
+  ]);
+
+  return updatedSprint as SprintWithCards;
+}
+
+/**
+ * Explicitly abandon a sprint.
+ * Returns the number of cards that were snoozed.
+ */
+export async function abandonSprint(
+  sprintId: string,
+  userId: string,
+): Promise<{ sprint: SprintWithCards; snoozedCardCount: number }> {
+  // First verify ownership and get current state
+  const sprint = await prisma.sprint.findUnique({
+    where: { id: sprintId },
+    include: {
+      sprintCards: {
+        where: { result: null },
+        select: { id: true },
+      },
+    },
+  });
+
+  if (!sprint) {
+    throw new Error('SPRINT_NOT_FOUND');
+  }
+
+  if (sprint.userId !== userId) {
+    throw new Error('SPRINT_NOT_OWNED');
+  }
+
+  // If already abandoned or completed, return idempotently
+  if (sprint.status === 'ABANDONED' || sprint.status === 'COMPLETED') {
+    const fullSprint = await prisma.sprint.findUnique({
+      where: { id: sprintId },
+      include: {
+        deck: { select: { id: true, title: true } },
+        sprintCards: {
+          orderBy: { order: 'asc' },
+          include: {
+            card: {
+              include: {
+                deck: { select: { id: true, title: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    return { sprint: fullSprint as SprintWithCards, snoozedCardCount: 0 };
+  }
+
+  const snoozedCardCount = sprint.sprintCards.length;
+  const abandonedSprint = await abandonSprintInternal(sprintId);
+
+  return { sprint: abandonedSprint, snoozedCardCount };
+}
+
+/**
  * Calculate sprint progress.
  */
 export function calculateProgress(
