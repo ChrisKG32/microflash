@@ -102,7 +102,15 @@ async function handleNotificationResponse(
     actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER
   ) {
     if (data.sprintId) {
-      router.push(`/sprint/${data.sprintId}`);
+      // Navigate to sprint with return params for proper back navigation
+      router.push({
+        pathname: '/sprint/[id]',
+        params: {
+          id: data.sprintId,
+          returnTo: '/',
+          launchSource: 'PUSH',
+        },
+      });
     } else if (data.url) {
       router.push(data.url as any);
     } else {
@@ -162,6 +170,11 @@ export default function RootLayout() {
           name="sprint/complete"
           options={{ headerShown: false, title: 'Sprint Complete' }}
         />
+        <Stack.Screen
+          name="notification-controls"
+          options={{ title: 'Notification Controls' }}
+        />
+        <Stack.Screen name="browse" options={{ title: 'Review Ahead' }} />
         <Stack.Screen
           name="modal"
           options={{ presentation: 'modal', title: 'Modal' }}
