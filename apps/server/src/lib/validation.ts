@@ -110,30 +110,6 @@ export const createReviewSchema = z
 
 export type CreateReviewInput = z.infer<typeof createReviewSchema>;
 
-// Card IDs validation schema (for fetching specific cards)
-export const cardIdsSchema = z
-  .object({
-    cardIds: z
-      .array(z.string().min(1), { error: 'Card IDs must be an array' })
-      .min(1, { error: 'At least one card ID is required' })
-      .max(10, { error: 'Maximum 10 card IDs allowed' }),
-  })
-  .strict();
-
-export type CardIdsInput = z.infer<typeof cardIdsSchema>;
-
-// Batch snooze validation schema
-export const batchSnoozeSchema = z
-  .object({
-    cardIds: z
-      .array(z.string().min(1), { error: 'Card IDs must be an array' })
-      .min(1, { error: 'At least one card ID is required' })
-      .max(10, { error: 'Maximum 10 card IDs allowed' }),
-  })
-  .strict();
-
-export type BatchSnoozeInput = z.infer<typeof batchSnoozeSchema>;
-
 // Tag validation schemas
 export const createTagSchema = z
   .object({

@@ -13,6 +13,10 @@ You will implement all sub-issues for parent issue #$1 using a feature branch wo
 - Sub-issue PRs are merged into the feature branch as they are completed
 - The feature branch PR closes the parent issue AND all sub-issues when merged
 
+## IMPORTANT
+
+Always run /compact following each PR creation
+
 ## Branching & Merging Strategy
 
 ```

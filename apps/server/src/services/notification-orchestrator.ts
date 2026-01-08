@@ -1,19 +1,12 @@
 import pAll from 'p-all';
 import { findDueCards } from './due-cards';
-import {
-  groupCardsByUserAndDeck,
-  prepareNotificationPayload,
-  OVERFLOW_SNOOZE_DURATION_MINUTES,
-} from './notification-grouping';
-import {
-  sendBatchNotifications,
-  logNotificationResults,
-} from './push-notifications';
-import {
-  markCardsAsNotified,
-  removeUserPushToken,
-  snoozeCards,
-} from './card-notifications';
+import { groupCardsByUserAndDeck } from './notification-grouping';
+// TODO (E4.2): Re-enable when sprint-based notifications are implemented
+// import {
+//   sendBatchNotifications,
+//   logNotificationResults,
+// } from './push-notifications';
+import { removeUserPushToken } from './card-notifications';
 
 /**
  * Result of the notification orchestration process.
@@ -25,7 +18,7 @@ export interface NotificationOrchestrationResult {
   successfulNotifications: number;
   failedNotifications: number;
   cardsMarkedAsNotified: number;
-  /** Number of overflow cards that were auto-snoozed for 2 hours */
+  /** @deprecated No longer used - sprint-based notifications don't have overflow */
   overflowCardsSnoozed: number;
 }
 
@@ -79,84 +72,27 @@ export async function sendDueCardNotifications(): Promise<NotificationOrchestrat
     );
 
     // Step 3: Prepare and send notifications
-    const notifications = userGroups.map((group) => {
-      const payload = prepareNotificationPayload(group);
-      return {
-        pushToken: group.pushToken,
-        title: payload.title,
-        body: payload.body,
-        categoryId: payload.categoryId,
-        data: payload.data as Record<string, unknown>,
-        // Track which cards belong to this notification for marking
-        _includedCardIds: group.includedCardIds,
-        _overflowCardIds: group.overflowCardIds,
-        _userId: group.userId,
-      };
-    });
+    // NOTE: E4.2 will update this to create sprints before sending notifications.
+    // For now, this orchestrator is disabled until sprint creation is implemented.
+    // The prepareNotificationPayload function requires sprintId to be set.
+    //
+    // TODO (E4.2): For each user group:
+    // 1. Create a sprint with source=PUSH
+    // 2. Set group.sprintId = sprint.id
+    // 3. Call prepareNotificationPayload(group, sprint.cards.length)
+    // 4. Send notification
+    // 5. Track sprint for marking cards as notified on success
 
-    result.totalNotificationsSent = notifications.length;
-
-    const sendResults = await sendBatchNotifications(
-      notifications.map((n) => ({
-        pushToken: n.pushToken,
-        title: n.title,
-        body: n.body,
-        categoryId: n.categoryId,
-        data: n.data,
-      })),
+    console.log(
+      '[NotificationOrchestrator] Sprint-based notifications not yet implemented (E4.2)',
+    );
+    console.log(
+      `[NotificationOrchestrator] Would notify ${userGroups.length} users with ${result.totalCardsFound} total due cards`,
     );
 
-    // Log results
-    logNotificationResults(sendResults);
-
-    // Count successes and failures
-    result.successfulNotifications = sendResults.filter(
-      (r) => r.success,
-    ).length;
-    result.failedNotifications = sendResults.filter((r) => !r.success).length;
-
-    // Step 4: Mark cards as notified for successful sends and snooze overflow
-    const successfulCardIds: string[] = [];
-    const overflowCardIds: string[] = [];
+    // For now, just track tokens that need removal from users without valid tokens
+    // This keeps the token cleanup logic working
     const tokensToRemove: { userId: string; pushToken: string }[] = [];
-
-    for (let i = 0; i < sendResults.length; i++) {
-      const sendResult = sendResults[i];
-      const notification = notifications[i];
-
-      if (sendResult.success) {
-        // Add included card IDs from this successful notification
-        successfulCardIds.push(...notification._includedCardIds);
-        // Track overflow cards to snooze
-        overflowCardIds.push(...notification._overflowCardIds);
-      } else if (
-        sendResult.error?.includes('DeviceNotRegistered') ||
-        sendResult.error?.includes('Invalid')
-      ) {
-        // Track tokens that need to be removed
-        tokensToRemove.push({
-          userId: notification._userId,
-          pushToken: notification.pushToken,
-        });
-      }
-    }
-
-    // Mark successfully notified cards
-    if (successfulCardIds.length > 0) {
-      result.cardsMarkedAsNotified =
-        await markCardsAsNotified(successfulCardIds);
-    }
-
-    // Snooze overflow cards for 2 hours so user isn't overwhelmed
-    if (overflowCardIds.length > 0) {
-      result.overflowCardsSnoozed = await snoozeCards(
-        overflowCardIds,
-        OVERFLOW_SNOOZE_DURATION_MINUTES,
-      );
-      console.log(
-        `[NotificationOrchestrator] Snoozed ${result.overflowCardsSnoozed} overflow cards for ${OVERFLOW_SNOOZE_DURATION_MINUTES} minutes`,
-      );
-    }
 
     // Remove invalid push tokens concurrently with limited concurrency
     if (tokensToRemove.length > 0) {
@@ -169,7 +105,7 @@ export async function sendDueCardNotifications(): Promise<NotificationOrchestrat
     }
 
     console.log(
-      `[NotificationOrchestrator] Complete: ${result.successfulNotifications}/${result.totalNotificationsSent} notifications sent, ${result.cardsMarkedAsNotified} cards marked as notified, ${result.overflowCardsSnoozed} overflow cards snoozed`,
+      `[NotificationOrchestrator] Complete (no-op until E4.2): ${result.totalUsersNotified} users eligible`,
     );
 
     return result;

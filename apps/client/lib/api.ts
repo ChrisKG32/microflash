@@ -147,16 +147,21 @@ export async function getDueCards(): Promise<{ cards: Card[]; total: number }> {
   return request('/api/cards/due');
 }
 
+// =============================================================================
+// Sprint API Methods
+// =============================================================================
+
 /**
- * Get specific cards by their IDs.
- * Used for notification deep links to fetch exact cards for a review session.
+ * Abandon a sprint and snooze remaining cards.
+ * Used when user taps "Snooze" on a notification.
+ * @param sprintId - The sprint to abandon
  */
-export async function getCardsByIds(
-  cardIds: string[],
-): Promise<{ cards: Card[]; total: number; notFound: string[] }> {
-  return request('/api/cards/by-ids', {
+export async function abandonSprint(sprintId: string): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  return request(`/api/sprints/${sprintId}/abandon`, {
     method: 'POST',
-    body: JSON.stringify({ cardIds }),
   });
 }
 
@@ -255,26 +260,5 @@ export async function unsnoozeCard(
 ): Promise<{ success: boolean; message: string }> {
   return request(`/api/notifications/cards/${cardId}/snooze`, {
     method: 'DELETE',
-  });
-}
-
-/**
- * Batch snooze multiple cards.
- * Used when user taps "Snooze" on a notification.
- * @param cardIds - Array of card IDs to snooze
- * @param durationMinutes - Duration in minutes (default 60 = 1 hour)
- */
-export async function snoozeCards(
-  cardIds: string[],
-  durationMinutes: number = 60,
-): Promise<{
-  success: boolean;
-  message: string;
-  snoozedCount: number;
-  snoozedUntil: string;
-}> {
-  return request('/api/notifications/snooze', {
-    method: 'POST',
-    body: JSON.stringify({ cardIds, durationMinutes }),
   });
 }

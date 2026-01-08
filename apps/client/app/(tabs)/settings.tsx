@@ -53,18 +53,18 @@ export default function SettingsScreen() {
 
     try {
       // Use the due_cards category to test action buttons
-      const testCardIds = ['test-card-1', 'test-card-2', 'test-card-3'];
+      // Note: This uses a mock sprintId for testing; real sprints are created server-side
+      const testSprintId = 'test-sprint-' + Date.now();
       const id = await scheduleLocalNotification(
-        'Cards ready for review!',
+        'Time for a micro-sprint!',
         `3 cards ready for review (Test - ${delaySeconds}s delay)`,
         delaySeconds,
         {
           categoryIdentifier: 'due_cards',
           data: {
-            type: 'due_cards',
-            cardIds: testCardIds,
-            url: `/review-session?cardIds=${testCardIds.join(',')}`,
-            totalCards: 3,
+            type: 'sprint',
+            sprintId: testSprintId,
+            url: `/sprint/${testSprintId}`,
           },
         },
       );

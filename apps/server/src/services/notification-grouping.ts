@@ -19,11 +19,12 @@ export interface DeckCardGroup {
   deckTitle: string;
   parentDeckId: string | null;
   cardCount: number;
-  cardIds: string[];
 }
 
 /**
  * Represents a user's grouped notification data.
+ * Note: Sprint-based notifications will be created by E4.2 scheduler.
+ * This grouping is used to determine eligibility and card counts.
  */
 export interface UserNotificationGroup {
   userId: string;
@@ -31,10 +32,8 @@ export interface UserNotificationGroup {
   pushToken: string;
   decks: DeckCardGroup[];
   totalCards: number;
-  /** Card IDs included in the notification (max 3) */
-  includedCardIds: string[];
-  /** Card IDs that were due but not included (overflow) */
-  overflowCardIds: string[];
+  /** Sprint ID - will be set by E4.2 scheduler when creating sprint */
+  sprintId?: string;
 }
 
 /**
@@ -80,14 +79,12 @@ export function groupCardsByUserAndDeck(
         deckTitle: deck.title,
         parentDeckId: deck.parentDeckId,
         cardCount: 0,
-        cardIds: [],
       };
       userEntry.deckMap.set(deck.id, deckEntry);
     }
 
     // Add card to deck
     deckEntry.cardCount++;
-    deckEntry.cardIds.push(card.id);
   }
 
   // Convert to array format, filtering out users without push tokens
@@ -102,21 +99,13 @@ export function groupCardsByUserAndDeck(
     const decks = Array.from(userEntry.deckMap.values());
     const totalCards = decks.reduce((sum, deck) => sum + deck.cardCount, 0);
 
-    // Collect all card IDs for this user
-    const allCardIds = decks.flatMap((deck) => deck.cardIds);
-
-    // Split into included (max 3) and overflow
-    const includedCardIds = allCardIds.slice(0, MAX_CARDS_PER_NOTIFICATION);
-    const overflowCardIds = allCardIds.slice(MAX_CARDS_PER_NOTIFICATION);
-
     result.push({
       userId: userEntry.userId,
       clerkId: userEntry.clerkId,
       pushToken: userEntry.pushToken,
       decks,
       totalCards,
-      includedCardIds,
-      overflowCardIds,
+      // sprintId will be set by E4.2 scheduler when creating sprint
     });
   }
 
@@ -125,91 +114,90 @@ export function groupCardsByUserAndDeck(
 
 /**
  * Generates a human-readable notification message for a user's due cards.
- * Now reflects only the cards included in the notification (max 3).
+ * Uses total card count (sprint will be limited by user's sprintSize setting).
  *
  * Examples:
  * - "1 card ready in Math"
- * - "3 cards ready for review"
+ * - "5 cards ready for review"
  *
  * @param group - User notification group
+ * @param sprintSize - Number of cards in the sprint (defaults to totalCards, capped at 10)
  * @returns Notification message string, or empty string if no cards
  */
 export function generateNotificationMessage(
   group: UserNotificationGroup,
+  sprintSize?: number,
 ): string {
-  const includedCount = group.includedCardIds.length;
+  const cardCount = sprintSize ?? Math.min(group.totalCards, 10);
 
-  if (includedCount === 0) {
+  if (cardCount === 0) {
     return '';
   }
 
-  const cardWord = includedCount === 1 ? 'card' : 'cards';
+  const cardWord = cardCount === 1 ? 'card' : 'cards';
 
   // Single deck case - mention the deck name
   if (group.decks.length === 1) {
     const deck = group.decks[0];
-    return `${includedCount} ${cardWord} ready in ${deck.deckTitle}`;
+    return `${cardCount} ${cardWord} ready in ${deck.deckTitle}`;
   }
 
   // Multiple decks - keep it simple
-  return `${includedCount} ${cardWord} ready for review`;
+  return `${cardCount} ${cardWord} ready for review`;
 }
 
 /**
- * Generates a notification title based on the number of included cards.
+ * Generates a notification title for a micro-sprint.
  *
- * @param includedCount - Number of cards included in the notification
  * @returns Notification title string
  */
-export function generateNotificationTitle(includedCount: number): string {
-  if (includedCount === 0) {
-    return 'MicroFlash';
-  }
-
-  if (includedCount === 1) {
-    return 'Time to review!';
-  }
-
-  return 'Cards ready for review!';
+export function generateNotificationTitle(): string {
+  return 'Time for a micro-sprint!';
 }
 
 /**
- * iOS notification category ID for due cards notifications.
+ * iOS notification category ID for sprint notifications.
  * Must match the category registered on the client.
  */
 export const NOTIFICATION_CATEGORY_ID = 'due_cards';
 
 /**
- * Prepares notification data for a user group.
- * Only includes up to MAX_CARDS_PER_NOTIFICATION cards.
+ * Prepares notification data for a sprint.
+ * Note: sprintId must be set on the group before calling this function.
+ * The E4.2 scheduler is responsible for creating the sprint and setting the ID.
  *
- * @param group - User notification group
+ * @param group - User notification group with sprintId set
+ * @param sprintSize - Number of cards in the sprint
  * @returns Object with title, body, categoryId, and data for the push notification
+ * @throws Error if sprintId is not set
  */
-export function prepareNotificationPayload(group: UserNotificationGroup): {
+export function prepareNotificationPayload(
+  group: UserNotificationGroup,
+  sprintSize?: number,
+): {
   title: string;
   body: string;
   categoryId: string;
   data: {
-    type: 'due_cards';
-    cardIds: string[];
-    deckIds: string[];
-    totalCards: number;
+    type: 'sprint';
+    sprintId: string;
     url: string;
   };
 } {
+  if (!group.sprintId) {
+    throw new Error(
+      'sprintId must be set on group before preparing notification payload',
+    );
+  }
+
   return {
-    title: generateNotificationTitle(group.includedCardIds.length),
-    body: generateNotificationMessage(group),
+    title: generateNotificationTitle(),
+    body: generateNotificationMessage(group, sprintSize),
     categoryId: NOTIFICATION_CATEGORY_ID,
     data: {
-      type: 'due_cards',
-      // Only include the limited card IDs (max 3)
-      cardIds: group.includedCardIds,
-      deckIds: group.decks.map((deck) => deck.deckId),
-      totalCards: group.includedCardIds.length,
-      // Deep link URL for the review session
-      url: `/review-session?cardIds=${group.includedCardIds.join(',')}`,
+      type: 'sprint',
+      sprintId: group.sprintId,
+      url: `/sprint/${group.sprintId}`,
     },
   };
 }

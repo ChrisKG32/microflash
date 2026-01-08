@@ -10,14 +10,14 @@ import * as Notifications from 'expo-notifications';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { snoozeCards } from '@/lib/api';
+import { abandonSprint } from '@/lib/api';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
 /**
- * iOS notification category ID for due cards notifications.
+ * iOS notification category ID for sprint notifications.
  * Must match the category registered on the server.
  */
 const NOTIFICATION_CATEGORY_ID = 'due_cards';
@@ -66,6 +66,7 @@ async function registerNotificationCategories() {
 
 /**
  * Handle notification response (user tapped notification or action button).
+ * Sprint-based: notifications contain sprintId, not cardIds.
  */
 async function handleNotificationResponse(
   response: Notifications.NotificationResponse,
@@ -73,7 +74,7 @@ async function handleNotificationResponse(
   const { actionIdentifier, notification } = response;
   const data = notification.request.content.data as {
     type?: string;
-    cardIds?: string[];
+    sprintId?: string;
     url?: string;
   };
 
@@ -82,32 +83,30 @@ async function handleNotificationResponse(
     data,
   });
 
-  // Handle snooze action
+  // Handle snooze action - abandons the sprint and snoozes remaining cards
   if (actionIdentifier === ACTION_SNOOZE_60) {
-    if (data.cardIds && data.cardIds.length > 0) {
+    if (data.sprintId) {
       try {
-        await snoozeCards(data.cardIds, 60);
-        console.log('[Notifications] Snoozed cards:', data.cardIds);
+        await abandonSprint(data.sprintId);
+        console.log('[Notifications] Abandoned sprint:', data.sprintId);
       } catch (error) {
-        console.error('[Notifications] Failed to snooze cards:', error);
+        console.error('[Notifications] Failed to abandon sprint:', error);
       }
     }
     return;
   }
 
-  // Handle review action or default tap
+  // Handle review action or default tap - navigate to sprint
   if (
     actionIdentifier === ACTION_REVIEW_NOW ||
     actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER
   ) {
-    // Navigate to review session with the specific cards
-    if (data.cardIds && data.cardIds.length > 0) {
-      const cardIdsParam = data.cardIds.join(',');
-      router.push(`/review-session?cardIds=${cardIdsParam}`);
+    if (data.sprintId) {
+      router.push(`/sprint/${data.sprintId}`);
     } else if (data.url) {
       router.push(data.url as any);
     } else {
-      // Fallback to main review screen
+      // Fallback to Home
       router.push('/');
     }
   }
@@ -156,8 +155,12 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="deck/[id]" options={{ headerBackTitle: 'Decks' }} />
         <Stack.Screen
-          name="review-session"
-          options={{ headerBackTitle: 'Back', title: 'Review Session' }}
+          name="sprint/[id]"
+          options={{ headerBackTitle: 'Back', title: 'Sprint Review' }}
+        />
+        <Stack.Screen
+          name="sprint/complete"
+          options={{ headerShown: false, title: 'Sprint Complete' }}
         />
         <Stack.Screen
           name="modal"
