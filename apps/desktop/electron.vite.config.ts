@@ -30,6 +30,14 @@ export default defineConfig({
         },
       },
     },
+    resolve: {
+      alias: {
+        '@microflash/api-client': resolve(
+          __dirname,
+          '../../packages/api-client/src/index.ts',
+        ),
+      },
+    },
     plugins: [react()],
   },
 });

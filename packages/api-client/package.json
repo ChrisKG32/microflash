@@ -4,6 +4,7 @@
   "private": true,
   "react-native": "./src/index.ts",
   "main": "./dist/index.js",
+  "module": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
