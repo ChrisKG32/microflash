@@ -1,0 +1,15 @@
+{
+  "name": "@microflash/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "react-native": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

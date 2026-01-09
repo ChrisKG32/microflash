@@ -4,15 +4,30 @@
  * Tests for edge cases in the API client, particularly:
  * - 204 No Content response handling
  * - Non-JSON error body handling
+ *
+ * These tests verify the shared @microflash/api-client behavior
+ * through the mobile adapter.
  */
 
 // Mock fetch globally before any imports
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+// Mock the api-client module to reset configuration between tests
+jest.mock('@microflash/api-client', () => {
+  const actual = jest.requireActual('@microflash/api-client');
+  return {
+    ...actual,
+    // Allow reconfiguration for tests
+    isApiClientConfigured: jest.fn(() => false),
+  };
+});
+
 describe('API client', () => {
   beforeEach(() => {
     mockFetch.mockClear();
+    // Reset modules to get fresh configuration
+    jest.resetModules();
   });
 
   describe('204 No Content handling', () => {

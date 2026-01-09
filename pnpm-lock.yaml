@@ -53,6 +53,9 @@ importers:
       '@expo/vector-icons':
         specifier: ^15.0.3
         version: 15.0.3(expo-font@14.0.10(expo@54.0.30(@babel/core@7.28.4)(@expo/metro-runtime@6.1.2)(expo-router@6.0.21)(react-native-webview@13.16.0(react-native@0.81.5(@babel/core@7.28.4)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.4)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.4)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.4)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      '@microflash/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@microflash/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -253,6 +256,12 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.20.6
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
+  packages/api-client:
+    devDependencies:
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
