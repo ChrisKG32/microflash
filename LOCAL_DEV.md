@@ -42,11 +42,11 @@ pnpm --filter @microflash/server db:push
 pnpm --filter @microflash/server db:seed
 ```
 
-### 3. Set Up the Client
+### 3. Set Up the Mobile App
 
 ```bash
 # Copy the example env file
-cp apps/client/.env.example apps/client/.env
+cp apps/mobile/.env.example apps/mobile/.env
 
 # The defaults should work for local development:
 # EXPO_PUBLIC_API_URL=http://localhost:3000
@@ -66,12 +66,12 @@ You should see:
 Server running on port 3000
 ```
 
-### 5. Start the Client
+### 5. Start the Mobile App
 
 In a new terminal:
 
 ```bash
-pnpm dev:client
+pnpm dev:mobile
 ```
 
 Then press:
@@ -126,7 +126,7 @@ When `DEV_AUTH=1` is set in the server environment:
 2. **Header-based auth**: Use `x-dev-clerk-id` header to authenticate
 3. **Auto user creation**: Users are automatically created if they don't exist
 
-The client sends this header automatically using `EXPO_PUBLIC_DEV_CLERK_ID`.
+The mobile app sends this header automatically using `EXPO_PUBLIC_DEV_CLERK_ID`.
 
 ## End-to-End Test Flow
 
@@ -143,7 +143,7 @@ The client sends this header automatically using `EXPO_PUBLIC_DEV_CLERK_ID`.
 
 - Ensure the server is running on port 3000
 - iOS simulator shares the host network, so `localhost:3000` should work
-- Check that `EXPO_PUBLIC_API_URL=http://localhost:3000` in `apps/client/.env`
+- Check that `EXPO_PUBLIC_API_URL=http://localhost:3000` in `apps/mobile/.env`
 
 ### "User not found" errors
 

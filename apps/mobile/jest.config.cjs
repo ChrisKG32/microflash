@@ -1,6 +1,6 @@
 /** @type {import('jest').Config} */
 module.exports = {
-  displayName: 'client',
+  displayName: 'mobile',
   preset: 'jest-expo',
   rootDir: '.',
   roots: ['<rootDir>'],

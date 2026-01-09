@@ -5,7 +5,7 @@
  * Includes live preview of markdown + LaTeX rendering.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,8 +18,12 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useLocalSearchParams, Stack, router } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
+import {
+  useLocalSearchParams,
+  Stack,
+  router,
+  useFocusEffect,
+} from 'expo-router';
 import Slider from '@react-native-community/slider';
 
 import { getCard, updateCard, deleteCard, type Card } from '@/lib/api';

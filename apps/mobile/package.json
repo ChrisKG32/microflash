@@ -1,5 +1,5 @@
 {
-  "name": "@microflash/client",
+  "name": "@microflash/mobile",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
