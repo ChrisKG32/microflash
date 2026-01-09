@@ -156,6 +156,9 @@ export function SprintReviewPage() {
   const currentCard = getCurrentCard();
   const progress = sprint?.progress;
 
+  // For one-sided cards (empty back), show grading immediately
+  const isOneSidedCard = currentCard && !currentCard.card.back.trim();
+
   if (loading) {
     return (
       <div className="page sprint-page">
@@ -220,8 +223,8 @@ export function SprintReviewPage() {
             <CardContent content={currentCard.card.front} />
           </div>
 
-          {/* Back (if revealed) */}
-          {showAnswer && (
+          {/* Back (if revealed and has content) */}
+          {(showAnswer || isOneSidedCard) && currentCard.card.back.trim() && (
             <>
               <div className="sprint-card-divider" />
               <div className="sprint-card-section">
@@ -240,7 +243,7 @@ export function SprintReviewPage() {
 
       {/* Actions */}
       <div className="sprint-actions">
-        {!showAnswer ? (
+        {!showAnswer && !isOneSidedCard ? (
           <button className="btn btn-primary btn-large" onClick={handleReveal}>
             Show Answer
           </button>
