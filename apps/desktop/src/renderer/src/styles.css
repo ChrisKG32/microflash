@@ -860,3 +860,260 @@ body {
   overflow-x: auto;
   overflow-y: hidden;
 }
+
+/* =============================================================================
+   Card Editor Page - Split Pane Layout
+   ============================================================================= */
+
+.card-editor-page {
+  max-width: none;
+  height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 24px;
+}
+
+.card-editor-page .page-header {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+
+/* Editor Toolbar */
+.editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #2a2a2a;
+  border: 1px solid #333;
+  border-radius: 6px 6px 0 0;
+  flex-shrink: 0;
+}
+
+.editor-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.editor-toolbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background-color: #444;
+  margin: 0 8px;
+}
+
+.btn-separator {
+  font-family: monospace;
+  font-weight: bold;
+}
+
+/* Preview Mode Toggle */
+.preview-mode-toggle {
+  display: flex;
+  background-color: #1a1a1a;
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.toggle-btn {
+  padding: 6px 12px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+.toggle-btn:hover:not(:disabled) {
+  color: #ccc;
+}
+
+.toggle-btn.active {
+  background-color: #3b82f6;
+  color: #fff;
+}
+
+.toggle-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Main Editor Area */
+.editor-main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  border: 1px solid #333;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  overflow: hidden;
+}
+
+/* Editor Pane */
+.editor-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.editor-textarea {
+  flex: 1;
+  width: 100%;
+  padding: 16px;
+  background-color: #1a1a1a;
+  border: none;
+  color: #e0e0e0;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+}
+
+.editor-textarea::placeholder {
+  color: #555;
+}
+
+/* Vertical Divider */
+.editor-divider-vertical {
+  width: 1px;
+  background-color: #333;
+  flex-shrink: 0;
+}
+
+/* Preview Pane */
+.editor-preview-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background-color: #242424;
+}
+
+.preview-toggle-header {
+  display: flex;
+  padding: 8px 12px;
+  background-color: #2a2a2a;
+  border-bottom: 1px solid #333;
+  gap: 4px;
+}
+
+/* Single Preview (Adaptive / Toggle modes) */
+.editor-preview-single {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+/* Combined Preview Mode */
+.editor-preview-combined {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.preview-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.preview-section.preview-front {
+  border-bottom: none;
+}
+
+.preview-section.preview-back {
+  border-top: none;
+}
+
+.preview-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 8px 16px 4px;
+  flex-shrink: 0;
+}
+
+.preview-content {
+  flex: 1;
+  padding: 0 16px 16px;
+  overflow-y: auto;
+}
+
+.preview-placeholder {
+  color: #555;
+  font-style: italic;
+}
+
+/* Horizontal Divider (Combined mode) */
+.preview-divider-horizontal {
+  height: 6px;
+  background-color: #333;
+  cursor: row-resize;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.preview-divider-horizontal:hover {
+  background-color: #444;
+}
+
+.preview-divider-horizontal::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 2px;
+  background-color: #555;
+  border-radius: 1px;
+}
+
+/* Editor Footer */
+.editor-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  flex-shrink: 0;
+  margin-top: 12px;
+}
+
+.form-group-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.form-group-inline label {
+  margin-bottom: 0;
+}
+
+.card-editor-meta-inline {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #666;
+}
+
+.card-editor-meta-inline span {
+  white-space: nowrap;
+}
