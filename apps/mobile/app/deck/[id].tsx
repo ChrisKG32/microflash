@@ -18,8 +18,12 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
-import { useLocalSearchParams, Stack, router } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
+import {
+  useLocalSearchParams,
+  Stack,
+  router,
+  useFocusEffect,
+} from 'expo-router';
 import Slider from '@react-native-community/slider';
 
 import {
