@@ -4,6 +4,8 @@ import { DecksPage } from './pages/DecksPage';
 import { DeckDetailPage } from './pages/DeckDetailPage';
 import { CardEditorPage } from './pages/CardEditorPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { SprintReviewPage } from './pages/SprintReviewPage';
+import { SprintCompletePage } from './pages/SprintCompletePage';
 
 function App() {
   return (
@@ -18,6 +20,12 @@ function App() {
           />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
+        {/* Sprint routes outside Layout (full-screen experience) */}
+        <Route path="sprint/:sprintId" element={<SprintReviewPage />} />
+        <Route
+          path="sprint/:sprintId/complete"
+          element={<SprintCompletePage />}
+        />
       </Routes>
     </HashRouter>
   );

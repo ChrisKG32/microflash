@@ -12,8 +12,8 @@ import { configureApiClient } from '@microflash/api-client';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // Dev mode Clerk ID - for development without real auth
-const DEV_CLERK_ID =
-  import.meta.env.VITE_DEV_CLERK_ID || 'user_desktop_local_dev';
+// Uses same ID as mobile (user_local_dev) so both share the same seeded data
+const DEV_CLERK_ID = import.meta.env.VITE_DEV_CLERK_ID || 'user_local_dev';
 
 /**
  * Initialize the API client for desktop.

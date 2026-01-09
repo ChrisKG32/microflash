@@ -473,3 +473,390 @@ body {
 .settings-info p strong {
   color: #ccc;
 }
+
+/* Sprint page styles */
+.sprint-page {
+  min-height: 100vh;
+  background-color: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+}
+
+.sprint-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid #333;
+}
+
+.sprint-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Sprint progress */
+.sprint-progress-container {
+  display: flex;
+  align-items: center;
+  padding: 16px 24px;
+  gap: 16px;
+}
+
+.sprint-progress-bar {
+  flex: 1;
+  height: 8px;
+  background-color: #333;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sprint-progress-fill {
+  height: 100%;
+  background-color: #4caf50;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.sprint-progress-text {
+  font-size: 14px;
+  color: #888;
+  min-width: 60px;
+  text-align: right;
+}
+
+/* Sprint card */
+.sprint-card-container {
+  flex: 1;
+  padding: 16px 24px;
+  overflow-y: auto;
+}
+
+.sprint-card {
+  background-color: #2a2a2a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.sprint-card-section {
+  margin-bottom: 8px;
+}
+
+.sprint-card-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.sprint-card-divider {
+  height: 1px;
+  background-color: #444;
+  margin: 20px 0;
+}
+
+.sprint-deck-info {
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+  margin-top: 16px;
+}
+
+/* Sprint actions */
+.sprint-actions {
+  padding: 24px;
+  border-top: 1px solid #333;
+}
+
+.btn-large {
+  padding: 14px 28px;
+  font-size: 16px;
+}
+
+.sprint-grade-buttons {
+  display: flex;
+  gap: 12px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.sprint-grade-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  border-radius: 8px;
+}
+
+.sprint-grade-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sprint-grade-hint {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+.sprint-grade-again {
+  background-color: #f44336;
+  color: #fff;
+}
+
+.sprint-grade-again:hover:not(:disabled) {
+  background-color: #d32f2f;
+}
+
+.sprint-grade-hard {
+  background-color: #ff9800;
+  color: #fff;
+}
+
+.sprint-grade-hard:hover:not(:disabled) {
+  background-color: #f57c00;
+}
+
+.sprint-grade-good {
+  background-color: #4caf50;
+  color: #fff;
+}
+
+.sprint-grade-good:hover:not(:disabled) {
+  background-color: #388e3c;
+}
+
+.sprint-grade-easy {
+  background-color: #2196f3;
+  color: #fff;
+}
+
+.sprint-grade-easy:hover:not(:disabled) {
+  background-color: #1976d2;
+}
+
+/* Sprint submitting overlay */
+.sprint-submitting-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.sprint-submitting-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #333;
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Sprint error state */
+.sprint-error-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+}
+
+.sprint-error-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.sprint-error-text {
+  font-size: 16px;
+  color: #ff8888;
+  text-align: center;
+  margin-bottom: 24px;
+  max-width: 400px;
+}
+
+/* Sprint complete page */
+.sprint-complete-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+}
+
+.sprint-complete-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.sprint-complete-title {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 32px;
+}
+
+.sprint-complete-stats {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 32px;
+}
+
+.sprint-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sprint-stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.sprint-stat-label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+
+.sprint-stat-pass .sprint-stat-value {
+  color: #4caf50;
+}
+
+.sprint-stat-fail .sprint-stat-value {
+  color: #f44336;
+}
+
+.sprint-complete-error {
+  background-color: #4a1c1c;
+  border: 1px solid #6b2c2c;
+  color: #ff8888;
+  padding: 12px 24px;
+  border-radius: 4px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.sprint-complete-actions {
+  display: flex;
+  gap: 16px;
+}
+
+/* Card content rendered (markdown/latex) */
+.card-content-rendered {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #e0e0e0;
+}
+
+.card-content-rendered p {
+  margin-bottom: 12px;
+}
+
+.card-content-rendered p:last-child {
+  margin-bottom: 0;
+}
+
+.card-content-rendered h1,
+.card-content-rendered h2,
+.card-content-rendered h3,
+.card-content-rendered h4,
+.card-content-rendered h5,
+.card-content-rendered h6 {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.card-content-rendered h1 {
+  font-size: 1.5em;
+}
+
+.card-content-rendered h2 {
+  font-size: 1.3em;
+}
+
+.card-content-rendered h3 {
+  font-size: 1.1em;
+}
+
+.card-content-rendered ul,
+.card-content-rendered ol {
+  margin-left: 24px;
+  margin-bottom: 12px;
+}
+
+.card-content-rendered li {
+  margin-bottom: 4px;
+}
+
+.card-content-rendered code {
+  background-color: #333;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 0.9em;
+}
+
+.card-content-rendered pre {
+  background-color: #333;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin-bottom: 12px;
+}
+
+.card-content-rendered pre code {
+  background: none;
+  padding: 0;
+}
+
+.card-content-rendered blockquote {
+  border-left: 3px solid #555;
+  padding-left: 16px;
+  margin-left: 0;
+  color: #aaa;
+  font-style: italic;
+}
+
+.card-content-rendered a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+.card-content-rendered a:hover {
+  color: #60a5fa;
+}
+
+/* KaTeX overrides for dark theme */
+.card-content-rendered .katex {
+  color: #e0e0e0;
+}
+
+.card-content-rendered .katex-display {
+  margin: 16px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}

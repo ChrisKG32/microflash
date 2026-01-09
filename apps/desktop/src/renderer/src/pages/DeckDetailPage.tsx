@@ -6,6 +6,8 @@ import {
   updateDeck,
   deleteDeck,
   deleteCard,
+  startSprint,
+  ApiError,
   type Deck,
   type Card,
 } from '@microflash/api-client';
@@ -23,6 +25,7 @@ export function DeckDetailPage() {
   const [editDescription, setEditDescription] = useState('');
   const [editPriority, setEditPriority] = useState(5);
   const [saving, setSaving] = useState(false);
+  const [startingSprint, setStartingSprint] = useState(false);
 
   const loadDeckAndCards = useCallback(async () => {
     if (!deckId) return;
@@ -98,6 +101,38 @@ export function DeckDetailPage() {
     }
   };
 
+  const handleStartSprint = async () => {
+    if (!deckId) return;
+
+    setStartingSprint(true);
+    setError(null);
+
+    try {
+      const { sprint } = await startSprint({ deckId, source: 'DECK' });
+      // Use push to navigate to sprint (match mobile semantics)
+      navigate(
+        `/sprint/${sprint.id}?` +
+          `returnTo=${encodeURIComponent(`/deck/${deckId}`)}` +
+          `&launchSource=DECK` +
+          `&deckId=${encodeURIComponent(deckId)}`,
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.code === 'NO_ELIGIBLE_CARDS') {
+          setError('No cards are due for review in this deck.');
+        } else {
+          setError(err.message);
+        }
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Failed to start sprint');
+      }
+    } finally {
+      setStartingSprint(false);
+    }
+  };
+
   const filteredCards = cards.filter(
     (card) =>
       card.front.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -135,6 +170,13 @@ export function DeckDetailPage() {
           <h2 className="page-title">{deck.title}</h2>
         </div>
         <div className="page-header-actions">
+          <button
+            className="btn btn-secondary"
+            onClick={handleStartSprint}
+            disabled={startingSprint || cards.length === 0}
+          >
+            {startingSprint ? 'Starting...' : 'Start Sprint'}
+          </button>
           <button
             className="btn btn-secondary"
             onClick={() => setShowEditModal(true)}
