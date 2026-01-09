@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
+    "@microflash/api-client": "workspace:*",
     "@microflash/shared": "workspace:*",
     "@react-native-community/slider": "^5.1.1",
     "@react-navigation/bottom-tabs": "^7.4.0",
