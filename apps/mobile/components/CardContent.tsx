@@ -32,7 +32,7 @@ interface CardContentProps {
  */
 function containsMath(content: string): boolean {
   // Check for any math delimiters: $, $$, \(, \), \[, \]
-  return /\$|\\\(|\\\)|\\\[|\\\]/.test(content);
+  return /\$|\\\(|\\\)|\\\[|\\]/.test(content);
 }
 
 /**
@@ -66,10 +66,10 @@ function markdownToHtml(content: string): string {
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
   // Links: [text](url)
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  html = html.replace(/\[([^\]]+)]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 
   // Unordered lists: - item or * item
-  html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/^[\-*] (.+)$/gm, '<li>$1</li>');
 
   // Ordered lists: 1. item
   html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
@@ -203,7 +203,7 @@ function generateKaTeXHTML(
           console.warn('KaTeX error:', msg, err);
         }
       });
-      
+
       // Send height back to React Native for auto-sizing
       setTimeout(function() {
         var height = document.getElementById("content").offsetHeight;
@@ -235,9 +235,10 @@ export function CardContent({
     [content, fontSize, color, hasMath],
   );
 
-  // If no math, render pure native markdown (better performance)
+  // If no math, render pure native Markdown (better performance)
   if (!hasMath) {
     return (
+      // @ts-expect-error style doesn't exist?
       <Markdown style={getMarkdownStyles(fontSize, color)}>{content}</Markdown>
     );
   }

@@ -19,7 +19,6 @@ import { startSprint, ApiError, type SprintSource } from '@/lib/api';
 
 export default function SprintCompleteScreen() {
   const {
-    sprintId,
     returnTo,
     launchSource,
     deckId,
@@ -29,7 +28,6 @@ export default function SprintCompleteScreen() {
     failCount,
     durationSeconds,
   } = useLocalSearchParams<{
-    sprintId?: string;
     returnTo?: string;
     launchSource?: string;
     deckId?: string;

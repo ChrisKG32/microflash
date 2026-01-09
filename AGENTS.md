@@ -2,7 +2,6 @@
 
 Guidelines for agentic coding in this repo (product + code conventions).
 
-
 ## Important Agent Instructions
 
 You will never try to create design systems or fancy designs. Working on this app, you will keep the designs extremely minimal until the entire MVP is accomplished, that way it will be easier to develop and migrate to a real design system in the future.
@@ -29,9 +28,11 @@ If implementation diverges from docs, flag it and prefer updating code toward do
 
 ## Repo layout (pnpm workspaces)
 
-- `apps/client` — React Native + Expo (expo-router)
+- `apps/mobile` — React Native + Expo (expo-router)
+- `apps/desktop` — Electron + React (electron-vite)
 - `apps/server` — Express + Prisma + PostgreSQL
 - `packages/shared` — shared TypeScript types/utils
+- `packages/api-client` — shared API client
 
 ## Requirements
 
@@ -44,7 +45,8 @@ If implementation diverges from docs, flag it and prefer updating code toward do
 
 ```bash
 pnpm dev:server        # Start server (tsx watch)
-pnpm dev:client        # Start Expo dev server
+pnpm dev:mobile        # Start Expo dev server
+pnpm dev:desktop       # Start Electron app
 
 pnpm build             # Build all workspaces
 pnpm typecheck         # Typecheck all workspaces
@@ -75,20 +77,20 @@ pnpm --filter @microflash/server db:push
 pnpm --filter @microflash/server db:seed
 pnpm --filter @microflash/server db:studio
 
-# Client
-pnpm --filter @microflash/client dev
-pnpm --filter @microflash/client ios
-pnpm --filter @microflash/client android
-pnpm --filter @microflash/client web
-pnpm --filter @microflash/client lint
-pnpm --filter @microflash/client test
+# Mobile
+pnpm --filter @microflash/mobile dev
+pnpm --filter @microflash/mobile ios
+pnpm --filter @microflash/mobile android
+pnpm --filter @microflash/mobile web
+pnpm --filter @microflash/mobile lint
+pnpm --filter @microflash/mobile test
 ```
 
 ---
 
 ## Testing (Jest)
 
-Jest is **multi-project** (`jest.config.js` references server + client configs).
+Jest is **multi-project** (`jest.config.js` references server + mobile configs).
 
 Tests are colocated with source:
 
@@ -101,19 +103,19 @@ Tests are colocated with source:
 # Server (path relative to apps/server)
 pnpm --filter @microflash/server test -- --runTestsByPath src/routes/decks.test.ts
 
-# Client (path relative to apps/client)
-pnpm --filter @microflash/client test -- --runTestsByPath components/ThemedText.test.tsx
+# Mobile (path relative to apps/mobile)
+pnpm --filter @microflash/mobile test -- --runTestsByPath components/ThemedText.test.tsx
 
 # From root (select project explicitly)
 pnpm test -- --selectProjects server --runTestsByPath apps/server/src/routes/decks.test.ts
-pnpm test -- --selectProjects client --runTestsByPath apps/client/components/ThemedText.test.tsx
+pnpm test -- --selectProjects mobile --runTestsByPath apps/mobile/components/ThemedText.test.tsx
 ```
 
 ### Run tests by name
 
 ```bash
 pnpm --filter @microflash/server test -- -t "creates a deck"
-pnpm --filter @microflash/client test -- -t "renders correctly"
+pnpm --filter @microflash/mobile test -- -t "renders correctly"
 ```
 
 ---
@@ -131,7 +133,7 @@ pnpm --filter @microflash/client test -- -t "renders correctly"
 
 ### ESLint
 
-- Root `eslint.config.js` targets server files; client uses `expo lint`.
+- Root `eslint.config.js` targets server files; mobile uses `expo lint`.
 - Unused vars allowed only if prefixed with `_` (e.g. `_unused`).
 - **Server:** do not use `.js` extensions in imports.
 
@@ -154,7 +156,7 @@ Preferred grouping:
 Path aliases:
 
 - Server: `@/*` → `apps/server/src/*`
-- Client: `@/*` → `apps/client/*`
+- Mobile: `@/*` → `apps/mobile/*`
 
 ---
 
@@ -197,21 +199,21 @@ Dev shortcut: `DEV_AUTH=1` allows `x-dev-clerk-id` header bypass.
 
 ---
 
-## Client patterns (Expo + expo-router)
+## Mobile patterns (Expo + expo-router)
 
 - Functional components with TypeScript
 - `StyleSheet.create()` at bottom of file
-- File-based routing in `apps/client/app/**`
+- File-based routing in `apps/mobile/app/**`
 - Notifications via `expo-notifications` (bootstrap in `app/_layout.tsx`)
 
 ---
 
 ## Dev environment
 
-See `.env.example` files in `apps/server` and `apps/client`.
+See `.env.example` files in `apps/server` and `apps/mobile`.
 
 - Server: `DEV_AUTH=1` + header `x-dev-clerk-id`
-- Client: `EXPO_PUBLIC_DEV_CLERK_ID`
+- Mobile: `EXPO_PUBLIC_DEV_CLERK_ID`
 
 ---
 

@@ -5,7 +5,7 @@
  * Shows cards one at a time with reveal/grade flow.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,8 +14,12 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { useLocalSearchParams, Stack, router } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
+import {
+  useLocalSearchParams,
+  Stack,
+  router,
+  useFocusEffect,
+} from 'expo-router';
 
 import {
   getSprint,
@@ -128,7 +132,7 @@ export default function SprintReviewScreen() {
               durationSeconds: String(stats.durationSeconds ?? 0),
             },
           });
-        } catch (completeErr) {
+        } catch {
           // Sprint might already be completed (idempotent)
           router.replace({
             pathname: '/sprint/complete',

@@ -475,7 +475,7 @@ export default function NotificationControlsScreen() {
             >
               Creates a real PENDING sprint on the server, then schedules a
               local notification for 30 seconds. Tap the notification to test
-              navigation and the "Snooze 1h" action.
+              navigation and the &quot;Snooze 1h&quot; action.
             </Text>
           </View>
         )}

@@ -230,7 +230,7 @@ export default function HomeScreen() {
       ) : (
         <View style={styles.emptySection}>
           <Text style={styles.emptyIcon}>🎉</Text>
-          <Text style={styles.emptyTitle}>You're all caught up!</Text>
+          <Text style={styles.emptyTitle}>You&apos;re all caught up!</Text>
           <Text style={styles.emptyText}>
             No cards are due for review right now.
           </Text>

@@ -2,7 +2,7 @@
  * Shared type definitions for MicroFlash API
  *
  * These DTOs define the contract between client and server.
- * Both apps/client and apps/server should import from here.
+ * Both apps/mobile and apps/server should import from here.
  */
 
 // Common types

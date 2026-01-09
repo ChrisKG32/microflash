@@ -5,7 +5,8 @@
   "description": "MicroFlash - Intelligent Spaced Repetition Learning",
   "scripts": {
     "dev:server": "pnpm --filter @microflash/server dev",
-    "dev:client": "pnpm --filter @microflash/client dev",
+    "dev:mobile": "pnpm --filter @microflash/mobile dev",
+    "dev:desktop": "pnpm --filter @microflash/desktop dev",
     "build": "pnpm -r build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
