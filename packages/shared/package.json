@@ -2,53 +2,9 @@
   "name": "@microflash/shared",
   "version": "0.1.0",
   "private": true,
-  "exports": {
-    "./types/common": {
-      "react-native": "./src/types/common.ts",
-      "types": "./src/types/common.ts",
-      "default": "./dist/types/common.js"
-    },
-    "./types/api": {
-      "react-native": "./src/types/api.ts",
-      "types": "./src/types/api.ts",
-      "default": "./dist/types/api.js"
-    },
-    "./types/user": {
-      "react-native": "./src/types/user.ts",
-      "types": "./src/types/user.ts",
-      "default": "./dist/types/user.js"
-    },
-    "./types/deck": {
-      "react-native": "./src/types/deck.ts",
-      "types": "./src/types/deck.ts",
-      "default": "./dist/types/deck.js"
-    },
-    "./types/card": {
-      "react-native": "./src/types/card.ts",
-      "types": "./src/types/card.ts",
-      "default": "./dist/types/card.js"
-    },
-    "./types/review": {
-      "react-native": "./src/types/review.ts",
-      "types": "./src/types/review.ts",
-      "default": "./dist/types/review.js"
-    },
-    "./types/sprint": {
-      "react-native": "./src/types/sprint.ts",
-      "types": "./src/types/sprint.ts",
-      "default": "./dist/types/sprint.js"
-    },
-    "./types/home": {
-      "react-native": "./src/types/home.ts",
-      "types": "./src/types/home.ts",
-      "default": "./dist/types/home.js"
-    },
-    "./types/notifications": {
-      "react-native": "./src/types/notifications.ts",
-      "types": "./src/types/notifications.ts",
-      "default": "./dist/types/notifications.js"
-    }
-  },
+  "react-native": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc"

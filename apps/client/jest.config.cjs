@@ -9,10 +9,9 @@ module.exports = {
   moduleNameMapper: {
     // Handle @/* path alias from tsconfig.json
     '^@/(.*)$': '<rootDir>/$1',
-    // Map workspace packages to their source (direct imports, no barrel)
-    '^@microflash/api-client/(.*)$':
-      '<rootDir>/../../packages/api-client/src/$1.ts',
-    '^@microflash/shared/(.*)$': '<rootDir>/../../packages/shared/src/$1.ts',
+    // Map workspace packages to their source
+    '^@microflash/api-client$':
+      '<rootDir>/../../packages/api-client/src/index.ts',
   },
   // pnpm hoists packages to root node_modules/.pnpm, so we need patterns that work
   // for both the local node_modules symlinks AND the hoisted .pnpm structure.

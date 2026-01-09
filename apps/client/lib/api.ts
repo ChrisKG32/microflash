@@ -1,8 +1,8 @@
 /**
  * API client adapter for MicroFlash mobile app.
  *
- * This module configures the shared @microflash/api-client and re-exports
- * for backward compatibility with existing imports.
+ * This module configures and re-exports the shared @microflash/api-client.
+ * All API methods and types are available from this module for backward compatibility.
  *
  * Uses environment variables:
  * - EXPO_PUBLIC_API_URL: Base URL for the API (e.g., http://localhost:3000)
@@ -12,7 +12,7 @@
 import {
   configureApiClient,
   isApiClientConfigured,
-} from '@microflash/api-client/client';
+} from '@microflash/api-client';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 const DEV_CLERK_ID = process.env.EXPO_PUBLIC_DEV_CLERK_ID || 'user_local_dev';
@@ -27,8 +27,9 @@ if (!isApiClientConfigured()) {
   });
 }
 
-// Re-export from client module
+// Re-export everything from the shared API client
 export {
+  // Core
   ApiError,
   configureApiClient,
   getApiClientConfig,
@@ -36,37 +37,31 @@ export {
   request,
   type ApiClientConfig,
   type AuthHeaderProvider,
-} from '@microflash/api-client/client';
-
-// Re-export types
-export type {
-  User,
-  Deck,
-  CreateDeckRequest,
-  UpdateDeckRequest,
-  CardState,
-  Card,
-  CreateCardRequest,
-  UpdateCardRequest,
-  Rating,
-  Review,
-  SprintStatus,
-  SprintSource,
-  CardResult,
-  SprintProgress,
-  CardInSprint,
-  SprintCard,
-  Sprint,
-  SprintStats,
-  ResumableSprint,
-  HomeSummary,
-  NotificationPreferences,
-  UpdateNotificationPreferencesRequest,
-  DevTestSprintNotificationResponse,
-} from '@microflash/api-client/types';
-
-// Re-export API methods
-export {
+  // Types
+  type User,
+  type Deck,
+  type CreateDeckRequest,
+  type UpdateDeckRequest,
+  type CardState,
+  type Card,
+  type CreateCardRequest,
+  type UpdateCardRequest,
+  type Rating,
+  type Review,
+  type SprintStatus,
+  type SprintSource,
+  type CardResult,
+  type SprintProgress,
+  type CardInSprint,
+  type SprintCard,
+  type Sprint,
+  type SprintStats,
+  type ResumableSprint,
+  type HomeSummary,
+  type NotificationPreferences,
+  type UpdateNotificationPreferencesRequest,
+  type DevTestSprintNotificationResponse,
+  // API Methods
   getMe,
   getDecks,
   createDeck,
@@ -92,4 +87,4 @@ export {
   snoozeCardNotifications,
   unsnoozeCard,
   createDevTestSprintNotification,
-} from '@microflash/api-client/endpoints';
+} from '@microflash/api-client';

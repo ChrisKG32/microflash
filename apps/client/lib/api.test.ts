@@ -13,9 +13,9 @@
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
-// Mock the api-client client module to reset configuration between tests
-jest.mock('@microflash/api-client/client', () => {
-  const actual = jest.requireActual('@microflash/api-client/client');
+// Mock the api-client module to reset configuration between tests
+jest.mock('@microflash/api-client', () => {
+  const actual = jest.requireActual('@microflash/api-client');
   return {
     ...actual,
     // Allow reconfiguration for tests
