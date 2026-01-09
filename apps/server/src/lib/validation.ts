@@ -27,7 +27,6 @@ export const createCardSchema = z
       .max(10000, { error: 'Front is too long (max 10000 characters)' }),
     back: z
       .string({ error: 'Back is required' })
-      .min(1, { error: 'Back cannot be empty' })
       .max(10000, { error: 'Back is too long (max 10000 characters)' }),
     deckId: z
       .string({ error: 'Deck ID is required' })
@@ -48,7 +47,6 @@ export const updateCardSchema = z
       .optional(),
     back: z
       .string()
-      .min(1, { error: 'Back cannot be empty' })
       .max(10000, { error: 'Back is too long (max 10000 characters)' })
       .optional(),
     deckId: z.string().min(1, { error: 'Deck ID cannot be empty' }).optional(),

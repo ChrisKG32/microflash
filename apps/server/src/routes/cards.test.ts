@@ -282,6 +282,59 @@ describe('Cards Routes - Unit Tests', () => {
       });
     });
 
+    it('should return 201 with empty back (one-sided card)', async () => {
+      const now = new Date();
+
+      prismaMock.deck.findUnique.mockResolvedValue({
+        id: 'deck-1',
+        title: 'Test Deck',
+        description: null,
+        priority: 50,
+        userId: 'user-internal-id',
+        parentDeckId: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      prismaMock.card.create.mockResolvedValue({
+        id: 'card-new-123',
+        front: 'Question without answer',
+        back: '',
+        deckId: 'deck-1',
+        priority: 50,
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        state: 'NEW',
+        lastReview: null,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const response = await request(app)
+        .post('/api/cards')
+        .send({ front: 'Question without answer', back: '', deckId: 'deck-1' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.card).toHaveProperty('id', 'card-new-123');
+      expect(response.body.card).toHaveProperty(
+        'front',
+        'Question without answer',
+      );
+      expect(response.body.card).toHaveProperty('back', '');
+      expect(prismaMock.card.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          front: 'Question without answer',
+          back: '',
+        }),
+      });
+    });
+
     it('should return 500 on database error', async () => {
       const now = new Date();
 
@@ -520,6 +573,73 @@ describe('Cards Routes - Unit Tests', () => {
       expect(response.status).toBe(200);
       expect(response.body.card).toHaveProperty('front', 'Updated Question');
       expect(response.body.card).toHaveProperty('back', 'Updated Answer');
+    });
+
+    it('should update card with empty back (convert to one-sided)', async () => {
+      const now = new Date();
+
+      prismaMock.card.findUnique.mockResolvedValue({
+        id: 'card-123',
+        front: 'Question',
+        back: 'Old Answer',
+        deckId: 'deck-1',
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        state: 'NEW',
+        lastReview: null,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+        deck: {
+          id: 'deck-1',
+          title: 'Test Deck',
+          userId: 'user-internal-id',
+        },
+      } as never);
+
+      prismaMock.card.update.mockResolvedValue({
+        id: 'card-123',
+        front: 'Question',
+        back: '',
+        deckId: 'deck-1',
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        state: 'NEW',
+        lastReview: null,
+        nextReviewDate: now,
+        lastNotificationSent: null,
+        snoozedUntil: null,
+        createdAt: now,
+        updatedAt: now,
+        deck: {
+          id: 'deck-1',
+          title: 'Test Deck',
+        },
+      } as never);
+
+      const response = await request(app)
+        .patch('/api/cards/card-123')
+        .send({ back: '' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.card).toHaveProperty('back', '');
+      expect(prismaMock.card.update).toHaveBeenCalledWith({
+        where: { id: 'card-123' },
+        data: expect.objectContaining({
+          back: '',
+        }),
+        include: expect.anything(),
+      });
     });
 
     it('should return 404 when moving to non-existent deck', async () => {

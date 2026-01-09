@@ -247,7 +247,9 @@ export function DeckDetailPage() {
                 onClick={() => navigate(`/deck/${deckId}/card/${card.id}`)}
               >
                 <div className="card-front">{card.front}</div>
-                <div className="card-back">{card.back}</div>
+                {card.back.trim() && (
+                  <div className="card-back">{card.back}</div>
+                )}
                 <div className="card-meta">
                   <span className="card-state">{card.state}</span>
                   <span className="card-priority">
