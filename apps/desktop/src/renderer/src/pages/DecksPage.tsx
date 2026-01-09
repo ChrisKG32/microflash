@@ -4,6 +4,8 @@ import {
   getDecks,
   createDeck,
   deleteDeck,
+  startSprint,
+  ApiError,
   type Deck,
 } from '@microflash/api-client';
 
@@ -17,6 +19,7 @@ export function DecksPage() {
   const [newDeckTitle, setNewDeckTitle] = useState('');
   const [newDeckDescription, setNewDeckDescription] = useState('');
   const [creating, setCreating] = useState(false);
+  const [startingSprint, setStartingSprint] = useState(false);
 
   const loadDecks = useCallback(async () => {
     try {
@@ -68,6 +71,33 @@ export function DecksPage() {
     }
   };
 
+  const handleStartSprint = async () => {
+    setStartingSprint(true);
+    setError(null);
+
+    try {
+      const { sprint } = await startSprint({ source: 'HOME' });
+      // Use push to navigate to sprint (match mobile semantics)
+      navigate(
+        `/sprint/${sprint.id}?returnTo=${encodeURIComponent('/')}&launchSource=HOME`,
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.code === 'NO_ELIGIBLE_CARDS') {
+          setError('No cards are due for review right now.');
+        } else {
+          setError(err.message);
+        }
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Failed to start sprint');
+      }
+    } finally {
+      setStartingSprint(false);
+    }
+  };
+
   const filteredDecks = decks.filter(
     (deck) =>
       deck.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -86,12 +116,21 @@ export function DecksPage() {
     <div className="page">
       <div className="page-header">
         <h2 className="page-title">Decks</h2>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowCreateModal(true)}
-        >
-          Create Deck
-        </button>
+        <div className="page-header-actions">
+          <button
+            className="btn btn-secondary"
+            onClick={handleStartSprint}
+            disabled={startingSprint || decks.length === 0}
+          >
+            {startingSprint ? 'Starting...' : 'Start Sprint'}
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowCreateModal(true)}
+          >
+            Create Deck
+          </button>
+        </div>
       </div>
 
       {error && (
