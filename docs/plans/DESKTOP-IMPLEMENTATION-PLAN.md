@@ -21,7 +21,7 @@ A companion desktop application for Mac and Windows focused on **deck/card autho
 - Offline-first / local cache / sync queue
 - Tags
 - Batch operations (multi-select, bulk edit)
-- Rich editing (split-pane preview, templates, cloze, images)
+- Templates, cloze deletion, images
 - Desktop notifications
 
 ---
@@ -153,8 +153,16 @@ Create `packages/api-client`:
 - Create new card
 - Edit existing card
 - Delete card
-- Plain text fields for front/back (Markdown/LaTeX content)
-- Basic preview (render Markdown/LaTeX)
+- **Unified markdown editor** (Mochi-inspired):
+  - Single textarea for card content
+  - Use `\n---\n` separator to split front/back (two-sided card)
+  - No separator = one-sided card (front only, empty back)
+- **Split-pane preview** with three modes:
+  - **Adaptive** (default): Preview follows cursor position (front or back)
+  - **Combined**: Front on top, back on bottom with draggable divider
+  - **Toggle**: Manual front/back toggle button
+- **Minimal markdown toolbar**: Bold, Italic, Code, Link, Bullet list, Insert separator
+- Markdown + LaTeX rendering in preview (react-markdown + KaTeX)
 
 **Exit Criteria:**
 
@@ -400,5 +408,5 @@ Server uses `cors()` with no restrictions — desktop origin will work.
 - Mac App Store / Microsoft Store distribution
 - Keyboard shortcuts
 - Bulk operations (multi-select, batch edit)
-- Rich card editor (split-pane preview)
+- Advanced card features (cloze deletion, templates, images)
 - Export (Anki, CSV, Markdown)

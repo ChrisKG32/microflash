@@ -26,6 +26,10 @@ Busy students and professionals (especially multi-subject learners) who value sp
 
 - Create/edit/delete decks and cards.
 - Card content supports **Markdown** and **LaTeX** rendering.
+- **Card types**:
+  - **Two-sided cards**: Have both front (question) and back (answer) content
+  - **One-sided cards**: Have only front content; back is empty (useful for facts, definitions, or self-assessment)
+- **Desktop card editor** uses unified markdown format with `\n---\n` separator to split front/back
 - Tags exist as a **placeholder feature** (basic manage/add), without meaningful scheduling behavior in MVP.
 
 ## Spaced Repetition Scheduling

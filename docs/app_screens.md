@@ -1,6 +1,7 @@
 # Screen & State Spec
 
 ## 1) Screen groups:
+
 - Public
 - Auth
 - Onboarding
@@ -115,11 +116,30 @@
     - Error: Failed to load deck.
 
 - **Card Editor**
-  - Purpose: Create/edit front/back card; set optional card priority (simple slider).
+  - Purpose: Create/edit card content using unified markdown editor; set optional card priority.
+  - Layout:
+    - **Toolbar** (top): Left = markdown formatting buttons (Bold, Italic, Code, Link, Bullet, Separator); Right = preview mode toggle (Adaptive / Combined / Toggle)
+    - **Editor pane** (left): Single markdown textarea
+    - **Preview pane** (right): Rendered card preview
+  - Card format:
+    - **Two-sided card**: Content contains `\n---\n` separator; text before = front, text after = back
+    - **One-sided card**: No separator; entire content = front, back is empty
+  - Preview modes:
+    - **Adaptive** (default): Shows front or back based on cursor position relative to separator
+    - **Combined**: Shows front on top, back on bottom with draggable horizontal divider
+    - **Toggle**: Manual front/back toggle; back disabled if card is one-sided
   - Primary actions: Save; Cancel; Delete card.
   - States:
     - Loading: Saving card.
-    - Empty: Empty fields validation (disable save / show inline errors).
+    - Empty: Front content required (disable save if empty).
+    - Error: Save failed.
+
+- **Card Editor (Mobile)**
+  - Purpose: Simplified card editor for mobile; separate front/back fields.
+  - Primary actions: Save; Cancel; Delete card.
+  - States:
+    - Loading: Saving card.
+    - Empty: Front required, back optional.
     - Error: Save failed.
 
 - **Settings**
