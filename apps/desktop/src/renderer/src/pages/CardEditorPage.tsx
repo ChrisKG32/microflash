@@ -605,14 +605,11 @@ export function CardEditorPage() {
                   <CardContent content={parts.front || 'No content'} />
                 </Box>
               </Box>
-              <Box
+              <Separator
+                size="4"
                 className="preview-divider-horizontal"
                 onMouseDown={handleDragStart}
-                style={{
-                  height: '6px',
-                  backgroundColor: 'var(--gray-6)',
-                  cursor: 'row-resize',
-                }}
+                style={{ cursor: 'row-resize' }}
               />
               <Box
                 style={{
