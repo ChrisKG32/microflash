@@ -11,7 +11,6 @@ import {
   Callout,
   Spinner,
   Dialog,
-  Separator,
   SegmentedControl,
 } from '@radix-ui/themes';
 import * as Toolbar from '@radix-ui/react-toolbar';
@@ -35,6 +34,7 @@ import {
   type Card,
 } from '@microflash/api-client';
 import { CardContent } from '../components/CardContent';
+import { DraggableDivider } from '../components/DraggableDivider';
 import {
   splitCardMarkdown,
   joinCardMarkdown,
@@ -535,12 +535,9 @@ export function CardEditorPage() {
         </Box>
 
         {/* Vertical Divider (Draggable) */}
-        <Separator
+        <DraggableDivider
           orientation="vertical"
-          size="4"
-          className="editor-divider-vertical"
           onMouseDown={handleVerticalDragStart}
-          style={{ cursor: 'col-resize' }}
         />
 
         {/* Preview Pane */}
@@ -605,11 +602,9 @@ export function CardEditorPage() {
                   <CardContent content={parts.front || 'No content'} />
                 </Box>
               </Box>
-              <Separator
-                size="4"
-                className="preview-divider-horizontal"
+              <DraggableDivider
+                orientation="horizontal"
                 onMouseDown={handleDragStart}
-                style={{ cursor: 'row-resize' }}
               />
               <Box
                 style={{

@@ -36,15 +36,20 @@
   color: var(--gray-8);
 }
 
-/* Draggable vertical divider between editor and preview */
-.editor-divider-vertical {
+/* Draggable dividers for resizable split panes */
+.draggable-divider-vertical,
+.draggable-divider-horizontal {
   position: relative;
   transition: background-color 0.15s ease;
 }
 
-.editor-divider-vertical::before {
+.draggable-divider-vertical::before,
+.draggable-divider-horizontal::before {
   content: '';
   position: absolute;
+}
+
+.draggable-divider-vertical::before {
   top: 0;
   bottom: 0;
   left: -6px;
@@ -52,7 +57,16 @@
   cursor: col-resize;
 }
 
-.editor-divider-vertical:hover {
+.draggable-divider-horizontal::before {
+  left: 0;
+  right: 0;
+  top: -6px;
+  bottom: -6px;
+  cursor: row-resize;
+}
+
+.draggable-divider-vertical:hover,
+.draggable-divider-horizontal:hover {
   background-color: var(--gray-8);
 }
 
