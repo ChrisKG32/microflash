@@ -1,6 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  Box,
+  Flex,
+  Heading,
+  Text,
+  Button,
+  TextField,
+  TextArea,
+  Card,
+  Dialog,
+  Callout,
+  Spinner,
+  IconButton,
+} from '@radix-ui/themes';
+import { Cross2Icon, ExclamationTriangleIcon } from '@radix-ui/react-icons';
+import {
   getDecks,
   createDeck,
   deleteDeck,
@@ -20,6 +35,10 @@ export function DecksPage() {
   const [newDeckDescription, setNewDeckDescription] = useState('');
   const [creating, setCreating] = useState(false);
   const [startingSprint, setStartingSprint] = useState(false);
+
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<Deck | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadDecks = useCallback(async () => {
     try {
@@ -59,15 +78,18 @@ export function DecksPage() {
     }
   };
 
-  const handleDeleteDeck = async (deckId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this deck?')) return;
+  const handleDeleteDeck = async () => {
+    if (!deleteTarget) return;
 
     try {
-      await deleteDeck(deckId);
+      setDeleting(true);
+      await deleteDeck(deleteTarget.id);
+      setDeleteTarget(null);
       await loadDecks();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete deck');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -77,7 +99,6 @@ export function DecksPage() {
 
     try {
       const { sprint } = await startSprint({ source: 'HOME' });
-      // Use push to navigate to sprint (match mobile semantics)
       navigate(
         `/sprint/${sprint.id}?returnTo=${encodeURIComponent('/')}&launchSource=HOME`,
       );
@@ -106,155 +127,198 @@ export function DecksPage() {
 
   if (loading) {
     return (
-      <div className="page">
-        <div className="loading">Loading decks...</div>
-      </div>
+      <Box p="6">
+        <Flex align="center" justify="center" py="9">
+          <Spinner size="3" />
+          <Text ml="3" color="gray">
+            Loading decks...
+          </Text>
+        </Flex>
+      </Box>
     );
   }
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <h2 className="page-title">Decks</h2>
-        <div className="page-header-actions">
-          <button
-            className="btn btn-secondary"
+    <Box p="6" style={{ maxWidth: '900px' }}>
+      {/* Header */}
+      <Flex justify="between" align="center" mb="5">
+        <Heading size="6">Decks</Heading>
+        <Flex gap="2">
+          <Button
+            variant="soft"
             onClick={handleStartSprint}
             disabled={startingSprint || decks.length === 0}
           >
+            {startingSprint ? <Spinner size="1" /> : null}
             {startingSprint ? 'Starting...' : 'Start Sprint'}
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowCreateModal(true)}
-          >
-            Create Deck
-          </button>
-        </div>
-      </div>
+          </Button>
+          <Dialog.Root open={showCreateModal} onOpenChange={setShowCreateModal}>
+            <Dialog.Trigger>
+              <Button>Create Deck</Button>
+            </Dialog.Trigger>
+            <Dialog.Content maxWidth="450px">
+              <Dialog.Title>Create New Deck</Dialog.Title>
+              <Dialog.Description size="2" mb="4">
+                Add a new deck to organize your flashcards.
+              </Dialog.Description>
 
+              <form onSubmit={handleCreateDeck}>
+                <Flex direction="column" gap="3">
+                  <label>
+                    <Text as="div" size="2" mb="1" weight="bold">
+                      Title
+                    </Text>
+                    <TextField.Root
+                      value={newDeckTitle}
+                      onChange={(e) => setNewDeckTitle(e.target.value)}
+                      placeholder="Enter deck title"
+                      autoFocus
+                    />
+                  </label>
+                  <label>
+                    <Text as="div" size="2" mb="1" weight="bold">
+                      Description (optional)
+                    </Text>
+                    <TextArea
+                      value={newDeckDescription}
+                      onChange={(e) => setNewDeckDescription(e.target.value)}
+                      placeholder="Enter deck description"
+                      rows={3}
+                    />
+                  </label>
+                </Flex>
+
+                <Flex gap="3" mt="4" justify="end">
+                  <Dialog.Close>
+                    <Button variant="soft" color="gray" type="button">
+                      Cancel
+                    </Button>
+                  </Dialog.Close>
+                  <Button
+                    type="submit"
+                    disabled={!newDeckTitle.trim() || creating}
+                  >
+                    {creating ? 'Creating...' : 'Create'}
+                  </Button>
+                </Flex>
+              </form>
+            </Dialog.Content>
+          </Dialog.Root>
+        </Flex>
+      </Flex>
+
+      {/* Error banner */}
       {error && (
-        <div className="error-banner">
-          {error}
-          <button className="btn btn-text" onClick={() => setError(null)}>
-            Dismiss
-          </button>
-        </div>
+        <Callout.Root color="red" mb="4">
+          <Callout.Icon>
+            <ExclamationTriangleIcon />
+          </Callout.Icon>
+          <Callout.Text>{error}</Callout.Text>
+          <IconButton
+            size="1"
+            variant="ghost"
+            color="red"
+            onClick={() => setError(null)}
+            style={{ marginLeft: 'auto' }}
+          >
+            <Cross2Icon />
+          </IconButton>
+        </Callout.Root>
       )}
 
-      <div className="search-bar">
-        <input
-          type="text"
-          placeholder="Search decks..."
+      {/* Search */}
+      <Box mb="4">
+        <TextField.Root
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="search-input"
+          placeholder="Search decks..."
+          style={{ maxWidth: '400px' }}
         />
-      </div>
+      </Box>
 
+      {/* Deck list */}
       {filteredDecks.length === 0 ? (
-        <div className="empty-state">
+        <Flex direction="column" align="center" py="9">
           {searchQuery ? (
-            <p>No decks match your search.</p>
+            <Text color="gray">No decks match your search.</Text>
           ) : (
             <>
-              <p>No decks yet.</p>
-              <button
-                className="btn btn-primary"
-                onClick={() => setShowCreateModal(true)}
-              >
+              <Text color="gray" mb="3">
+                No decks yet.
+              </Text>
+              <Button onClick={() => setShowCreateModal(true)}>
                 Create your first deck
-              </button>
+              </Button>
             </>
           )}
-        </div>
+        </Flex>
       ) : (
-        <div className="deck-list">
+        <Flex direction="column" gap="2">
           {filteredDecks.map((deck) => (
-            <div
+            <Card
               key={deck.id}
-              className="deck-card"
+              style={{ cursor: 'pointer' }}
               onClick={() => navigate(`/deck/${deck.id}`)}
             >
-              <div className="deck-card-content">
-                <h3 className="deck-title">{deck.title}</h3>
-                {deck.description && (
-                  <p className="deck-description">{deck.description}</p>
-                )}
-                <div className="deck-meta">
-                  <span className="deck-card-count">
-                    {deck.cardCount} {deck.cardCount === 1 ? 'card' : 'cards'}
-                  </span>
-                  <span className="deck-priority">
-                    Priority: {deck.priority}
-                  </span>
-                </div>
-              </div>
-              <div className="deck-card-actions">
-                <button
-                  className="btn btn-icon btn-danger"
-                  onClick={(e) => handleDeleteDeck(deck.id, e)}
-                  title="Delete deck"
+              <Flex justify="between" align="start">
+                <Box>
+                  <Text weight="medium" size="3">
+                    {deck.title}
+                  </Text>
+                  {deck.description && (
+                    <Text as="p" size="2" color="gray" mt="1">
+                      {deck.description}
+                    </Text>
+                  )}
+                  <Flex gap="4" mt="2">
+                    <Text size="1" color="gray">
+                      {deck.cardCount} {deck.cardCount === 1 ? 'card' : 'cards'}
+                    </Text>
+                    <Text size="1" color="gray">
+                      Priority: {deck.priority}
+                    </Text>
+                  </Flex>
+                </Box>
+                <IconButton
+                  size="1"
+                  variant="ghost"
+                  color="red"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteTarget(deck);
+                  }}
                 >
-                  Delete
-                </button>
-              </div>
-            </div>
+                  <Cross2Icon />
+                </IconButton>
+              </Flex>
+            </Card>
           ))}
-        </div>
+        </Flex>
       )}
 
-      {showCreateModal && (
-        <div
-          className="modal-overlay"
-          onClick={() => setShowCreateModal(false)}
-        >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="modal-title">Create New Deck</h3>
-            <form onSubmit={handleCreateDeck}>
-              <div className="form-group">
-                <label htmlFor="deck-title">Title</label>
-                <input
-                  id="deck-title"
-                  type="text"
-                  value={newDeckTitle}
-                  onChange={(e) => setNewDeckTitle(e.target.value)}
-                  placeholder="Enter deck title"
-                  className="form-input"
-                  autoFocus
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="deck-description">Description (optional)</label>
-                <textarea
-                  id="deck-description"
-                  value={newDeckDescription}
-                  onChange={(e) => setNewDeckDescription(e.target.value)}
-                  placeholder="Enter deck description"
-                  className="form-input form-textarea"
-                  rows={3}
-                />
-              </div>
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowCreateModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={!newDeckTitle.trim() || creating}
-                >
-                  {creating ? 'Creating...' : 'Create'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
+      {/* Delete confirmation dialog */}
+      <Dialog.Root
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <Dialog.Content maxWidth="400px">
+          <Dialog.Title>Delete Deck</Dialog.Title>
+          <Dialog.Description size="2" mb="4">
+            Are you sure you want to delete "{deleteTarget?.title}"? This will
+            also delete all cards in this deck. This action cannot be undone.
+          </Dialog.Description>
+          <Flex gap="3" justify="end">
+            <Dialog.Close>
+              <Button variant="soft" color="gray">
+                Cancel
+              </Button>
+            </Dialog.Close>
+            <Button color="red" onClick={handleDeleteDeck} disabled={deleting}>
+              {deleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
+    </Box>
   );
 }

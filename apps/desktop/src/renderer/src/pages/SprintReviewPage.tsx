@@ -9,6 +9,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import {
+  Box,
+  Flex,
+  Heading,
+  Text,
+  Button,
+  Card,
+  Callout,
+  Spinner,
+  IconButton,
+  Progress,
+} from '@radix-ui/themes';
+import { ArrowLeftIcon, ExclamationTriangleIcon } from '@radix-ui/react-icons';
+import {
   getSprint,
   submitSprintReview,
   completeSprint,
@@ -161,136 +174,244 @@ export function SprintReviewPage() {
 
   if (loading) {
     return (
-      <div className="page sprint-page">
-        <div className="loading">Loading sprint...</div>
-      </div>
+      <Box
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Flex align="center" gap="3">
+          <Spinner size="3" />
+          <Text color="gray">Loading sprint...</Text>
+        </Flex>
+      </Box>
     );
   }
 
   if (error || !sprint) {
     return (
-      <div className="page sprint-page">
-        <div className="sprint-error-state">
-          <div className="sprint-error-icon">⚠️</div>
-          <p className="sprint-error-text">{error || 'Sprint not found'}</p>
-          <button className="btn btn-primary" onClick={handleGoBack}>
-            Go Back
-          </button>
-        </div>
-      </div>
+      <Box
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Flex direction="column" align="center" gap="4">
+          <Callout.Root color="red" size="2">
+            <Callout.Icon>
+              <ExclamationTriangleIcon />
+            </Callout.Icon>
+            <Callout.Text>{error || 'Sprint not found'}</Callout.Text>
+          </Callout.Root>
+          <Button onClick={handleGoBack}>Go Back</Button>
+        </Flex>
+      </Box>
     );
   }
 
   if (!currentCard) {
     // All cards reviewed but didn't navigate yet
     return (
-      <div className="page sprint-page">
-        <div className="loading">Completing sprint...</div>
-      </div>
+      <Box
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Flex align="center" gap="3">
+          <Spinner size="3" />
+          <Text color="gray">Completing sprint...</Text>
+        </Flex>
+      </Box>
     );
   }
 
+  const progressPercent =
+    ((progress?.reviewed ?? 0) / (progress?.total ?? 1)) * 100;
+
   return (
-    <div className="page sprint-page">
-      <div className="sprint-header">
-        <button className="btn btn-text" onClick={handleGoBack}>
-          &larr; Exit
-        </button>
-        <h2 className="sprint-title">{sprint.deckTitle ?? 'Sprint Review'}</h2>
-      </div>
+    <Box
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {/* Header */}
+      <Flex
+        align="center"
+        gap="3"
+        p="4"
+        style={{ borderBottom: '1px solid var(--gray-6)' }}
+      >
+        <IconButton variant="ghost" onClick={handleGoBack}>
+          <ArrowLeftIcon />
+        </IconButton>
+        <Heading size="4">{sprint.deckTitle ?? 'Sprint Review'}</Heading>
+      </Flex>
 
       {/* Progress Bar */}
-      <div className="sprint-progress-container">
-        <div className="sprint-progress-bar">
-          <div
-            className="sprint-progress-fill"
-            style={{
-              width: `${((progress?.reviewed ?? 0) / (progress?.total ?? 1)) * 100}%`,
-            }}
-          />
-        </div>
-        <span className="sprint-progress-text">
+      <Flex align="center" gap="4" px="4" py="3">
+        <Box style={{ flex: 1 }}>
+          <Progress value={progressPercent} size="2" />
+        </Box>
+        <Text size="2" color="gray">
           {progress?.reviewed ?? 0} / {progress?.total ?? 0}
-        </span>
-      </div>
+        </Text>
+      </Flex>
 
       {/* Card */}
-      <div className="sprint-card-container">
-        <div className="sprint-card">
+      <Box px="4" py="3" style={{ flex: 1, overflowY: 'auto' }}>
+        <Card size="3" style={{ maxWidth: '700px', margin: '0 auto' }}>
           {/* Front */}
-          <div className="sprint-card-section">
-            <span className="sprint-card-label">Question</span>
+          <Box mb="3">
+            <Text
+              size="1"
+              weight="bold"
+              color="gray"
+              style={{
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                display: 'block',
+                marginBottom: '12px',
+              }}
+            >
+              Question
+            </Text>
             <CardContent content={currentCard.card.front} />
-          </div>
+          </Box>
 
           {/* Back (if revealed and has content) */}
           {(showAnswer || isOneSidedCard) && currentCard.card.back.trim() && (
             <>
-              <div className="sprint-card-divider" />
-              <div className="sprint-card-section">
-                <span className="sprint-card-label">Answer</span>
+              <Box
+                my="4"
+                style={{ height: '1px', backgroundColor: 'var(--gray-6)' }}
+              />
+              <Box>
+                <Text
+                  size="1"
+                  weight="bold"
+                  color="gray"
+                  style={{
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    display: 'block',
+                    marginBottom: '12px',
+                  }}
+                >
+                  Answer
+                </Text>
                 <CardContent content={currentCard.card.back} />
-              </div>
+              </Box>
             </>
           )}
-        </div>
 
-        {/* Deck info */}
-        {currentCard.card.deckTitle && (
-          <p className="sprint-deck-info">{currentCard.card.deckTitle}</p>
-        )}
-      </div>
+          {/* Deck info */}
+          {currentCard.card.deckTitle && (
+            <Text
+              size="1"
+              color="gray"
+              mt="4"
+              style={{ display: 'block', textAlign: 'center' }}
+            >
+              {currentCard.card.deckTitle}
+            </Text>
+          )}
+        </Card>
+      </Box>
 
       {/* Actions */}
-      <div className="sprint-actions">
+      <Box p="4" style={{ borderTop: '1px solid var(--gray-6)' }}>
         {!showAnswer && !isOneSidedCard ? (
-          <button className="btn btn-primary btn-large" onClick={handleReveal}>
-            Show Answer
-          </button>
+          <Flex justify="center">
+            <Button size="3" onClick={handleReveal}>
+              Show Answer
+            </Button>
+          </Flex>
         ) : (
-          <div className="sprint-grade-buttons">
-            <button
-              className="btn sprint-grade-btn sprint-grade-again"
+          <Flex
+            gap="3"
+            justify="center"
+            style={{ maxWidth: '700px', margin: '0 auto' }}
+          >
+            <Button
+              size="2"
+              color="red"
+              style={{ flex: 1 }}
               onClick={() => handleGrade('AGAIN')}
               disabled={submitting}
             >
-              <span className="sprint-grade-label">Again</span>
-              <span className="sprint-grade-hint">Forgot</span>
-            </button>
-            <button
-              className="btn sprint-grade-btn sprint-grade-hard"
+              <Flex direction="column" align="center">
+                <Text weight="bold">Again</Text>
+                <Text size="1">Forgot</Text>
+              </Flex>
+            </Button>
+            <Button
+              size="2"
+              color="orange"
+              style={{ flex: 1 }}
               onClick={() => handleGrade('HARD')}
               disabled={submitting}
             >
-              <span className="sprint-grade-label">Hard</span>
-              <span className="sprint-grade-hint">Struggled</span>
-            </button>
-            <button
-              className="btn sprint-grade-btn sprint-grade-good"
+              <Flex direction="column" align="center">
+                <Text weight="bold">Hard</Text>
+                <Text size="1">Struggled</Text>
+              </Flex>
+            </Button>
+            <Button
+              size="2"
+              color="green"
+              style={{ flex: 1 }}
               onClick={() => handleGrade('GOOD')}
               disabled={submitting}
             >
-              <span className="sprint-grade-label">Good</span>
-              <span className="sprint-grade-hint">Correct</span>
-            </button>
-            <button
-              className="btn sprint-grade-btn sprint-grade-easy"
+              <Flex direction="column" align="center">
+                <Text weight="bold">Good</Text>
+                <Text size="1">Correct</Text>
+              </Flex>
+            </Button>
+            <Button
+              size="2"
+              color="blue"
+              style={{ flex: 1 }}
               onClick={() => handleGrade('EASY')}
               disabled={submitting}
             >
-              <span className="sprint-grade-label">Easy</span>
-              <span className="sprint-grade-hint">Effortless</span>
-            </button>
-          </div>
+              <Flex direction="column" align="center">
+                <Text weight="bold">Easy</Text>
+                <Text size="1">Effortless</Text>
+              </Flex>
+            </Button>
+          </Flex>
         )}
-      </div>
+      </Box>
 
       {/* Submitting overlay */}
       {submitting && (
-        <div className="sprint-submitting-overlay">
-          <div className="sprint-submitting-spinner" />
-        </div>
+        <Box
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <Spinner size="3" />
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
