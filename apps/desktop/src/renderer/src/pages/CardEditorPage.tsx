@@ -1,6 +1,33 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
+  Box,
+  Flex,
+  Heading,
+  Text,
+  Button,
+  TextField,
+  IconButton,
+  Callout,
+  Spinner,
+  Dialog,
+  Separator,
+  SegmentedControl,
+} from '@radix-ui/themes';
+import * as Toolbar from '@radix-ui/react-toolbar';
+import {
+  ArrowLeftIcon,
+  ExclamationTriangleIcon,
+  Cross2Icon,
+  FontBoldIcon,
+  FontItalicIcon,
+  CodeIcon,
+  Link2Icon,
+  ListBulletIcon,
+  DividerHorizontalIcon,
+  TrashIcon,
+} from '@radix-ui/react-icons';
+import {
   getCard,
   createCard,
   updateCard,
@@ -37,9 +64,18 @@ export function CardEditorPage() {
   const [cursorIndex, setCursorIndex] = useState(0);
   const [combinedSplitRatio, setCombinedSplitRatio] = useState(0.5);
 
+  // Dialog state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+
   // Refs
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isDraggingRef = useRef(false);
+  const isDraggingVerticalRef = useRef(false);
+
+  // Editor/Preview split ratio (0.5 = 50/50)
+  const [editorSplitRatio, setEditorSplitRatio] = useState(0.5);
 
   // Parse markdown into parts
   const parts = splitCardMarkdown(markdown);
@@ -103,13 +139,14 @@ export function CardEditorPage() {
 
   const handleDelete = async () => {
     if (!cardId || isNew) return;
-    if (!confirm('Are you sure you want to delete this card?')) return;
 
     try {
+      setDeleting(true);
       await deleteCard(cardId);
       navigate(`/deck/${deckId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete card');
+      setDeleting(false);
     }
   };
 
@@ -119,7 +156,15 @@ export function CardEditorPage() {
     priority !== originalCard?.priority;
 
   const handleCancel = () => {
-    if (hasChanges && !confirm('Discard unsaved changes?')) return;
+    if (hasChanges) {
+      setShowDiscardDialog(true);
+    } else {
+      navigate(`/deck/${deckId}`);
+    }
+  };
+
+  const confirmDiscard = () => {
+    setShowDiscardDialog(false);
     navigate(`/deck/${deckId}`);
   };
 
@@ -230,7 +275,7 @@ export function CardEditorPage() {
     }, 0);
   };
 
-  // Combined mode drag handler
+  // Combined mode drag handler (horizontal divider)
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault();
     isDraggingRef.current = true;
@@ -247,6 +292,31 @@ export function CardEditorPage() {
 
     const handleMouseUp = () => {
       isDraggingRef.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // Vertical divider drag handler (editor/preview split)
+  const handleVerticalDragStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingVerticalRef.current = true;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!isDraggingVerticalRef.current) return;
+      const container = document.querySelector('.editor-preview-container');
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      const ratio = (moveEvent.clientX - rect.left) / rect.width;
+      setEditorSplitRatio(Math.max(0.2, Math.min(0.8, ratio)));
+    };
+
+    const handleMouseUp = () => {
+      isDraggingVerticalRef.current = false;
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
@@ -273,132 +343,184 @@ export function CardEditorPage() {
 
   if (loading) {
     return (
-      <div className="page card-editor-page">
-        <div className="loading">Loading card...</div>
-      </div>
+      <Box p="6">
+        <Flex align="center" justify="center" py="9">
+          <Spinner size="3" />
+          <Text ml="3" color="gray">
+            Loading card...
+          </Text>
+        </Flex>
+      </Box>
     );
   }
 
   return (
-    <div className="page card-editor-page">
+    <Box
+      p="4"
+      style={{
+        height: 'calc(100vh - 16px)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       {/* Header */}
-      <div className="page-header">
-        <div className="page-header-left">
-          <button className="btn btn-text" onClick={handleCancel}>
-            &larr; Back
-          </button>
-          <h2 className="page-title">{isNew ? 'New Card' : 'Edit Card'}</h2>
-        </div>
-        <div className="page-header-actions">
+      <Flex justify="between" align="center" mb="3">
+        <Flex align="center" gap="3">
+          <IconButton variant="ghost" onClick={handleCancel}>
+            <ArrowLeftIcon />
+          </IconButton>
+          <Heading size="5">{isNew ? 'New Card' : 'Edit Card'}</Heading>
+        </Flex>
+        <Flex gap="2">
           {!isNew && (
-            <button className="btn btn-danger" onClick={handleDelete}>
+            <Button
+              variant="soft"
+              color="red"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              <TrashIcon />
               Delete
-            </button>
+            </Button>
           )}
-          <button
-            className="btn btn-primary"
-            onClick={handleSave}
-            disabled={!parts.front.trim() || saving}
-          >
+          <Button onClick={handleSave} disabled={!parts.front.trim() || saving}>
+            {saving ? <Spinner size="1" /> : null}
             {saving ? 'Saving...' : isNew ? 'Create' : 'Save'}
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Flex>
+      </Flex>
 
+      {/* Error banner */}
       {error && (
-        <div className="error-banner">
-          {error}
-          <button className="btn btn-text" onClick={() => setError(null)}>
-            Dismiss
-          </button>
-        </div>
+        <Callout.Root color="red" mb="3">
+          <Callout.Icon>
+            <ExclamationTriangleIcon />
+          </Callout.Icon>
+          <Callout.Text>{error}</Callout.Text>
+          <IconButton
+            size="1"
+            variant="ghost"
+            color="red"
+            onClick={() => setError(null)}
+            style={{ marginLeft: 'auto' }}
+          >
+            <Cross2Icon />
+          </IconButton>
+        </Callout.Root>
       )}
 
       {/* Toolbar */}
-      <div className="editor-toolbar">
-        <div className="editor-toolbar-left">
-          <button
-            type="button"
-            className="btn btn-icon"
+      <Toolbar.Root
+        className="editor-toolbar"
+        aria-label="Formatting options"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '8px 12px',
+          backgroundColor: 'var(--gray-2)',
+          border: '1px solid var(--gray-6)',
+          borderRadius: 'var(--radius-2) var(--radius-2) 0 0',
+        }}
+      >
+        <Flex gap="4" align="center">
+          <Toolbar.Button
+            asChild
+            aria-label="Bold"
             onClick={() => insertFormatting('**')}
-            title="Bold"
           >
-            <strong>B</strong>
-          </button>
-          <button
-            type="button"
-            className="btn btn-icon"
+            <IconButton size="1" variant="ghost">
+              <FontBoldIcon width="24" height="24" />
+            </IconButton>
+          </Toolbar.Button>
+          <Toolbar.Button
+            asChild
+            aria-label="Italic"
             onClick={() => insertFormatting('*')}
-            title="Italic"
           >
-            <em>I</em>
-          </button>
-          <button
-            type="button"
-            className="btn btn-icon"
+            <IconButton size="1" variant="ghost">
+              <FontItalicIcon width="24" height="24" />
+            </IconButton>
+          </Toolbar.Button>
+          <Toolbar.Button
+            asChild
+            aria-label="Code"
             onClick={() => insertFormatting('`')}
-            title="Code"
           >
-            {'</>'}
-          </button>
-          <button
-            type="button"
-            className="btn btn-icon"
-            onClick={insertLink}
-            title="Link"
-          >
-            🔗
-          </button>
-          <button
-            type="button"
-            className="btn btn-icon"
+            <IconButton size="1" variant="ghost">
+              <CodeIcon width="24" height="24" />
+            </IconButton>
+          </Toolbar.Button>
+          <Toolbar.Button asChild aria-label="Link" onClick={insertLink}>
+            <IconButton size="1" variant="ghost">
+              <Link2Icon width="24" height="24" />
+            </IconButton>
+          </Toolbar.Button>
+          <Toolbar.Button
+            asChild
+            aria-label="Bullet List"
             onClick={insertBulletList}
-            title="Bullet List"
           >
-            •
-          </button>
-          <div className="toolbar-divider" />
-          <button
-            type="button"
-            className="btn btn-icon btn-separator"
-            onClick={insertSeparator}
-            title="Insert Front/Back Separator"
+            <IconButton size="1" variant="ghost">
+              <ListBulletIcon width="24" height="24" />
+            </IconButton>
+          </Toolbar.Button>
+
+          <Toolbar.Separator
+            style={{
+              width: '1px',
+              height: '20px',
+              backgroundColor: 'var(--gray-6)',
+              margin: '0 8px',
+            }}
+          />
+
+          <Toolbar.Button
+            asChild
+            aria-label="Insert Front/Back Separator"
             disabled={parts.hasSeparator}
+            onClick={insertSeparator}
           >
-            ---
-          </button>
-        </div>
-        <div className="editor-toolbar-right">
-          <div className="preview-mode-toggle">
-            <button
-              type="button"
-              className={`toggle-btn ${previewMode === 'adaptive' ? 'active' : ''}`}
-              onClick={() => setPreviewMode('adaptive')}
-            >
-              Adaptive
-            </button>
-            <button
-              type="button"
-              className={`toggle-btn ${previewMode === 'combined' ? 'active' : ''}`}
-              onClick={() => setPreviewMode('combined')}
-            >
-              Combined
-            </button>
-            <button
-              type="button"
-              className={`toggle-btn ${previewMode === 'toggle' ? 'active' : ''}`}
-              onClick={() => setPreviewMode('toggle')}
-            >
-              Toggle
-            </button>
-          </div>
-        </div>
-      </div>
+            <IconButton size="1" variant="ghost" disabled={parts.hasSeparator}>
+              <DividerHorizontalIcon />
+            </IconButton>
+          </Toolbar.Button>
+        </Flex>
+
+        <SegmentedControl.Root
+          value={previewMode}
+          onValueChange={(value) => setPreviewMode(value as PreviewMode)}
+          size="2"
+        >
+          <SegmentedControl.Item value="adaptive">
+            Adaptive
+          </SegmentedControl.Item>
+          <SegmentedControl.Item value="combined">
+            Combined
+          </SegmentedControl.Item>
+          <SegmentedControl.Item value="toggle">Toggle</SegmentedControl.Item>
+        </SegmentedControl.Root>
+      </Toolbar.Root>
 
       {/* Main Editor Area */}
-      <div className="editor-main">
+      <Flex
+        className="editor-preview-container"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          border: '1px solid var(--gray-6)',
+          borderTop: 'none',
+          borderRadius: '0 0 var(--radius-2) var(--radius-2)',
+          overflow: 'hidden',
+        }}
+      >
         {/* Editor Pane */}
-        <div className="editor-pane">
+        <Box
+          style={{
+            width: `${editorSplitRatio * 100}%`,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <textarea
             ref={textareaRef}
             value={markdown}
@@ -410,116 +532,231 @@ export function CardEditorPage() {
             className="editor-textarea"
             autoFocus
           />
-        </div>
+        </Box>
 
-        {/* Vertical Divider */}
-        <div className="editor-divider-vertical" />
+        {/* Vertical Divider (Draggable) */}
+        <Separator
+          orientation="vertical"
+          size="4"
+          className="editor-divider-vertical"
+          onMouseDown={handleVerticalDragStart}
+          style={{ cursor: 'col-resize' }}
+        />
 
         {/* Preview Pane */}
-        <div className="editor-preview-pane">
+        <Box
+          style={{
+            width: `${(1 - editorSplitRatio) * 100}%`,
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: 'var(--gray-2)',
+          }}
+        >
           {previewMode === 'toggle' && (
-            <div className="preview-toggle-header">
-              <button
-                type="button"
-                className={`toggle-btn ${toggleSide === 'front' ? 'active' : ''}`}
+            <Flex
+              gap="1"
+              p="2"
+              style={{ borderBottom: '1px solid var(--gray-6)' }}
+            >
+              <Button
+                size="1"
+                variant={toggleSide === 'front' ? 'solid' : 'soft'}
                 onClick={() => setToggleSide('front')}
               >
                 Front
-              </button>
-              <button
-                type="button"
-                className={`toggle-btn ${toggleSide === 'back' ? 'active' : ''}`}
+              </Button>
+              <Button
+                size="1"
+                variant={toggleSide === 'back' ? 'solid' : 'soft'}
                 onClick={() => setToggleSide('back')}
                 disabled={!parts.hasSeparator && !parts.back.trim()}
               >
                 Back
-              </button>
-            </div>
+              </Button>
+            </Flex>
           )}
 
           {previewMode === 'combined' ? (
-            <div className="editor-preview-combined">
-              <div
-                className="preview-section preview-front"
-                style={{ height: `${combinedSplitRatio * 100}%` }}
+            <Box
+              className="editor-preview-combined"
+              style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+            >
+              <Box
+                style={{
+                  height: `${combinedSplitRatio * 100}%`,
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
               >
-                <span className="preview-label">Front</span>
-                <div className="preview-content">
+                <Text
+                  size="1"
+                  weight="bold"
+                  color="gray"
+                  style={{
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    padding: '8px 16px 4px',
+                  }}
+                >
+                  Front
+                </Text>
+                <Box p="3" style={{ flex: 1, overflowY: 'auto' }}>
                   <CardContent content={parts.front || 'No content'} />
-                </div>
-              </div>
-              <div
+                </Box>
+              </Box>
+              <Box
                 className="preview-divider-horizontal"
                 onMouseDown={handleDragStart}
+                style={{
+                  height: '6px',
+                  backgroundColor: 'var(--gray-6)',
+                  cursor: 'row-resize',
+                }}
               />
-              <div
-                className="preview-section preview-back"
-                style={{ height: `${(1 - combinedSplitRatio) * 100}%` }}
+              <Box
+                style={{
+                  height: `${(1 - combinedSplitRatio) * 100}%`,
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
               >
-                <span className="preview-label">Back</span>
-                <div className="preview-content">
+                <Text
+                  size="1"
+                  weight="bold"
+                  color="gray"
+                  style={{
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    padding: '8px 16px 4px',
+                  }}
+                >
+                  Back
+                </Text>
+                <Box p="3" style={{ flex: 1, overflowY: 'auto' }}>
                   {parts.back.trim() ? (
                     <CardContent content={parts.back} />
                   ) : (
-                    <span className="preview-placeholder">No back content</span>
+                    <Text color="gray" style={{ fontStyle: 'italic' }}>
+                      No back content
+                    </Text>
                   )}
-                </div>
-              </div>
-            </div>
+                </Box>
+              </Box>
+            </Box>
           ) : (
-            <div className="editor-preview-single">
+            <Box p="4" style={{ flex: 1, overflowY: 'auto' }}>
               {previewMode === 'adaptive' && (
-                <span className="preview-label">
+                <Text
+                  size="1"
+                  weight="bold"
+                  color="gray"
+                  mb="2"
+                  style={{
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    display: 'block',
+                  }}
+                >
                   {previewContent.front ? 'Front' : 'Back'}
-                </span>
+                </Text>
               )}
-              <div className="preview-content">
-                {previewContent.front && (
-                  <CardContent content={parts.front || 'No content'} />
-                )}
-                {previewContent.back &&
-                  (parts.back.trim() ? (
-                    <CardContent content={parts.back} />
-                  ) : (
-                    <span className="preview-placeholder">No back content</span>
-                  ))}
-              </div>
-            </div>
+              {previewContent.front && (
+                <CardContent content={parts.front || 'No content'} />
+              )}
+              {previewContent.back &&
+                (parts.back.trim() ? (
+                  <CardContent content={parts.back} />
+                ) : (
+                  <Text color="gray" style={{ fontStyle: 'italic' }}>
+                    No back content
+                  </Text>
+                ))}
+            </Box>
           )}
-        </div>
-      </div>
+        </Box>
+      </Flex>
 
       {/* Footer with Priority and Meta */}
-      <div className="editor-footer">
-        <div className="form-group form-group-inline">
-          <label htmlFor="card-priority">Priority (1-10)</label>
-          <input
-            id="card-priority"
+      <Flex justify="between" align="center" pt="3">
+        <Flex align="center" gap="2">
+          <Text size="2" weight="bold">
+            Priority (1-10)
+          </Text>
+          <TextField.Root
             type="number"
             min={1}
             max={10}
-            value={priority}
+            value={String(priority)}
             onChange={(e) => setPriority(Number(e.target.value))}
-            className="form-input form-input-small"
+            style={{ width: '80px' }}
           />
-        </div>
+        </Flex>
 
         {!isNew && originalCard && (
-          <div className="card-editor-meta-inline">
-            <span>State: {originalCard.state}</span>
-            <span>Reviews: {originalCard.reps}</span>
-            <span>Lapses: {originalCard.lapses}</span>
+          <Flex gap="4">
+            <Text size="1" color="gray">
+              State: {originalCard.state}
+            </Text>
+            <Text size="1" color="gray">
+              Reviews: {originalCard.reps}
+            </Text>
+            <Text size="1" color="gray">
+              Lapses: {originalCard.lapses}
+            </Text>
             {originalCard.lastReview && (
-              <span>
+              <Text size="1" color="gray">
                 Last: {new Date(originalCard.lastReview).toLocaleDateString()}
-              </span>
+              </Text>
             )}
-            <span>
+            <Text size="1" color="gray">
               Next: {new Date(originalCard.nextReview).toLocaleDateString()}
-            </span>
-          </div>
+            </Text>
+          </Flex>
         )}
-      </div>
-    </div>
+      </Flex>
+
+      {/* Delete Card Dialog */}
+      <Dialog.Root open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <Dialog.Content maxWidth="400px">
+          <Dialog.Title>Delete Card</Dialog.Title>
+          <Dialog.Description size="2" mb="4">
+            Are you sure you want to delete this card? This action cannot be
+            undone.
+          </Dialog.Description>
+          <Flex gap="3" justify="end">
+            <Dialog.Close>
+              <Button variant="soft" color="gray">
+                Cancel
+              </Button>
+            </Dialog.Close>
+            <Button color="red" onClick={handleDelete} disabled={deleting}>
+              {deleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
+
+      {/* Discard Changes Dialog */}
+      <Dialog.Root open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+        <Dialog.Content maxWidth="400px">
+          <Dialog.Title>Discard Changes</Dialog.Title>
+          <Dialog.Description size="2" mb="4">
+            You have unsaved changes. Are you sure you want to discard them?
+          </Dialog.Description>
+          <Flex gap="3" justify="end">
+            <Dialog.Close>
+              <Button variant="soft" color="gray">
+                Keep Editing
+              </Button>
+            </Dialog.Close>
+            <Button color="red" onClick={confirmDiscard}>
+              Discard
+            </Button>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
+    </Box>
   );
 }

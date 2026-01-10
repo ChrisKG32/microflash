@@ -7,10 +7,20 @@
 
 import { useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Flex,
+  Heading,
+  Text,
+  Button,
+  Callout,
+  Spinner,
+} from '@radix-ui/themes';
+import { ExclamationTriangleIcon } from '@radix-ui/react-icons';
 import { startSprint, ApiError } from '@microflash/api-client';
 
 export function SprintCompletePage() {
-  const { sprintId } = useParams<{ sprintId: string }>();
+  const { sprintId: _sprintId } = useParams<{ sprintId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -81,59 +91,107 @@ export function SprintCompletePage() {
   };
 
   return (
-    <div className="page sprint-page">
-      <div className="sprint-complete-container">
-        <div className="sprint-complete-icon">🎉</div>
-        <h2 className="sprint-complete-title">Sprint Complete!</h2>
+    <Box
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Flex direction="column" align="center" gap="5" p="6">
+        <Text size="9">🎉</Text>
+        <Heading size="7">Sprint Complete!</Heading>
 
         {hasStats && (
-          <div className="sprint-complete-stats">
-            <div className="sprint-stat">
-              <span className="sprint-stat-value">{reviewedCards}</span>
-              <span className="sprint-stat-label">Cards Reviewed</span>
-            </div>
+          <Flex gap="6" mt="2">
+            <Flex direction="column" align="center">
+              <Text size="7" weight="bold">
+                {reviewedCards}
+              </Text>
+              <Text
+                size="1"
+                color="gray"
+                style={{ textTransform: 'uppercase', letterSpacing: '1px' }}
+              >
+                Cards Reviewed
+              </Text>
+            </Flex>
             {passCount !== null && failCount !== null && (
               <>
-                <div className="sprint-stat sprint-stat-pass">
-                  <span className="sprint-stat-value">{passCount}</span>
-                  <span className="sprint-stat-label">Passed</span>
-                </div>
-                <div className="sprint-stat sprint-stat-fail">
-                  <span className="sprint-stat-value">{failCount}</span>
-                  <span className="sprint-stat-label">Failed</span>
-                </div>
+                <Flex direction="column" align="center">
+                  <Text size="7" weight="bold" color="green">
+                    {passCount}
+                  </Text>
+                  <Text
+                    size="1"
+                    color="gray"
+                    style={{ textTransform: 'uppercase', letterSpacing: '1px' }}
+                  >
+                    Passed
+                  </Text>
+                </Flex>
+                <Flex direction="column" align="center">
+                  <Text size="7" weight="bold" color="red">
+                    {failCount}
+                  </Text>
+                  <Text
+                    size="1"
+                    color="gray"
+                    style={{ textTransform: 'uppercase', letterSpacing: '1px' }}
+                  >
+                    Failed
+                  </Text>
+                </Flex>
               </>
             )}
             {durationSeconds && Number(durationSeconds) > 0 && (
-              <div className="sprint-stat">
-                <span className="sprint-stat-value">
+              <Flex direction="column" align="center">
+                <Text size="7" weight="bold">
                   {formatDuration(Number(durationSeconds))}
-                </span>
-                <span className="sprint-stat-label">Duration</span>
-              </div>
+                </Text>
+                <Text
+                  size="1"
+                  color="gray"
+                  style={{ textTransform: 'uppercase', letterSpacing: '1px' }}
+                >
+                  Duration
+                </Text>
+              </Flex>
             )}
-          </div>
+          </Flex>
         )}
 
-        {error && <div className="sprint-complete-error">{error}</div>}
+        {error && (
+          <Callout.Root color="red" size="2">
+            <Callout.Icon>
+              <ExclamationTriangleIcon />
+            </Callout.Icon>
+            <Callout.Text>{error}</Callout.Text>
+          </Callout.Root>
+        )}
 
-        <div className="sprint-complete-actions">
-          <button
-            className="btn btn-secondary btn-large"
+        <Flex gap="3" mt="4">
+          <Button
+            size="3"
+            variant="soft"
             onClick={handleDone}
             disabled={startingNew}
           >
             Done
-          </button>
-          <button
-            className="btn btn-primary btn-large"
-            onClick={handleOneMore}
-            disabled={startingNew}
-          >
-            {startingNew ? 'Starting...' : 'One More Sprint'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+          <Button size="3" onClick={handleOneMore} disabled={startingNew}>
+            {startingNew ? (
+              <>
+                <Spinner size="1" />
+                Starting...
+              </>
+            ) : (
+              'One More Sprint'
+            )}
+          </Button>
+        </Flex>
+      </Flex>
+    </Box>
   );
 }
