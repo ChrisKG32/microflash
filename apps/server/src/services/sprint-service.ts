@@ -211,7 +211,7 @@ export async function selectEligibleCards(
 
   // Sort by deck priority (secondary sort after card priority)
   // Since Prisma can't do this, we do it in memory
-  const sortedCards = cards
+  return cards
     .sort((a, b) => {
       // Primary: nextReviewDate ASC
       const dateDiff = a.nextReviewDate.getTime() - b.nextReviewDate.getTime();
@@ -229,8 +229,6 @@ export async function selectEligibleCards(
       return a.createdAt.getTime() - b.createdAt.getTime();
     })
     .slice(0, limit);
-
-  return sortedCards;
 }
 
 /**
