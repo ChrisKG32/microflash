@@ -116,15 +116,15 @@ export function CardEditorPage() {
 
       if (isNew) {
         await createCard({
-          front: front.trim(),
-          back: back.trim(),
+          front,
+          back,
           deckId,
           priority,
         });
       } else if (cardId) {
         await updateCard(cardId, {
-          front: front.trim(),
-          back: back.trim(),
+          front,
+          back,
           priority,
         });
       }
