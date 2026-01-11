@@ -35,19 +35,19 @@ router.get(
     const now = new Date();
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    // Count due cards (not snoozed)
+    // Count due cards (not snoozed, exclude onboarding fixture)
     const dueCount = await prisma.card.count({
       where: {
-        deck: { userId: user.id },
+        deck: { userId: user.id, isOnboardingFixture: false },
         nextReviewDate: { lte: now },
         OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }],
       },
     });
 
-    // Count overdue cards (due more than 24 hours ago)
+    // Count overdue cards (due more than 24 hours ago, exclude onboarding fixture)
     const overdueCount = await prisma.card.count({
       where: {
-        deck: { userId: user.id },
+        deck: { userId: user.id, isOnboardingFixture: false },
         nextReviewDate: { lte: twentyFourHoursAgo },
         OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }],
       },

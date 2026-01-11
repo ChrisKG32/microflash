@@ -23,6 +23,9 @@ router.get(
         clerkId: user.clerkId,
         notificationsEnabled: user.notificationsEnabled,
         hasPushToken: !!user.pushToken,
+        onboardingComplete: user.onboardingComplete,
+        notificationsPromptedAt:
+          user.notificationsPromptedAt?.toISOString() ?? null,
         createdAt: user.createdAt.toISOString(),
       },
     });

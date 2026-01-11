@@ -36,6 +36,7 @@ const mockDeck: Deck & { cards?: Card[] } = {
   description: null,
   priority: 50,
   parentDeckId: null,
+    isOnboardingFixture: false,
   userId: 'user-1',
   createdAt: new Date(),
   updatedAt: new Date(),

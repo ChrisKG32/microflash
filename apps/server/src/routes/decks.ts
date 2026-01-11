@@ -21,9 +21,11 @@ router.get(
     const user = req.user!;
 
     // Fetch all decks for the user, including subdeck relationships
+    // Exclude onboarding fixture decks
     const decks = await prisma.deck.findMany({
       where: {
         userId: user.id,
+        isOnboardingFixture: false,
       },
       include: {
         subDecks: true, // Include child decks

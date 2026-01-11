@@ -30,6 +30,7 @@ router.get(
         nextReviewDate: { lte: now },
         deck: {
           userId: user.id,
+          isOnboardingFixture: false,
         },
       },
       include: {
@@ -74,10 +75,10 @@ router.get(
 
     // Build where clause
     const where: {
-      deck: { userId: string };
+      deck: { userId: string; isOnboardingFixture: boolean };
       deckId?: string;
     } = {
-      deck: { userId: user.id },
+      deck: { userId: user.id, isOnboardingFixture: false },
     };
 
     if (typeof deckId === 'string' && deckId.length > 0) {

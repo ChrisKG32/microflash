@@ -1,7 +1,7 @@
 ---
 description: Implementation agent that applies a Plan artifact, validates changes, and updates diagrams at the end.
 mode: primary
-model: opencode/claude-opus-4-5
+model: opencode/claude-sonnet-4-5
 temperature: 0.4
 tools:
   github_*: false

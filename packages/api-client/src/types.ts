@@ -14,6 +14,8 @@ export interface User {
   clerkId: string;
   notificationsEnabled: boolean;
   hasPushToken: boolean;
+  onboardingComplete: boolean;
+  notificationsPromptedAt: string | null;
   createdAt: string;
 }
 
