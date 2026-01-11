@@ -4,8 +4,14 @@
    Most UI is now handled by Radix Themes. This file contains:
    - CSS reset essentials
    - Editor-specific styles (textarea, split panes)
-   - Markdown/KaTeX rendering styles
+   - Markdown/MathJax rendering styles
+   
+   Note: CSS variables like --gray-*, --accent-* are provided by @radix-ui/themes
+   at runtime. Import the Radix styles in your IDE settings if you see warnings.
    ============================================================================= */
+
+/* Import Radix Themes CSS for IDE recognition of CSS variables */
+@import '@radix-ui/themes/styles.css';
 
 /* Reset essentials */
 * {
@@ -159,12 +165,13 @@
   color: var(--accent-10);
 }
 
-/* KaTeX overrides for theme compatibility */
-.card-content-rendered .katex {
+/* MathJax overrides for theme compatibility */
+.card-content-rendered mjx-container {
   color: var(--gray-12);
 }
 
-.card-content-rendered .katex-display {
+.card-content-rendered mjx-container[display='true'] {
+  display: block;
   margin: 16px 0;
   overflow-x: auto;
   overflow-y: hidden;

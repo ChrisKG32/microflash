@@ -156,8 +156,8 @@ router.post(
     // Create card with initial FSRS state
     const card = await prisma.card.create({
       data: {
-        front: front.trim(),
-        back: back.trim(),
+        front,
+        back,
         deckId,
         ...(priority !== undefined && { priority }),
         // FSRS state fields
@@ -322,10 +322,10 @@ router.patch(
     } = {};
 
     if (updates.front !== undefined) {
-      updateData.front = updates.front.trim();
+      updateData.front = updates.front;
     }
     if (updates.back !== undefined) {
-      updateData.back = updates.back.trim();
+      updateData.back = updates.back;
     }
     if (updates.deckId !== undefined) {
       updateData.deckId = updates.deckId;
