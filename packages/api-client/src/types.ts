@@ -14,6 +14,8 @@ export interface User {
   clerkId: string;
   notificationsEnabled: boolean;
   hasPushToken: boolean;
+  onboardingComplete: boolean;
+  notificationsPromptedAt: string | null;
   createdAt: string;
 }
 
@@ -189,6 +191,9 @@ export interface UpdateNotificationPreferencesRequest {
   notificationsEnabled?: boolean;
   notificationCooldownMinutes?: number;
   maxNotificationsPerDay?: number;
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
+  sprintSize?: number;
 }
 
 // =============================================================================

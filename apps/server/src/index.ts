@@ -12,6 +12,7 @@ import notificationsRouter from '@/routes/notifications';
 import meRouter from '@/routes/me';
 import sprintsRouter from '@/routes/sprints';
 import homeRouter from '@/routes/home';
+import onboardingRouter from '@/routes/onboarding';
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
@@ -45,6 +46,7 @@ app.use('/api/reviews', reviewsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/sprints', sprintsRouter);
 app.use('/api/home', homeRouter);
+app.use('/api/onboarding', onboardingRouter);
 
 // 404 handler - returns consistent error shape
 app.use((_req, res) => {

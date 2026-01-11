@@ -310,6 +310,39 @@ export async function unsnoozeCard(
 }
 
 // =============================================================================
+// Onboarding API Methods
+// =============================================================================
+
+/**
+ * Mark that notifications prompt was shown.
+ */
+export async function markNotificationsPrompted(): Promise<{
+  success: boolean;
+}> {
+  return request('/api/onboarding/notifications-prompted', {
+    method: 'POST',
+  });
+}
+
+/**
+ * Create a sprint using the onboarding fixture deck.
+ */
+export async function createFixtureSprint(): Promise<{ sprint: Sprint }> {
+  return request('/api/onboarding/fixture-sprint', {
+    method: 'POST',
+  });
+}
+
+/**
+ * Complete onboarding (deletes fixture, marks complete).
+ */
+export async function completeOnboarding(): Promise<{ success: boolean }> {
+  return request('/api/onboarding/complete', {
+    method: 'POST',
+  });
+}
+
+// =============================================================================
 // Dev/Test API Methods (non-production only)
 // =============================================================================
 

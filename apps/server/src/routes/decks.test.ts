@@ -107,6 +107,7 @@ describe('Decks Routes - Unit Tests', () => {
           priority: 50,
           userId: 'user-internal-id',
           parentDeckId: null,
+          isOnboardingFixture: false,
           createdAt: new Date('2024-01-01'),
           updatedAt: new Date('2024-01-01'),
           subDecks: [],
@@ -198,6 +199,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -227,6 +229,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -249,6 +252,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -286,6 +290,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'different-user-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -309,6 +314,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: 'grandparent-deck', // Already a subdeck
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -351,6 +357,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'different-user-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
         subDecks: [],
@@ -373,6 +380,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
         subDecks: [
@@ -433,6 +441,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'different-user-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
         subDecks: [],
@@ -456,6 +465,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
         subDecks: [],
@@ -468,6 +478,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
         subDecks: [],
@@ -492,6 +503,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
         subDecks: [],
@@ -516,6 +528,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
         subDecks: [{ id: 'subdeck-1' }],
@@ -529,6 +542,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -552,6 +566,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
         subDecks: [],
@@ -565,6 +580,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: 'grandparent-deck',
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -599,6 +615,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
         subDecks: [],
@@ -643,6 +660,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'different-user-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -663,6 +681,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -674,6 +693,7 @@ describe('Decks Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });

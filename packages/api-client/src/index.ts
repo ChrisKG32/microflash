@@ -83,6 +83,10 @@ export {
   updateNotificationPreferences,
   snoozeCardNotifications,
   unsnoozeCard,
+  // Onboarding
+  markNotificationsPrompted,
+  createFixtureSprint,
+  completeOnboarding,
   // Dev/Test
   createDevTestSprintNotification,
 } from './endpoints';

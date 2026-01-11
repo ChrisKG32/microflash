@@ -86,5 +86,8 @@ export {
   updateNotificationPreferences,
   snoozeCardNotifications,
   unsnoozeCard,
+  markNotificationsPrompted,
+  createFixtureSprint,
+  completeOnboarding,
   createDevTestSprintNotification,
 } from '@microflash/api-client';

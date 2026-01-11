@@ -42,6 +42,20 @@ const updatePreferencesSchema = z.object({
     .min(1, 'Must be at least 1')
     .max(50, 'Maximum 50 notifications per day')
     .optional(),
+  quietHoursStart: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Must be in HH:MM format')
+    .optional(),
+  quietHoursEnd: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Must be in HH:MM format')
+    .optional(),
+  sprintSize: z
+    .number()
+    .int()
+    .min(3, 'Sprint size must be at least 3')
+    .max(10, 'Sprint size must be at most 10')
+    .optional(),
 });
 
 // POST /api/notifications/register - Register push token
@@ -177,6 +191,9 @@ router.patch(
       notificationsEnabled,
       notificationCooldownMinutes,
       maxNotificationsPerDay,
+      quietHoursStart,
+      quietHoursEnd,
+      sprintSize,
     } = req.validated!.body as z.infer<typeof updatePreferencesSchema>;
 
     // Build update data (only include fields that were provided)
@@ -184,6 +201,9 @@ router.patch(
       notificationsEnabled?: boolean;
       notificationCooldownMinutes?: number;
       maxNotificationsPerDay?: number;
+      quietHoursStart?: string;
+      quietHoursEnd?: string;
+      sprintSize?: number;
     } = {};
 
     if (notificationsEnabled !== undefined) {
@@ -194,6 +214,15 @@ router.patch(
     }
     if (maxNotificationsPerDay !== undefined) {
       updateData.maxNotificationsPerDay = maxNotificationsPerDay;
+    }
+    if (quietHoursStart !== undefined) {
+      updateData.quietHoursStart = quietHoursStart;
+    }
+    if (quietHoursEnd !== undefined) {
+      updateData.quietHoursEnd = quietHoursEnd;
+    }
+    if (sprintSize !== undefined) {
+      updateData.sprintSize = sprintSize;
     }
 
     // Update user's notification preferences

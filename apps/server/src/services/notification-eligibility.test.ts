@@ -7,6 +7,8 @@ import {
   isToday,
   getCandidateUsersForPush,
   userHasDueCards,
+  timeStringToMinutes,
+  isInQuietHours,
 } from '@/services/notification-eligibility';
 import {
   findResumableSprint,
@@ -48,6 +50,9 @@ describe('Notification Eligibility Service', () => {
       notificationCooldownMinutes: number;
       maxNotificationsPerDay: number;
       notificationsCountToday: number;
+      quietHoursStart: string | null;
+      quietHoursEnd: string | null;
+      timezone: string;
     }> = {},
   ) => ({
     id: 'user-1',
@@ -57,6 +62,9 @@ describe('Notification Eligibility Service', () => {
     notificationCooldownMinutes: 120,
     maxNotificationsPerDay: 10,
     notificationsCountToday: 0,
+    quietHoursStart: null,
+    quietHoursEnd: null,
+    timezone: 'UTC',
     ...overrides,
   });
 
@@ -229,6 +237,136 @@ describe('Notification Eligibility Service', () => {
 
       expect(result.eligible).toBe(true);
     });
+
+    it('should return ineligible when in quiet hours (same day)', async () => {
+      // Test time: 2024-01-15T10:00:00.000Z (10:00 AM UTC)
+      // Quiet hours: 08:00 - 12:00 UTC
+      const user = createMockUser({
+        quietHoursStart: '08:00',
+        quietHoursEnd: '12:00',
+        timezone: 'UTC',
+      });
+
+      const result = await getUserPushEligibility(user, now);
+
+      expect(result.eligible).toBe(false);
+      expect(result.reason).toBe('QUIET_HOURS_ACTIVE');
+      expect(result.nextEligibleAt).toBeDefined();
+    });
+
+    it('should return ineligible when in quiet hours (spans midnight)', async () => {
+      // Test time: 2024-01-15T02:00:00.000Z (2:00 AM UTC)
+      // Quiet hours: 22:00 - 07:00 UTC (spans midnight)
+      const testTime = new Date('2024-01-15T02:00:00.000Z');
+      const user = createMockUser({
+        quietHoursStart: '22:00',
+        quietHoursEnd: '07:00',
+        timezone: 'UTC',
+      });
+
+      const result = await getUserPushEligibility(user, testTime);
+
+      expect(result.eligible).toBe(false);
+      expect(result.reason).toBe('QUIET_HOURS_ACTIVE');
+    });
+
+    it('should return eligible when outside quiet hours', async () => {
+      // Test time: 2024-01-15T10:00:00.000Z (10:00 AM UTC)
+      // Quiet hours: 22:00 - 07:00 UTC
+      const user = createMockUser({
+        quietHoursStart: '22:00',
+        quietHoursEnd: '07:00',
+        timezone: 'UTC',
+      });
+
+      const result = await getUserPushEligibility(user, now);
+
+      expect(result.eligible).toBe(true);
+    });
+
+    it('should return eligible when quiet hours not configured', async () => {
+      const user = createMockUser({
+        quietHoursStart: null,
+        quietHoursEnd: null,
+      });
+
+      const result = await getUserPushEligibility(user, now);
+
+      expect(result.eligible).toBe(true);
+    });
+
+    it('should handle timezone conversion for quiet hours', async () => {
+      // Test time: 2024-01-15T10:00:00.000Z (10:00 AM UTC = 5:00 AM EST)
+      // Quiet hours: 22:00 - 07:00 EST
+      // 5:00 AM EST is within quiet hours
+      const user = createMockUser({
+        quietHoursStart: '22:00',
+        quietHoursEnd: '07:00',
+        timezone: 'America/New_York',
+      });
+
+      const result = await getUserPushEligibility(user, now);
+
+      expect(result.eligible).toBe(false);
+      expect(result.reason).toBe('QUIET_HOURS_ACTIVE');
+    });
+  });
+
+  describe('Quiet hours helper functions', () => {
+    describe('timeStringToMinutes', () => {
+      it('should convert midnight to 0', () => {
+        expect(timeStringToMinutes('00:00')).toBe(0);
+      });
+
+      it('should convert morning time correctly', () => {
+        expect(timeStringToMinutes('07:30')).toBe(450);
+      });
+
+      it('should convert evening time correctly', () => {
+        expect(timeStringToMinutes('22:00')).toBe(1320);
+      });
+
+      it('should convert end of day correctly', () => {
+        expect(timeStringToMinutes('23:59')).toBe(1439);
+      });
+    });
+
+    describe('isInQuietHours', () => {
+      it('should return true when in quiet hours (same day)', () => {
+        // Current: 10:00, Quiet: 08:00 - 12:00
+        expect(isInQuietHours(600, 480, 720)).toBe(true);
+      });
+
+      it('should return false when before quiet hours', () => {
+        // Current: 07:00, Quiet: 08:00 - 12:00
+        expect(isInQuietHours(420, 480, 720)).toBe(false);
+      });
+
+      it('should return false when after quiet hours', () => {
+        // Current: 13:00, Quiet: 08:00 - 12:00
+        expect(isInQuietHours(780, 480, 720)).toBe(false);
+      });
+
+      it('should handle quiet hours spanning midnight (in quiet hours)', () => {
+        // Current: 02:00, Quiet: 22:00 - 07:00
+        expect(isInQuietHours(120, 1320, 420)).toBe(true);
+      });
+
+      it('should handle quiet hours spanning midnight (before start)', () => {
+        // Current: 20:00, Quiet: 22:00 - 07:00
+        expect(isInQuietHours(1200, 1320, 420)).toBe(false);
+      });
+
+      it('should handle quiet hours spanning midnight (after end)', () => {
+        // Current: 08:00, Quiet: 22:00 - 07:00
+        expect(isInQuietHours(480, 1320, 420)).toBe(false);
+      });
+
+      it('should handle quiet hours spanning midnight (late night)', () => {
+        // Current: 23:00, Quiet: 22:00 - 07:00
+        expect(isInQuietHours(1380, 1320, 420)).toBe(true);
+      });
+    });
   });
 
   describe('getNextEligiblePushTime', () => {
@@ -285,6 +423,9 @@ describe('Notification Eligibility Service', () => {
           maxNotificationsPerDay: true,
           notificationsCountToday: true,
           sprintSize: true,
+          quietHoursStart: true,
+          quietHoursEnd: true,
+          timezone: true,
         },
       });
       expect(result).toEqual(mockUsers);

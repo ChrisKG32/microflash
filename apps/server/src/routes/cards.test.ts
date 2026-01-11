@@ -169,6 +169,7 @@ describe('Cards Routes - Unit Tests', () => {
         priority: 50,
         userId: 'different-user-id', // Different user owns this deck
         parentDeckId: null,
+    isOnboardingFixture: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -191,6 +192,7 @@ describe('Cards Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id', // Same user owns this deck
         parentDeckId: null,
+    isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -245,6 +247,7 @@ describe('Cards Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+    isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -292,6 +295,7 @@ describe('Cards Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+    isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -345,6 +349,7 @@ describe('Cards Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
+    isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -715,6 +720,7 @@ describe('Cards Routes - Unit Tests', () => {
         priority: 50,
         userId: 'different-user-id',
         parentDeckId: null,
+    isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });

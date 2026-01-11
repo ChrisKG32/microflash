@@ -1,16 +1,17 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
 } from '@react-navigation/native';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { abandonSprint } from '@/lib/api';
+import { abandonSprint, getMe } from '@/lib/api';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -152,6 +153,48 @@ function useNotificationObserver() {
   }, []);
 }
 
+function OnboardingGate({ children }: { children: React.ReactNode }) {
+  const segments = useSegments();
+  const [loading, setLoading] = useState(true);
+  const [checked, setChecked] = useState(false);
+
+  const checkOnboardingStatus = useCallback(async () => {
+    try {
+      const { user } = await getMe();
+
+      // If not complete and not already in onboarding, redirect
+      if (!user.onboardingComplete && !segments[0]?.includes('onboarding')) {
+        router.replace('/onboarding/notifications');
+      }
+    } catch (error) {
+      console.error('[OnboardingGate] Failed to check status:', error);
+      // On error, assume onboarding incomplete and redirect
+      if (!segments[0]?.includes('onboarding')) {
+        router.replace('/onboarding/notifications');
+      }
+    } finally {
+      setLoading(false);
+      setChecked(true);
+    }
+  }, [segments]);
+
+  useEffect(() => {
+    if (!checked) {
+      checkOnboardingStatus();
+    }
+  }, [checkOnboardingStatus, checked]);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2196f3" />
+      </View>
+    );
+  }
+
+  return <>{children}</>;
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
@@ -160,36 +203,74 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="deck/[id]" options={{ headerBackTitle: 'Decks' }} />
-        <Stack.Screen
-          name="sprint/[id]"
-          options={{ headerBackTitle: 'Back', title: 'Sprint Review' }}
-        />
-        <Stack.Screen
-          name="sprint/complete"
-          options={{ headerShown: false, title: 'Sprint Complete' }}
-        />
-        <Stack.Screen
-          name="notification-controls"
-          options={{ title: 'Notification Controls' }}
-        />
-        <Stack.Screen name="browse" options={{ title: 'Review Ahead' }} />
-        <Stack.Screen
-          name="card/new"
-          options={{ headerBackTitle: 'Cancel', title: 'New Card' }}
-        />
-        <Stack.Screen
-          name="card/[id]"
-          options={{ headerBackTitle: 'Cancel', title: 'Edit Card' }}
-        />
-        <Stack.Screen
-          name="modal"
-          options={{ presentation: 'modal', title: 'Modal' }}
-        />
-      </Stack>
+      <OnboardingGate>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="onboarding/notifications"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="onboarding/setup"
+            options={{ headerBackTitle: 'Back' }}
+          />
+          <Stack.Screen
+            name="onboarding/create-deck"
+            options={{ headerBackTitle: 'Back' }}
+          />
+          <Stack.Screen
+            name="onboarding/create-card"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="onboarding/fixture-sprint"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="onboarding/finish"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="deck/[id]"
+            options={{ headerBackTitle: 'Decks' }}
+          />
+          <Stack.Screen
+            name="sprint/[id]"
+            options={{ headerBackTitle: 'Back', title: 'Sprint Review' }}
+          />
+          <Stack.Screen
+            name="sprint/complete"
+            options={{ headerShown: false, title: 'Sprint Complete' }}
+          />
+          <Stack.Screen
+            name="notification-controls"
+            options={{ title: 'Notification Controls' }}
+          />
+          <Stack.Screen name="browse" options={{ title: 'Review Ahead' }} />
+          <Stack.Screen
+            name="card/new"
+            options={{ headerBackTitle: 'Cancel', title: 'New Card' }}
+          />
+          <Stack.Screen
+            name="card/[id]"
+            options={{ headerBackTitle: 'Cancel', title: 'Edit Card' }}
+          />
+          <Stack.Screen
+            name="modal"
+            options={{ presentation: 'modal', title: 'Modal' }}
+          />
+        </Stack>
+      </OnboardingGate>
       <StatusBar style="auto" />
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+});
