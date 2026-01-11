@@ -191,6 +191,9 @@ export interface UpdateNotificationPreferencesRequest {
   notificationsEnabled?: boolean;
   notificationCooldownMinutes?: number;
   maxNotificationsPerDay?: number;
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
+  sprintSize?: number;
 }
 
 // =============================================================================

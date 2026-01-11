@@ -72,6 +72,9 @@ describe('Notification Orchestrator', () => {
     maxNotificationsPerDay: 10,
     notificationsCountToday: 0,
     sprintSize: 5,
+    quietHoursStart: null,
+    quietHoursEnd: null,
+    timezone: 'UTC',
   });
 
   it('should return early when no candidate users', async () => {

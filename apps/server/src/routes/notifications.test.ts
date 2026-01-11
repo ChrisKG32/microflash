@@ -299,6 +299,84 @@ describe('Notifications Routes', () => {
 
       expect(response.status).toBe(200);
     });
+
+    it('should update quiet hours', async () => {
+      (mockPrisma.user.update as jest.Mock).mockResolvedValue({
+        id: 'user-1',
+        notificationsEnabled: true,
+        notificationCooldownMinutes: 120,
+        maxNotificationsPerDay: 10,
+        pushToken: 'ExponentPushToken[xxx]',
+        lastPushSentAt: null,
+        notificationsCountToday: 0,
+      });
+
+      const response = await request(app)
+        .patch('/api/notifications/preferences')
+        .send({
+          quietHoursStart: '22:00',
+          quietHoursEnd: '07:00',
+        });
+
+      expect(response.status).toBe(200);
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: {
+          quietHoursStart: '22:00',
+          quietHoursEnd: '07:00',
+        },
+        select: expect.any(Object),
+      });
+    });
+
+    it('should reject invalid quiet hours format', async () => {
+      const response = await request(app)
+        .patch('/api/notifications/preferences')
+        .send({
+          quietHoursStart: '25:00', // Invalid hour
+        });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should update sprint size', async () => {
+      (mockPrisma.user.update as jest.Mock).mockResolvedValue({
+        id: 'user-1',
+        notificationsEnabled: true,
+        notificationCooldownMinutes: 120,
+        maxNotificationsPerDay: 10,
+        pushToken: 'ExponentPushToken[xxx]',
+        lastPushSentAt: null,
+        notificationsCountToday: 0,
+      });
+
+      const response = await request(app)
+        .patch('/api/notifications/preferences')
+        .send({ sprintSize: 7 });
+
+      expect(response.status).toBe(200);
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { sprintSize: 7 },
+        select: expect.any(Object),
+      });
+    });
+
+    it('should reject sprint size less than 3', async () => {
+      const response = await request(app)
+        .patch('/api/notifications/preferences')
+        .send({ sprintSize: 2 });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should reject sprint size greater than 10', async () => {
+      const response = await request(app)
+        .patch('/api/notifications/preferences')
+        .send({ sprintSize: 11 });
+
+      expect(response.status).toBe(400);
+    });
   });
 
   describe('GET /api/notifications/preferences', () => {
