@@ -73,7 +73,7 @@ export default function DecksScreen() {
   };
 
   const handleDeckPress = (deck: Deck) => {
-    router.push(`/deck/${deck.id}`);
+    router.push(`/(tabs)/library/deck/${deck.id}`);
   };
 
   const renderDeck = ({ item }: { item: Deck }) => (

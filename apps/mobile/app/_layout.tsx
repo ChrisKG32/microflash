@@ -14,7 +14,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { abandonSprint, getMe } from '@/lib/api';
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  initialRouteName: '(tabs)',
 };
 
 /**
@@ -104,20 +104,25 @@ async function handleNotificationResponse(
     actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER
   ) {
     if (data.sprintId) {
-      // Navigate to sprint with return params for proper back navigation
-      router.push({
-        pathname: '/sprint/[id]',
-        params: {
-          id: data.sprintId,
-          returnTo: '/',
-          launchSource: 'PUSH',
-        },
-      });
+      // For cold start: ensure we're on Review Home first, then push sprint
+      // This creates the proper stack: MainTabs(Review) → Sprint Review
+      router.replace('/(tabs)/review');
+      // Use setTimeout to ensure replace completes before push
+      setTimeout(() => {
+        router.push({
+          pathname: '/sprint/[id]',
+          params: {
+            id: data.sprintId,
+            returnTo: '/(tabs)/review',
+            launchSource: 'PUSH',
+          },
+        });
+      }, 100);
     } else if (data.url) {
       router.push(data.url as any);
     } else {
       // Fallback to Home
-      router.push('/');
+      router.push('/(tabs)/review');
     }
   }
 }
@@ -153,22 +158,34 @@ function useNotificationObserver() {
   }, []);
 }
 
-function OnboardingGate({ children }: { children: React.ReactNode }) {
+/**
+ * Auth + Onboarding Gate
+ *
+ * Handles routing based on auth state and onboarding completion:
+ * - Unauthenticated → (public)/welcome
+ * - Authenticated but onboarding incomplete → onboarding/*
+ * - Authenticated and onboarding complete → (tabs) (Review Home)
+ */
+function AuthGate({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
   const [loading, setLoading] = useState(true);
   const [checked, setChecked] = useState(false);
 
-  const checkOnboardingStatus = useCallback(async () => {
+  const checkAuthStatus = useCallback(async () => {
     try {
       const { user } = await getMe();
 
-      // If not complete and not already in onboarding, redirect
+      // User is authenticated
       if (!user.onboardingComplete && !segments[0]?.includes('onboarding')) {
+        // Onboarding incomplete → redirect to onboarding
         router.replace('/onboarding/notifications');
       }
+      // If onboarding complete, let them access (tabs)
     } catch (error) {
-      console.error('[OnboardingGate] Failed to check status:', error);
-      // On error, assume onboarding incomplete and redirect
+      console.error('[AuthGate] Failed to check auth status:', error);
+      // Auth failed (401 or network error) → redirect to public welcome
+      // For now, we'll assume onboarding incomplete as a fallback
+      // TODO: When Clerk is integrated, distinguish between 401 and other errors
       if (!segments[0]?.includes('onboarding')) {
         router.replace('/onboarding/notifications');
       }
@@ -180,9 +197,9 @@ function OnboardingGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!checked) {
-      checkOnboardingStatus();
+      checkAuthStatus();
     }
-  }, [checkOnboardingStatus, checked]);
+  }, [checkAuthStatus, checked]);
 
   if (loading) {
     return (
@@ -203,9 +220,18 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <OnboardingGate>
+      <AuthGate>
         <Stack>
+          {/* Main Tabs (Review + Library) */}
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+
+          {/* Menu Stack (Settings, Profile, Stats, etc.) */}
+          <Stack.Screen name="(menu)" options={{ headerShown: false }} />
+
+          {/* Public Stack (Welcome, Sign In) */}
+          <Stack.Screen name="(public)" options={{ headerShown: false }} />
+
+          {/* Onboarding Flow */}
           <Stack.Screen
             name="onboarding/notifications"
             options={{ headerShown: false }}
@@ -230,10 +256,8 @@ export default function RootLayout() {
             name="onboarding/finish"
             options={{ headerShown: false }}
           />
-          <Stack.Screen
-            name="deck/[id]"
-            options={{ headerBackTitle: 'Decks' }}
-          />
+
+          {/* Sprint Screens (Root-level, tab-agnostic) */}
           <Stack.Screen
             name="sprint/[id]"
             options={{ headerBackTitle: 'Back', title: 'Sprint Review' }}
@@ -242,25 +266,15 @@ export default function RootLayout() {
             name="sprint/complete"
             options={{ headerShown: false, title: 'Sprint Complete' }}
           />
-          <Stack.Screen
-            name="notification-controls"
-            options={{ title: 'Notification Controls' }}
-          />
+
+          {/* Other Root-level Screens */}
           <Stack.Screen name="browse" options={{ title: 'Review Ahead' }} />
-          <Stack.Screen
-            name="card/new"
-            options={{ headerBackTitle: 'Cancel', title: 'New Card' }}
-          />
-          <Stack.Screen
-            name="card/[id]"
-            options={{ headerBackTitle: 'Cancel', title: 'Edit Card' }}
-          />
           <Stack.Screen
             name="modal"
             options={{ presentation: 'modal', title: 'Modal' }}
           />
         </Stack>
-      </OnboardingGate>
+      </AuthGate>
       <StatusBar style="auto" />
     </ThemeProvider>
   );
