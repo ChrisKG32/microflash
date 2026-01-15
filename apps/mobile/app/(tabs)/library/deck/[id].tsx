@@ -107,10 +107,10 @@ export default function DeckDetailScreen() {
   const handleAddCard = () => {
     if (!id) return;
     router.push({
-      pathname: '/card/new',
+      pathname: '/(tabs)/library/card/new',
       params: {
         deckId: id,
-        returnTo: `/deck/${id}`,
+        returnTo: `/(tabs)/library/deck/${id}`,
       },
     });
   };
@@ -118,10 +118,10 @@ export default function DeckDetailScreen() {
   const handleEditCard = (cardId: string) => {
     if (!id) return;
     router.push({
-      pathname: '/card/[id]',
+      pathname: '/(tabs)/library/card/[id]',
       params: {
         id: cardId,
-        returnTo: `/deck/${id}`,
+        returnTo: `/(tabs)/library/deck/${id}`,
       },
     });
   };
@@ -140,7 +140,7 @@ export default function DeckDetailScreen() {
         pathname: '/sprint/[id]',
         params: {
           id: sprint.id,
-          returnTo: `/deck/${id}`,
+          returnTo: `/(tabs)/library/deck/${id}`,
           launchSource: 'DECK',
           deckId: id,
         },

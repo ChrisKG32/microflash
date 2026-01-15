@@ -63,7 +63,7 @@ export default function SettingsScreen() {
 
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => router.push('/notification-controls')}
+          onPress={() => router.push('/(menu)/notification-controls')}
         >
           <Text style={[styles.menuItemText, { color: colors.text }]}>
             Notification Controls

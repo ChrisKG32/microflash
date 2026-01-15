@@ -16,7 +16,7 @@ export default function OnboardingCreateCardScreen() {
       // Redirect to the standard card creation screen
       // with returnTo pointing to fixture-sprint
       router.replace({
-        pathname: '/card/new',
+        pathname: '/(tabs)/library/card/new',
         params: {
           deckId,
           returnTo: '/onboarding/fixture-sprint',

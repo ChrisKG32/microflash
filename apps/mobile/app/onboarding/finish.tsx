@@ -21,7 +21,7 @@ export default function OnboardingFinishScreen() {
       await completeOnboarding();
 
       // Navigate to home (replace entire stack)
-      router.replace('/');
+      router.replace('/(tabs)/review');
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Failed to complete onboarding',

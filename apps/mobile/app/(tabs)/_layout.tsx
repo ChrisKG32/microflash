@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
+import { HeaderRight } from '@/components/HeaderRight';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -13,34 +14,32 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: true,
+        headerShown: false, // Each tab's Stack handles its own headers
         tabBarButton: HapticTab,
       }}
     >
+      {/* Redirect index to review */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="review"
+        options={{
+          title: 'Review',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="house.fill" color={color} />
+            <IconSymbol size={28} name="checkmark.circle.fill" color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="decks"
+        name="library"
         options={{
-          title: 'Decks',
+          title: 'Library',
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="folder.fill" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="gearshape.fill" color={color} />
           ),
         }}
       />
