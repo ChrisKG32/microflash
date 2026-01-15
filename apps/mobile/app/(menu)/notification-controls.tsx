@@ -353,7 +353,7 @@ export default function NotificationControlsScreen() {
                 styles.input,
                 {
                   color: colors.text,
-                  borderColor: colors.border,
+                  borderColor: colors.card,
                   backgroundColor: colors.background,
                 },
               ]}
@@ -381,7 +381,7 @@ export default function NotificationControlsScreen() {
                 styles.input,
                 {
                   color: colors.text,
-                  borderColor: colors.border,
+                  borderColor: colors.card,
                   backgroundColor: colors.background,
                 },
               ]}

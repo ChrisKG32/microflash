@@ -10,8 +10,7 @@
     "composite": true,
     "declaration": true,
     "declarationMap": true,
-    "incremental": true,
-    "types": []
+    "incremental": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
