@@ -5,8 +5,12 @@
  * Explains micro-sprints value prop and pushes to sign-in.
  */
 
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Stack, router } from 'expo-router';
+
+import { Button, ButtonText } from '@/components/ui/button';
+import { Center } from '@/components/ui/center';
+import { Heading } from '@/components/ui/heading';
+import { Text } from '@/components/ui/text';
 
 export default function WelcomeScreen() {
   const handleSignIn = () => {
@@ -18,71 +22,33 @@ export default function WelcomeScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.container}>
-        <Text style={styles.emoji}>⚡</Text>
-        <Text style={styles.title}>Welcome to MicroFlash</Text>
-        <Text style={styles.description}>
+      <Center className="flex-1 bg-background-50 p-6">
+        <Text className="mb-4 text-7xl">⚡</Text>
+        <Heading size="3xl" className="mb-4 text-center">
+          Welcome to MicroFlash
+        </Heading>
+        <Text size="md" className="mb-3 text-center text-typography-500">
           Master anything with micro-sprints: quick 30-90 second review sessions
           that fit into your day.
         </Text>
-        <Text style={styles.description}>
+        <Text size="md" className="mb-3 text-center text-typography-500">
           Respectful notifications keep you on track without overwhelming you.
         </Text>
 
-        <TouchableOpacity style={styles.button} onPress={handleSignIn}>
-          <Text style={styles.buttonText}>Sign In</Text>
-        </TouchableOpacity>
+        <Button
+          size="xl"
+          action="primary"
+          className="mt-8 rounded-xl"
+          onPress={handleSignIn}
+          testID="sign-in-button"
+        >
+          <ButtonText size="lg">Sign In</ButtonText>
+        </Button>
 
-        <Text style={styles.footer}>
+        <Text size="xs" className="mt-6 italic text-typography-400">
           Authentication coming soon (Clerk integration)
         </Text>
-      </View>
+      </Center>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#f5f5f5',
-  },
-  emoji: {
-    fontSize: 72,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 12,
-    lineHeight: 24,
-  },
-  button: {
-    backgroundColor: '#2196f3',
-    paddingHorizontal: 48,
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginTop: 32,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  footer: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 24,
-    fontStyle: 'italic',
-  },
-});

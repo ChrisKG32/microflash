@@ -1,20 +1,23 @@
 import { useState, useCallback } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
-  Alert,
-} from 'react-native';
 import { useFocusEffect, router } from 'expo-router';
 
+import { Box } from '@/components/ui/box';
+import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
+import { Center } from '@/components/ui/center';
+import { FlatList } from '@/components/ui/flat-list';
+import { Heading } from '@/components/ui/heading';
+import { HStack } from '@/components/ui/hstack';
+import { Input, InputField } from '@/components/ui/input';
+import { Pressable } from '@/components/ui/pressable';
+import { Spinner } from '@/components/ui/spinner';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
+import { useAppToast } from '@/components/feedback/use-app-toast';
+import { ThemedRefreshControl } from '@/components/ui-app/themed-refresh-control';
 import { getDecks, createDeck, type Deck } from '@/lib/api';
 
 export default function DecksScreen() {
+  const notify = useAppToast();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -52,7 +55,7 @@ export default function DecksScreen() {
 
   const handleCreateDeck = async () => {
     if (!newTitle.trim()) {
-      Alert.alert('Error', 'Please enter a deck title');
+      notify.error('Error', 'Please enter a deck title');
       return;
     }
 
@@ -63,7 +66,7 @@ export default function DecksScreen() {
       setShowForm(false);
       await fetchDecks();
     } catch (err) {
-      Alert.alert(
+      notify.error(
         'Error',
         err instanceof Error ? err.message : 'Failed to create deck',
       );
@@ -76,265 +79,144 @@ export default function DecksScreen() {
     router.push(`/(tabs)/library/deck/${deck.id}`);
   };
 
+  // Pressable, not Button: Button forces a fixed height and centred row,
+  // which squashes a multi-line list item.
   const renderDeck = ({ item }: { item: Deck }) => (
-    <TouchableOpacity
-      style={styles.deckItem}
+    <Pressable
+      className="flex-row items-center justify-between rounded-xl bg-background-0 p-4"
       onPress={() => handleDeckPress(item)}
+      testID={`deck-${item.id}`}
     >
-      <View style={styles.deckInfo}>
-        <Text style={styles.deckTitle}>{item.title}</Text>
+      <VStack className="flex-1">
+        <Text size="md" className="font-semibold text-typography-900">
+          {item.title}
+        </Text>
         {item.description && (
-          <Text style={styles.deckDescription} numberOfLines={1}>
+          <Text
+            size="sm"
+            className="mt-1 text-typography-500"
+            numberOfLines={1}
+          >
             {item.description}
           </Text>
         )}
-      </View>
-      <View style={styles.deckMeta}>
-        <Text style={styles.cardCount}>{item.cardCount} cards</Text>
-        <Text style={styles.chevron}>›</Text>
-      </View>
-    </TouchableOpacity>
+      </VStack>
+      <HStack className="items-center">
+        <Text size="sm" className="text-typography-500">
+          {item.cardCount} cards
+        </Text>
+        <Text size="xl" className="ml-2 text-typography-300">
+          ›
+        </Text>
+      </HStack>
+    </Pressable>
   );
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.loadingText}>Loading decks...</Text>
-      </View>
+      <Center className="flex-1 bg-background-50">
+        <Spinner size="large" className="text-primary-500" />
+        <Text size="md" className="mt-3 text-typography-500">
+          Loading decks...
+        </Text>
+      </Center>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <Box className="flex-1 bg-background-50">
       {/* Create Deck Form */}
       {showForm ? (
-        <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Deck title"
-            value={newTitle}
-            onChangeText={setNewTitle}
-            autoFocus
-            editable={!creating}
-          />
-          <View style={styles.formButtons}>
-            <TouchableOpacity
-              style={styles.cancelButton}
+        <VStack className="border-b border-outline-100 bg-background-0 p-4">
+          <Input variant="outline" isDisabled={creating} className="mb-3">
+            <InputField
+              placeholder="Deck title"
+              value={newTitle}
+              onChangeText={setNewTitle}
+              autoFocus
+              testID="deck-title-input"
+            />
+          </Input>
+          <HStack className="gap-3">
+            <Button
+              variant="outline"
+              action="secondary"
+              className="flex-1"
+              isDisabled={creating}
               onPress={() => {
                 setShowForm(false);
                 setNewTitle('');
               }}
-              disabled={creating}
+              testID="cancel-deck-button"
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.createButton, creating && styles.buttonDisabled]}
+              <ButtonText>Cancel</ButtonText>
+            </Button>
+            <Button
+              action="primary"
+              className="flex-1"
+              isDisabled={creating}
               onPress={handleCreateDeck}
-              disabled={creating}
+              testID="create-deck-button"
             >
               {creating ? (
-                <ActivityIndicator color="#fff" size="small" />
+                <ButtonSpinner className="text-typography-0" />
               ) : (
-                <Text style={styles.createButtonText}>Create</Text>
+                <ButtonText>Create</ButtonText>
               )}
-            </TouchableOpacity>
-          </View>
-        </View>
+            </Button>
+          </HStack>
+        </VStack>
       ) : (
-        <TouchableOpacity
-          style={styles.addButton}
+        <Button
+          variant="link"
+          action="primary"
+          className="justify-start p-4"
           onPress={() => setShowForm(true)}
+          testID="new-deck-button"
         >
-          <Text style={styles.addButtonText}>+ New Deck</Text>
-        </TouchableOpacity>
+          <ButtonText>+ New Deck</ButtonText>
+        </Button>
       )}
 
       {error ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
+        <Center className="flex-1 p-5">
+          <Text size="md" className="mb-4 text-center text-error-700">
+            {error}
+          </Text>
+          <Button
+            action="primary"
+            onPress={handleRefresh}
+            testID="retry-button"
+          >
+            <ButtonText>Retry</ButtonText>
+          </Button>
+        </Center>
       ) : decks.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>📚</Text>
-          <Text style={styles.emptyTitle}>No decks yet</Text>
-          <Text style={styles.emptyText}>
+        <Center className="flex-1 p-5">
+          <Text className="mb-4 text-6xl">📚</Text>
+          <Heading size="lg" className="mb-2">
+            No decks yet
+          </Heading>
+          <Text size="md" className="text-center text-typography-500">
             Create your first deck to start learning!
           </Text>
-        </View>
+        </Center>
       ) : (
+        // Spacing stays on the content container: wrapping FlatList children
+        // in a stack would defeat virtualization.
         <FlatList
           data={decks}
           renderItem={renderDeck}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          keyExtractor={(item: Deck) => item.id}
+          contentContainerClassName="gap-3 p-4"
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+            <ThemedRefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+            />
           }
         />
       )}
-    </View>
+    </Box>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
-  },
-  form: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 12,
-  },
-  formButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#eee',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  createButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#2196f3',
-    alignItems: 'center',
-  },
-  createButtonText: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  addButton: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  addButtonText: {
-    fontSize: 16,
-    color: '#2196f3',
-    fontWeight: '600',
-  },
-  list: {
-    padding: 16,
-    gap: 12,
-  },
-  deckItem: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  deckInfo: {
-    flex: 1,
-  },
-  deckTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  deckDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  deckMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  cardCount: {
-    fontSize: 14,
-    color: '#999',
-  },
-  chevron: {
-    fontSize: 24,
-    color: '#ccc',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#d32f2f',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#2196f3',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-});

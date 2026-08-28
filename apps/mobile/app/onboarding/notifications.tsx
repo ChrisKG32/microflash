@@ -5,14 +5,13 @@
  */
 
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
 import { Stack, router } from 'expo-router';
+
+import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
+import { Center } from '@/components/ui/center';
+import { Heading } from '@/components/ui/heading';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
 import { useNotifications } from '@/hooks/use-notifications';
 import { markNotificationsPrompted } from '@/lib/api';
 
@@ -63,105 +62,55 @@ export default function OnboardingNotificationsScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.container}>
-        <Text style={styles.emoji}>🔔</Text>
-        <Text style={styles.title}>Stay on Track</Text>
-        <Text style={styles.description}>
+      <Center className="flex-1 bg-background-50 p-6">
+        <Text className="mb-4 text-7xl">🔔</Text>
+        <Heading size="3xl" className="mb-4 text-center">
+          Stay on Track
+        </Heading>
+        <Text size="md" className="mb-3 text-center text-typography-500">
           MicroFlash sends gentle reminders throughout the day to help you stay
           caught up with your reviews.
         </Text>
-        <Text style={styles.description}>
+        <Text size="md" className="mb-3 text-center text-typography-500">
           You&apos;re in control: set quiet hours, max notifications per day,
           and cooldown periods.
         </Text>
 
-        {error && <Text style={styles.errorText}>{error}</Text>}
+        {error && (
+          <Text size="sm" className="mt-4 text-center text-error-700">
+            {error}
+          </Text>
+        )}
 
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.button, styles.primaryButton]}
+        <VStack className="mt-8 w-full gap-3">
+          <Button
+            size="xl"
+            action="primary"
+            className="rounded-xl"
             onPress={handleEnable}
-            disabled={loading}
+            isDisabled={loading}
+            testID="enable-notifications-button"
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ButtonSpinner className="text-typography-0" />
             ) : (
-              <Text style={styles.primaryButtonText}>Enable Notifications</Text>
+              <ButtonText>Enable Notifications</ButtonText>
             )}
-          </TouchableOpacity>
+          </Button>
 
-          <TouchableOpacity
-            style={[styles.button, styles.secondaryButton]}
+          <Button
+            size="xl"
+            variant="outline"
+            action="secondary"
+            className="rounded-xl"
             onPress={handleNotNow}
-            disabled={loading}
+            isDisabled={loading}
+            testID="not-now-button"
           >
-            <Text style={styles.secondaryButtonText}>Not Now</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+            <ButtonText>Not Now</ButtonText>
+          </Button>
+        </VStack>
+      </Center>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#f5f5f5',
-  },
-  emoji: {
-    fontSize: 72,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 12,
-    lineHeight: 24,
-  },
-  errorText: {
-    color: '#d32f2f',
-    fontSize: 14,
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  actions: {
-    width: '100%',
-    marginTop: 32,
-  },
-  button: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  primaryButton: {
-    backgroundColor: '#2196f3',
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  secondaryButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

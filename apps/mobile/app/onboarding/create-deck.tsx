@@ -5,28 +5,27 @@
  */
 
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-} from 'react-native';
+import { Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
+
+import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
+import { Center } from '@/components/ui/center';
+import { Heading } from '@/components/ui/heading';
+import { Input, InputField } from '@/components/ui/input';
+import { KeyboardAvoidingView } from '@/components/ui/keyboard-avoiding-view';
+import { Text } from '@/components/ui/text';
+import { useAppToast } from '@/components/feedback/use-app-toast';
 import { createDeck } from '@/lib/api';
 
 export default function OnboardingCreateDeckScreen() {
+  const notify = useAppToast();
   const [title, setTitle] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleContinue = async () => {
     if (!title.trim()) {
-      Alert.alert('Required', 'Please enter a deck name');
+      notify.error('Required', 'Please enter a deck name');
       return;
     }
 
@@ -53,105 +52,58 @@ export default function OnboardingCreateDeckScreen() {
       <Stack.Screen
         options={{ title: 'Create Deck', headerBackTitle: 'Back' }}
       />
+      {/* Explicit flex:1 alongside the class: KeyboardAvoidingView is
+          remapProps'd rather than cssInterop'd, so its style resolution is
+          shallower than a normal interop component's. */}
       <KeyboardAvoidingView
-        style={styles.container}
+        style={{ flex: 1 }}
+        className="flex-1 bg-background-50"
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.content}>
-          <Text style={styles.emoji}>📚</Text>
-          <Text style={styles.title}>Create Your First Deck</Text>
-          <Text style={styles.description}>
+        <Center className="flex-1 p-6">
+          <Text className="mb-4 text-7xl">📚</Text>
+          <Heading size="2xl" className="mb-2 text-center">
+            Create Your First Deck
+          </Heading>
+          <Text size="md" className="mb-8 text-center text-typography-500">
             A deck is a collection of flashcards on a topic. You can create as
             many as you need.
           </Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., Spanish Vocabulary"
-            value={title}
-            onChangeText={setTitle}
-            autoFocus
-            returnKeyType="done"
-            onSubmitEditing={handleContinue}
-          />
+          <Input variant="outline" size="xl" className="mb-4 w-full">
+            <InputField
+              placeholder="e.g., Spanish Vocabulary"
+              value={title}
+              onChangeText={setTitle}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleContinue}
+              testID="deck-name-input"
+            />
+          </Input>
 
-          {error && <Text style={styles.errorText}>{error}</Text>}
+          {error && (
+            <Text size="sm" className="mb-4 text-center text-error-700">
+              {error}
+            </Text>
+          )}
 
-          <TouchableOpacity
-            style={styles.continueButton}
+          <Button
+            size="xl"
+            action="primary"
+            className="w-full rounded-xl"
             onPress={handleContinue}
-            disabled={loading || !title.trim()}
+            isDisabled={loading || !title.trim()}
+            testID="continue-button"
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ButtonSpinner className="text-typography-0" />
             ) : (
-              <Text style={styles.continueButtonText}>Continue</Text>
+              <ButtonText>Continue</ButtonText>
             )}
-          </TouchableOpacity>
-        </View>
+          </Button>
+        </Center>
       </KeyboardAvoidingView>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  emoji: {
-    fontSize: 72,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 32,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  input: {
-    width: '100%',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#d32f2f',
-    fontSize: 14,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  continueButton: {
-    width: '100%',
-    backgroundColor: '#2196f3',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  continueButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

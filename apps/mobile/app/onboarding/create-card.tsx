@@ -5,8 +5,10 @@
  */
 
 import { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+
+import { Center } from '@/components/ui/center';
+import { Spinner } from '@/components/ui/spinner';
 
 export default function OnboardingCreateCardScreen() {
   const { deckId } = useLocalSearchParams<{ deckId: string }>();
@@ -26,17 +28,8 @@ export default function OnboardingCreateCardScreen() {
   }, [deckId]);
 
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color="#2196f3" />
-    </View>
+    <Center className="flex-1 bg-background-50">
+      <Spinner size="large" className="text-primary-500" />
+    </Center>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-  },
-});
