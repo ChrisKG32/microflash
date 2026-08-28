@@ -169,7 +169,7 @@ describe('Cards Routes - Unit Tests', () => {
         priority: 50,
         userId: 'different-user-id', // Different user owns this deck
         parentDeckId: null,
-    isOnboardingFixture: false,
+        isOnboardingFixture: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -192,7 +192,7 @@ describe('Cards Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id', // Same user owns this deck
         parentDeckId: null,
-    isOnboardingFixture: false,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -237,7 +237,11 @@ describe('Cards Routes - Unit Tests', () => {
       });
     });
 
-    it('should trim whitespace from front and back', async () => {
+    // Card content is stored verbatim: leading/trailing whitespace is
+    // significant in Markdown (indented code blocks, nested lists), so
+    // 30a00cb ("fix: ensure markdown formats properly") removed the
+    // .trim() that used to run here. Do not reintroduce it.
+    it('should preserve surrounding whitespace in front and back', async () => {
       const now = new Date();
 
       prismaMock.deck.findUnique.mockResolvedValue({
@@ -247,7 +251,7 @@ describe('Cards Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
-    isOnboardingFixture: false,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -279,8 +283,8 @@ describe('Cards Routes - Unit Tests', () => {
       expect(response.status).toBe(201);
       expect(prismaMock.card.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          front: 'Question',
-          back: 'Answer',
+          front: '  Question  ',
+          back: '  Answer  ',
         }),
       });
     });
@@ -295,7 +299,7 @@ describe('Cards Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
-    isOnboardingFixture: false,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -349,7 +353,7 @@ describe('Cards Routes - Unit Tests', () => {
         priority: 50,
         userId: 'user-internal-id',
         parentDeckId: null,
-    isOnboardingFixture: false,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -720,7 +724,7 @@ describe('Cards Routes - Unit Tests', () => {
         priority: 50,
         userId: 'different-user-id',
         parentDeckId: null,
-    isOnboardingFixture: false,
+        isOnboardingFixture: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -894,7 +898,7 @@ describe('Cards Routes - Unit Tests', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             nextReviewDate: expect.any(Object),
-            deck: { userId: 'user-internal-id' },
+            deck: { userId: 'user-internal-id', isOnboardingFixture: false },
           }),
         }),
       );

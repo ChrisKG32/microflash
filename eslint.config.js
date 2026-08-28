@@ -50,7 +50,7 @@ module.exports = [
     ignores: [
       '**/*.config.js',
       '**/.expo/**',
-      '**/apps/mobile/**',
+      '**/apps/mobile/components/ui/**',
       '**/build/**',
       '**/coverage/**',
       '**/dist/**',

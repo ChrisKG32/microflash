@@ -126,7 +126,7 @@ describe('Decks Routes - Unit Tests', () => {
       expect(response.body).toHaveProperty('total');
       expect(prismaMock.deck.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { userId: 'user-internal-id' },
+          where: { userId: 'user-internal-id', isOnboardingFixture: false },
         }),
       );
     });

@@ -8,45 +8,40 @@ MicroFlash is a **microlearning-first spaced-repetition app**. The core loop is 
 
 ## Design constraint (from AGENTS.md)
 
-Do not build design systems or elaborate visual design. Keep UI **extremely minimal** until the MVP is complete, so a real design system can be adopted later.
+**Do not hand-roll UI components or invent visual design.** gluestack-ui is the adopted component library and Radix `slate`/`blue` is the adopted palette — that decision is made, and the point of it is that there is nothing left to design. Compose the vendored primitives in `components/ui/` and use theme tokens; keep screens plainly styled.
 
-## ⚠️ Current repo state: the mobile app moved
+The older form of this rule said to avoid design systems entirely until the MVP was done, so that a real one could be adopted later. That adoption is what the current migration is. Reach for a new wrapper component or a raw hex value only when no gluestack primitive and no token covers the case, and say why.
 
-The `gluestack` branch is mid-migration. The package name and the directory name do **not** match:
+## ⚠️ Current work: the gluestack-ui migration
 
-| Directory       | Package name         | What it is                                                          |
-| --------------- | -------------------- | ------------------------------------------------------------------- |
-| `apps/mobile-3` | `@microflash/mobile` | **The real MicroFlash app.** All screens, hooks, tests, API wiring. |
-| `apps/mobile`   | `starter-kit-expo`   | A stock gluestack-ui + NativeWind starter kit. No app code yet.     |
+The `gluestack` branch is migrating the mobile app off hand-rolled `StyleSheet` components onto gluestack-ui v3 + NativeWind, themed from Radix `slate`/`blue` so light and dark both work. `apps/mobile-3` and the throwaway `starter-kit-expo` scaffold are **gone** — the app lives at `apps/mobile` and the package is `@microflash/mobile`, so directory and package name finally agree.
 
-Commit `0670e4f` moved the app `apps/mobile` → `apps/mobile-3` and dropped a fresh gluestack starter into `apps/mobile`. Consequences:
+The gluestack component registry is vendored at `apps/mobile/components/ui/<name>/index.tsx` (54 components, no barrel — import deep, e.g. `@/components/ui/box`). Treat it as vendored: `npx gluestack-ui add <component>` should keep working, so keep local edits few and commented.
 
-- **Edit `apps/mobile-3/` for any app work.** `apps/mobile` is a scaffold to migrate _toward_, not the running app.
-- `pnpm dev:mobile` and every `--filter @microflash/mobile` command correctly resolve to `apps/mobile-3`.
-- **Root `pnpm test` is broken.** `jest.config.js` still references `<rootDir>/apps/mobile/jest.config.cjs`, which no longer exists (`Error: Can't find a root directory while resolving a config file path`). Run tests per-workspace, or point that path at `apps/mobile-3/jest.config.cjs`.
-- Root `tsconfig.json` also still references `apps/mobile` (the starter kit) rather than `apps/mobile-3`.
-- `apps/mobile` has no `dev` or `typecheck` script, so `pnpm -r typecheck` silently covers only 6 of 7 workspaces.
+**The theming bug that stalled the first attempt** — do not reintroduce it. `global.css` once declared `--color-background-*` under a bare `*` selector. In `react-native-css-interop`, `*` registers as a _universal_ variable, and `getVar()` resolves universal vars (bucket 2) **before** the inherited vars (bucket 3) that `GluestackUIProvider` supplies via `<View style={[config[scheme]]}>`. That pinned the background to one ramp in both modes on native, while web looked fine because its provider emits real `:root{}` / `.dark{}` rules that outspecify `*`. Colors belong in `theme/tokens.ts`; if a global CSS var is ever genuinely needed it must be `:root{}` **and** `.dark:root{}`, never `*`. `theme/global-css.test.ts` enforces this.
 
-Lint and typecheck both pass as of this writing; only the root Jest runner is broken.
+Color has one source of truth, `theme/tokens.ts`, consumed three ways: `cssVars` → `gluestack-ui-provider/config.ts` (for `className`), `palette` → `theme/navigation.ts` (React Navigation chrome), and `palette` → `theme/use-token.ts` (imperative props). The third exists because `RefreshControl` is **not** cssInterop'd, and React Navigation `screenOptions`, the KaTeX `<style>` string in `CardContent`, and `react-native-markdown-display` all take plain color strings.
+
+Every token change needs `expo start -c` — stale NativeWind CSS caching otherwise reads as a theming bug.
 
 ## Commands
 
 ```bash
 pnpm dev:server        # tsx watch, port 3000
-pnpm dev:mobile        # Expo dev server (-> apps/mobile-3)
+pnpm dev:mobile        # Expo dev server
 pnpm dev:desktop       # electron-vite dev
 
-pnpm typecheck         # pnpm -r typecheck (skips apps/mobile)
+pnpm typecheck         # pnpm -r typecheck (all workspaces)
 pnpm lint              # eslint . — only rules-checks apps/server/**
 pnpm format            # prettier --write .
 pnpm build             # pnpm -r build
 ```
 
-Testing — prefer the per-workspace form while root Jest is broken:
+Testing — root `pnpm test` runs both projects (server + mobile); per-workspace is faster when iterating:
 
 ```bash
 pnpm --filter @microflash/server test
-pnpm --filter @microflash/mobile test          # runs in apps/mobile-3
+pnpm --filter @microflash/mobile test
 
 # single file
 pnpm --filter @microflash/server test -- --runTestsByPath src/routes/decks.test.ts
@@ -93,7 +88,7 @@ The ordering matters and is easy to break: the server **creates the sprint first
 
 Supporting services split by concern: `notification-eligibility.ts` (quiet hours, ≥2h cooldown, max/day, "no resumable sprint exists"), `notification-grouping.ts` (payload), `push-notifications.ts` (Expo transport), `due-cards.ts` (±7 min due window, 30 min per-card re-notify floor).
 
-On device, `apps/mobile-3/app/_layout.tsx` registers the iOS notification category with Review/Snooze actions and handles responses — including cold start via `getLastNotificationResponseAsync()`. The **Snooze action calls `abandonSprint()`**, which is what triggers the server-side snooze semantics above.
+On device, `apps/mobile/app/_layout.tsx` registers the iOS notification category with Review/Snooze actions and handles responses — including cold start via `getLastNotificationResponseAsync()`. The **Snooze action calls `abandonSprint()`**, which is what triggers the server-side snooze semantics above.
 
 ### FSRS
 
@@ -104,7 +99,7 @@ On device, `apps/mobile-3/app/_layout.tsx` registers the iOS notification catego
 - `packages/shared` — types only, consumed by server and clients.
 - `packages/api-client` — platform-agnostic (`fetch`-based) client shared by mobile and desktop. Module-level config via `configureApiClient({ baseUrl, getAuthHeaders })`; `getAuthHeaders` may be async, which is how dev headers and real Clerk `getToken()` both fit.
 - Both packages resolve to **`src/*.ts` directly** (`types`/`react-native`/`module` fields), so clients typecheck against source without a build step.
-- `apps/mobile-3/lib/api.ts` configures the client at import time and re-exports everything — mobile code imports from `@/lib/api`, not the package.
+- `apps/mobile/lib/api.ts` configures the client at import time and re-exports everything — mobile code imports from `@/lib/api`, not the package.
 
 ### Server request pipeline
 
@@ -122,7 +117,7 @@ On device, `apps/mobile-3/app/_layout.tsx` registers the iOS notification catego
 ## Conventions worth repeating
 
 - Files kebab-case; components PascalCase; hooks `useXyz`; types PascalCase.
-- Path alias `@/*` → `apps/<app>/src/*` (server) or `apps/mobile-3/*` (mobile).
+- Path alias `@/*` → `apps/<app>/src/*` (server) or `apps/mobile/*` (mobile).
 - **Server: never use `.js` extensions in imports** — enforced by an ESLint `no-restricted-imports` rule.
 - Unused vars must be `_`-prefixed to pass lint.
 - Prettier: single quotes, semicolons, trailing commas `all`, width 80.

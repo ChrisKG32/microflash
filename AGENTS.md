@@ -4,7 +4,13 @@ Guidelines for agentic coding in this repo (product + code conventions).
 
 ## Important Agent Instructions
 
-You will never try to create design systems or fancy designs. Working on this app, you will keep the designs extremely minimal until the entire MVP is accomplished, that way it will be easier to develop and migrate to a real design system in the future.
+Never hand-roll UI components or invent visual design. **gluestack-ui v3 is the adopted component library** and **Radix `slate` + `blue` is the adopted palette**; both decisions are settled, and the whole point is that there is nothing left for you to design.
+
+- Compose the vendored primitives in `apps/mobile/components/ui/` (import deep: `@/components/ui/box`). Do not write a wrapper when a primitive fits.
+- Use theme tokens, never raw hex. `bg-background-0`, `text-typography-500`, `border-outline-100`, `bg-primary-500`. For values that can't take a `className` — React Navigation `screenOptions`, `RefreshControl`, WebView HTML — use `useToken()` from `@/theme/use-token`.
+- Keep screens plainly styled. Minimal still applies to layout and ornamentation; it no longer means "avoid the component library".
+
+This supersedes the earlier instruction to avoid design systems until the MVP was finished — that rule existed so a real system could be adopted later without unpicking bespoke styling, and adopting gluestack is that step. If you genuinely need a new wrapper or a literal color, say why in the PR.
 
 ## Product context (read docs first)
 
@@ -104,11 +110,11 @@ Tests are colocated with source:
 pnpm --filter @microflash/server test -- --runTestsByPath src/routes/decks.test.ts
 
 # Mobile (path relative to apps/mobile)
-pnpm --filter @microflash/mobile test -- --runTestsByPath components/ThemedText.test.tsx
+pnpm --filter @microflash/mobile test -- --runTestsByPath components/themed-text.test.tsx
 
 # From root (select project explicitly)
 pnpm test -- --selectProjects server --runTestsByPath apps/server/src/routes/decks.test.ts
-pnpm test -- --selectProjects mobile --runTestsByPath apps/mobile/components/ThemedText.test.tsx
+pnpm test -- --selectProjects mobile --runTestsByPath apps/mobile/components/themed-text.test.tsx
 ```
 
 ### Run tests by name
