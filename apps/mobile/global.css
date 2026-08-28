@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  --color-background-0:   17 17 19;   /* gray-1  #111113 */
+  --color-background-50:  25 25 27;   /* gray-2  #19191b */
+  --color-background-100: 34 35 37;   /* gray-3  #222325 */
+  --color-background-200: 41 42 46;   /* gray-4  #292a2e */
+  --color-background-300: 48 49 54;   /* gray-5  #303136 */
+  --color-background-400: 57 58 64;   /* gray-6  #393a40 */
+  --color-background-500: 70 72 79;   /* gray-7  #46484f */
+  --color-background-600: 95 96 106;  /* gray-8  #5f606a */
+  --color-background-700: 108 110 121;/* gray-9  #6c6e79 */
+  --color-background-800: 121 123 134;/* gray-10 #797b86 */
+  --color-background-900: 178 179 189;/* gray-11 #b2b3bd */
+  --color-background-950: 238 238 240;/* gray-12 #eeeef0 */
+}
