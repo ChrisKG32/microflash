@@ -107,3 +107,71 @@ jest.mock('expo-haptics', () => ({
     Error: 'error',
   },
 }));
+
+// @legendapp/motion drives the animated backdrops in modal, drawer,
+// actionsheet, toast, popover, menu and fab. Its animation runtime is
+// irrelevant to render-smoke tests, so flatten it to plain views.
+jest.mock('@legendapp/motion', () => {
+  const { View, Text } = require('react-native');
+  return {
+    Motion: { View, Text, Pressable: View },
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
+    createMotionAnimatedComponent: (c: unknown) => c,
+    MotionSvg: { View },
+  };
+});
+
+// CardContent renders KaTeX in a WebView; jsdom/jest-expo can't run it.
+jest.mock('react-native-webview', () => {
+  const { View } = require('react-native');
+  return { __esModule: true, default: View, WebView: View };
+});
+
+/**
+ * NativeWind learns `darkMode: 'class'` from the CSS that metro's transformer
+ * compiles out of tailwind.config.js. That transformer does not run under
+ * jest-expo, so the runtime falls back to `media` and `setColorScheme()`
+ * throws "Unable to manually set color scheme without using darkMode: class"
+ * — which would make every gluestack component unrenderable in tests, since
+ * GluestackUIProvider calls it on mount.
+ *
+ * Replace ONLY the color-scheme hook, keeping `vars`, `cssInterop` and
+ * `remapProps` real (config.ts needs a genuine `vars()` return shape, and the
+ * interop functions run at module scope in nearly every gluestack component).
+ *
+ * Note this means `className` styling is inert in tests: the style data comes
+ * from the same compiler. Assert on testID / text / role, never on resolved
+ * colors — those are verified on-device via app/_dev/theme-probe.
+ */
+jest.mock('nativewind', () => {
+  const actual = jest.requireActual('nativewind');
+  const React = require('react');
+
+  let scheme: 'light' | 'dark' = 'light';
+  const listeners = new Set<() => void>();
+
+  const setColorScheme = (next: 'light' | 'dark' | 'system') => {
+    scheme = next === 'system' ? 'light' : next;
+    listeners.forEach((notify) => notify());
+  };
+
+  return {
+    ...actual,
+    useColorScheme: () => {
+      const colorScheme = React.useSyncExternalStore(
+        (cb: () => void) => {
+          listeners.add(cb);
+          return () => listeners.delete(cb);
+        },
+        () => scheme,
+        () => scheme,
+      );
+      return {
+        colorScheme,
+        setColorScheme,
+        toggleColorScheme: () =>
+          setColorScheme(scheme === 'light' ? 'dark' : 'light'),
+      };
+    },
+  };
+});

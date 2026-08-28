@@ -7,6 +7,8 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   testMatch: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
   moduleNameMapper: {
+    // NativeWind CSS entrypoint — no metro transformer under jest.
+    '^.+\\.css$': '<rootDir>/jest/style-mock.js',
     // Handle @/* path alias from tsconfig.json
     '^@/(.*)$': '<rootDir>/$1',
     // Map workspace packages to their source
@@ -37,6 +39,16 @@ module.exports = {
       'react-native-screens|' +
       'react-native-safe-area-context|' +
       'react-native-web|' +
+      'react-native-worklets|' +
+      'nativewind|' +
+      'react-native-css-interop|' +
+      '@gluestack-ui|' +
+      '@legendapp|' +
+      'lucide-react-native|' +
+      'tailwind-variants|' +
+      'react-aria|@react-aria|' +
+      'react-stately|@react-stately|@react-types|' +
+      '@internationalized|' +
       '@microflash)' +
       ')',
   ],
@@ -46,6 +58,7 @@ module.exports = {
     '!**/*.test.{ts,tsx}',
     '!**/*.spec.{ts,tsx}',
     '!**/node_modules/**',
+    '!components/ui/**',
     '!**/.expo/**',
     '!**/scripts/**',
   ],
