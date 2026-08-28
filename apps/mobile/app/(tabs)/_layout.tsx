@@ -4,16 +4,12 @@ import React from 'react';
 import { HapticTab } from '@/components/haptic-tab';
 import { HeaderRight } from '@/components/HeaderRight';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
+      // tabBarActiveTintColor defaults to the navigation theme's `primary`.
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false, // Each tab's Stack handles its own headers
         tabBarButton: HapticTab,
       }}

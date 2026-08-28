@@ -1,33 +1,40 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Legacy color shim, derived from theme/tokens.ts.
+ *
+ * The app themes through NativeWind + gluestack now; this exists only so the
+ * remaining `useThemeColor` consumers keep working until they are converted.
+ * Do not add entries here.
  */
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+import { palette } from '@/theme/tokens';
 
+/**
+ * Legacy shim. Prefer `className` utilities, or `useToken()` where a literal
+ * is required. Kept only until the last `useThemeColor` consumer is converted,
+ * and derived from the token palette so it cannot drift from gluestack.
+ */
 export const Colors = {
   light: {
-    text: '#11181C',
-    textSecondary: '#687076',
-    background: '#fff',
-    card: '#F5F5F5',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: palette.light['typography-900'],
+    textSecondary: palette.light['typography-500'],
+    background: palette.light['background-0'],
+    card: palette.light['background-50'],
+    tint: palette.light['primary-500'],
+    icon: palette.light['typography-500'],
+    tabIconDefault: palette.light['typography-500'],
+    tabIconSelected: palette.light['primary-500'],
   },
   dark: {
-    text: '#ECEDEE',
-    textSecondary: '#9BA1A6',
-    background: '#151718',
-    card: '#1E2022',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: palette.dark['typography-900'],
+    textSecondary: palette.dark['typography-500'],
+    background: palette.dark['background-0'],
+    card: palette.dark['background-50'],
+    tint: palette.dark['primary-500'],
+    icon: palette.dark['typography-500'],
+    tabIconDefault: palette.dark['typography-500'],
+    tabIconSelected: palette.dark['primary-500'],
   },
 };
 

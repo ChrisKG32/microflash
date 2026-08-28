@@ -9,22 +9,18 @@
 
 import { Stack } from 'expo-router';
 import { HeaderRight } from '@/components/HeaderRight';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function ReviewLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Stack
+      // Header background, title and back-button colors come from the
+      // navigation theme in theme/navigation.ts, which is built from the same
+      // tokens gluestack uses. Do not hardcode them here again.
       screenOptions={{
         headerRight: () => <HeaderRight />,
-        headerStyle: {
-          backgroundColor: colorScheme === 'dark' ? '#1c1c1e' : '#fff',
-        },
         headerTitleStyle: {
           fontWeight: '600',
         },
-        headerTintColor: colorScheme === 'dark' ? '#fff' : '#007AFF',
       }}
     >
       <Stack.Screen

@@ -70,9 +70,26 @@ jest.mock('expo-router', () => ({
   useSegments: () => [],
   usePathname: () => '/',
   Link: ({ children }: { children: React.ReactNode }) => children,
-  Stack: ({ children }: { children: React.ReactNode }) => children,
-  Tabs: ({ children }: { children: React.ReactNode }) => children,
+  // Navigators render their children; `.Screen` is config-only, so it renders
+  // nothing. Without the `.Screen` statics any layout file throws on render,
+  // since `Stack.Screen` would be undefined.
+  Stack: Object.assign(
+    ({ children }: { children: React.ReactNode }) => children,
+    { Screen: () => null },
+  ),
+  Tabs: Object.assign(
+    ({ children }: { children: React.ReactNode }) => children,
+    { Screen: () => null },
+  ),
   Slot: ({ children }: { children: React.ReactNode }) => children,
+  Redirect: () => null,
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    canGoBack: jest.fn(() => false),
+    setParams: jest.fn(),
+  },
   Href: String,
 }));
 
@@ -175,3 +192,26 @@ jest.mock('nativewind', () => {
     },
   };
 });
+
+// app/_layout.tsx calls into expo-notifications at module scope (handler +
+// category registration) and on mount (cold-start response lookup).
+jest.mock('expo-notifications', () => ({
+  setNotificationHandler: jest.fn(),
+  setNotificationCategoryAsync: jest.fn().mockResolvedValue(undefined),
+  getLastNotificationResponseAsync: jest.fn().mockResolvedValue(null),
+  addNotificationResponseReceivedListener: jest.fn(() => ({
+    remove: jest.fn(),
+  })),
+  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  removeNotificationSubscription: jest.fn(),
+  getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  getExpoPushTokenAsync: jest
+    .fn()
+    .mockResolvedValue({ data: 'ExponentPushToken[test]' }),
+  scheduleNotificationAsync: jest.fn().mockResolvedValue('notification-id'),
+  cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
+  setNotificationChannelAsync: jest.fn().mockResolvedValue(undefined),
+  DEFAULT_ACTION_IDENTIFIER: 'expo.modules.notifications.actions.DEFAULT',
+  AndroidImportance: { MAX: 5, HIGH: 4, DEFAULT: 3 },
+}));

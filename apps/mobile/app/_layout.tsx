@@ -1,16 +1,21 @@
+import '@/global.css';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from '@react-navigation/native';
+import { ThemeProvider } from '@react-navigation/native';
 import { Stack, router, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
+import { Center } from '@/components/ui/center';
+import { Spinner } from '@/components/ui/spinner';
+import {
+  GluestackUIProvider,
+  type ModeType,
+} from '@/components/ui/gluestack-ui-provider';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { navigationTheme } from '@/theme/navigation';
 import { abandonSprint, getMe } from '@/lib/api';
 
 export const unstable_settings = {
@@ -203,9 +208,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196f3" />
-      </View>
+      <Center className="flex-1 bg-background-0">
+        <Spinner size="large" className="text-primary-500" />
+      </Center>
     );
   }
 
@@ -215,76 +220,94 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
+  /**
+   * Follow the OS for now. Kept as state so a Settings toggle can be lifted
+   * into context later without restructuring the provider tree.
+   */
+  const [themePreference] = useState<ModeType>('system');
+
   // Set up notification handling
   useNotificationObserver();
 
+  /**
+   * Provider order matters:
+   *
+   * GestureHandlerRootView  expo-router's ExpoRoot wraps in SafeAreaProvider
+   *                         but NOT this; without it Actionsheet, Drawer and
+   *                         Slider gestures silently no-op on Android.
+   * GluestackUIProvider     renders a real <View style={[config[scheme]]}> on
+   *                         native, so only its descendants inherit the theme
+   *                         variables. Its Overlay/Toast portals mount inside,
+   *                         which is what lets modals and toasts be themed.
+   * ThemeProvider           pure context; drives header/tab-bar chrome from
+   *                         the same tokens (see theme/navigation.ts).
+   * AuthGate                inside both, so its loading spinner is themed —
+   *                         it used to flash a white screen on cold start.
+   */
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AuthGate>
-        <Stack>
-          {/* Main Tabs (Review + Library) */}
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <GluestackUIProvider mode={themePreference}>
+        <ThemeProvider value={navigationTheme(colorScheme)}>
+          <AuthGate>
+            <Stack>
+              {/* Main Tabs (Review + Library) */}
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
-          {/* Menu Stack (Settings, Profile, Stats, etc.) */}
-          <Stack.Screen name="(menu)" options={{ headerShown: false }} />
+              {/* Menu Stack (Settings, Profile, Stats, etc.) */}
+              <Stack.Screen name="(menu)" options={{ headerShown: false }} />
 
-          {/* Public Stack (Welcome, Sign In) */}
-          <Stack.Screen name="(public)" options={{ headerShown: false }} />
+              {/* Public Stack (Welcome, Sign In) */}
+              <Stack.Screen name="(public)" options={{ headerShown: false }} />
 
-          {/* Onboarding Flow */}
-          <Stack.Screen
-            name="onboarding/notifications"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="onboarding/setup"
-            options={{ headerBackTitle: 'Back' }}
-          />
-          <Stack.Screen
-            name="onboarding/create-deck"
-            options={{ headerBackTitle: 'Back' }}
-          />
-          <Stack.Screen
-            name="onboarding/create-card"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="onboarding/fixture-sprint"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="onboarding/finish"
-            options={{ headerShown: false }}
-          />
+              {/* Onboarding Flow */}
+              <Stack.Screen
+                name="onboarding/notifications"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="onboarding/setup"
+                options={{ headerBackTitle: 'Back' }}
+              />
+              <Stack.Screen
+                name="onboarding/create-deck"
+                options={{ headerBackTitle: 'Back' }}
+              />
+              <Stack.Screen
+                name="onboarding/create-card"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="onboarding/fixture-sprint"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="onboarding/finish"
+                options={{ headerShown: false }}
+              />
 
-          {/* Sprint Screens (Root-level, tab-agnostic) */}
-          <Stack.Screen
-            name="sprint/[id]"
-            options={{ headerBackTitle: 'Back', title: 'Sprint Review' }}
-          />
-          <Stack.Screen
-            name="sprint/complete"
-            options={{ headerShown: false, title: 'Sprint Complete' }}
-          />
+              {/* Sprint Screens (Root-level, tab-agnostic) */}
+              <Stack.Screen
+                name="sprint/[id]"
+                options={{ headerBackTitle: 'Back', title: 'Sprint Review' }}
+              />
+              <Stack.Screen
+                name="sprint/complete"
+                options={{ headerShown: false, title: 'Sprint Complete' }}
+              />
 
-          {/* Other Root-level Screens */}
-          <Stack.Screen name="browse" options={{ title: 'Review Ahead' }} />
-          <Stack.Screen
-            name="modal"
-            options={{ presentation: 'modal', title: 'Modal' }}
-          />
-        </Stack>
-      </AuthGate>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+              {/* Other Root-level Screens */}
+              <Stack.Screen name="browse" options={{ title: 'Review Ahead' }} />
+              <Stack.Screen
+                name="modal"
+                options={{ presentation: 'modal', title: 'Modal' }}
+              />
+            </Stack>
+          </AuthGate>
+          {/* Driven by the resolved scheme rather than "auto" so a future manual
+          override works without further changes. */}
+          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        </ThemeProvider>
+      </GluestackUIProvider>
+    </GestureHandlerRootView>
   );
 }
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-  },
-});

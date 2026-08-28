@@ -123,13 +123,13 @@ const buttonTextStyle = tva({
   parentVariants: {
     action: {
       primary:
-        'text-primary-600 data-[hover=true]:text-primary-600 data-[active=true]:text-primary-700',
+        'text-primary-700 data-[hover=true]:text-primary-700 data-[active=true]:text-primary-700',
       secondary:
         'text-typography-500 data-[hover=true]:text-typography-600 data-[active=true]:text-typography-700',
       positive:
-        'text-success-600 data-[hover=true]:text-success-600 data-[active=true]:text-success-700',
+        'text-success-700 data-[hover=true]:text-success-700 data-[active=true]:text-success-700',
       negative:
-        'text-error-600 data-[hover=true]:text-error-600 data-[active=true]:text-error-700',
+        'text-error-700 data-[hover=true]:text-error-700 data-[active=true]:text-error-700',
     },
     variant: {
       link: 'data-[hover=true]:underline data-[active=true]:underline',
@@ -180,7 +180,7 @@ const buttonTextStyle = tva({
       variant: 'outline',
       action: 'secondary',
       class:
-        'text-typography-500 data-[hover=true]:text-primary-600 data-[active=true]:text-typography-700',
+        'text-typography-500 data-[hover=true]:text-primary-700 data-[active=true]:text-typography-700',
     },
     {
       variant: 'outline',
@@ -215,14 +215,14 @@ const buttonIconStyle = tva({
     },
     action: {
       primary:
-        'text-primary-600 data-[hover=true]:text-primary-600 data-[active=true]:text-primary-700',
+        'text-primary-700 data-[hover=true]:text-primary-700 data-[active=true]:text-primary-700',
       secondary:
         'text-typography-500 data-[hover=true]:text-typography-600 data-[active=true]:text-typography-700',
       positive:
-        'text-success-600 data-[hover=true]:text-success-600 data-[active=true]:text-success-700',
+        'text-success-700 data-[hover=true]:text-success-700 data-[active=true]:text-success-700',
 
       negative:
-        'text-error-600 data-[hover=true]:text-error-600 data-[active=true]:text-error-700',
+        'text-error-700 data-[hover=true]:text-error-700 data-[active=true]:text-error-700',
     },
   },
   parentCompoundVariants: [

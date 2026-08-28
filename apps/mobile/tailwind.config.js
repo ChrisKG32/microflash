@@ -1,9 +1,15 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: process.env.DARK_MODE ? process.env.DARK_MODE : 'class',
+  // 'class' is required: GluestackUIProvider drives the scheme through
+  // nativewind's setColorScheme(), which refuses to run under 'media'.
+  darkMode: 'class',
   content: [
-    './app/**/*.{html,js,jsx,ts,tsx,mdx}',
-    './components/**/*.{html,js,jsx,ts,tsx,mdx}',
+    './app/**/*.{js,jsx,ts,tsx}',
+    './components/**/*.{js,jsx,ts,tsx}',
+    './constants/**/*.{js,jsx,ts,tsx}',
+    './hooks/**/*.{js,jsx,ts,tsx}',
+    './lib/**/*.{js,jsx,ts,tsx}',
+    './theme/**/*.{js,jsx,ts,tsx}',
   ],
   presets: [require('nativewind/preset')],
   important: 'html',
@@ -45,6 +51,7 @@ module.exports = {
           950: 'rgb(var(--color-secondary-950)/<alpha-value>)',
         },
         tertiary: {
+          0: 'rgb(var(--color-tertiary-0)/<alpha-value>)',
           50: 'rgb(var(--color-tertiary-50)/<alpha-value>)',
           100: 'rgb(var(--color-tertiary-100)/<alpha-value>)',
           200: 'rgb(var(--color-tertiary-200)/<alpha-value>)',
@@ -126,9 +133,6 @@ module.exports = {
           800: 'rgb(var(--color-typography-800)/<alpha-value>)',
           900: 'rgb(var(--color-typography-900)/<alpha-value>)',
           950: 'rgb(var(--color-typography-950)/<alpha-value>)',
-          white: '#FFFFFF',
-          gray: '#D4D4D4',
-          black: '#181718',
         },
         outline: {
           0: 'rgb(var(--color-outline-0)/<alpha-value>)',
@@ -162,8 +166,10 @@ module.exports = {
           muted: 'rgb(var(--color-background-muted)/<alpha-value>)',
           success: 'rgb(var(--color-background-success)/<alpha-value>)',
           info: 'rgb(var(--color-background-info)/<alpha-value>)',
-          light: '#FBFBFB',
-          dark: '#181719',
+          // Scrim behind modals/drawers/actionsheets. Intentionally
+          // mode-invariant: a scrim darkens what is behind it and must
+          // not invert with the color scheme.
+          dark: 'rgb(var(--color-background-dark)/<alpha-value>)',
         },
         indicator: {
           primary: 'rgb(var(--color-indicator-primary)/<alpha-value>)',
@@ -171,16 +177,11 @@ module.exports = {
           error: 'rgb(var(--color-indicator-error)/<alpha-value>)',
         },
       },
-      fontFamily: {
-        heading: undefined,
-        body: undefined,
-        mono: undefined,
-        jakarta: ['var(--font-plus-jakarta-sans)'],
-        roboto: ['var(--font-roboto)'],
-        code: ['var(--font-source-code-pro)'],
-        inter: ['var(--font-inter)'],
-        'space-mono': ['var(--font-space-mono)'],
-      },
+      // No fontFamily block: the stock entries were `undefined` or
+      // pointed at Next.js CSS vars that do not exist here, so
+      // font-body / font-heading in components/ui are intentional
+      // no-ops that fall back to the system font. Add real families
+      // here once fonts are loaded through expo-font.
       fontWeight: {
         extrablack: '950',
       },

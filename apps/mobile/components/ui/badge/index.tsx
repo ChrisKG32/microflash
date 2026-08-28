@@ -40,10 +40,10 @@ const badgeTextStyle = tva({
 
   parentVariants: {
     action: {
-      error: 'text-error-600',
-      warning: 'text-warning-600',
-      success: 'text-success-600',
-      info: 'text-info-600',
+      error: 'text-error-700',
+      warning: 'text-warning-700',
+      success: 'text-success-700',
+      info: 'text-info-700',
       muted: 'text-background-800',
     },
     size: {
@@ -81,10 +81,10 @@ const badgeIconStyle = tva({
   base: 'fill-none',
   parentVariants: {
     action: {
-      error: 'text-error-600',
-      warning: 'text-warning-600',
-      success: 'text-success-600',
-      info: 'text-info-600',
+      error: 'text-error-700',
+      warning: 'text-warning-700',
+      success: 'text-success-700',
+      info: 'text-info-700',
       muted: 'text-background-800',
     },
     size: {
