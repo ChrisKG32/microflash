@@ -9,23 +9,30 @@
 
 import { useState, useCallback } from 'react';
 import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
-  Alert,
-} from 'react-native';
-import {
   useLocalSearchParams,
   Stack,
   router,
   useFocusEffect,
 } from 'expo-router';
-import Slider from '@react-native-community/slider';
 
+import { Box } from '@/components/ui/box';
+import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
+import { Center } from '@/components/ui/center';
+import { FlatList } from '@/components/ui/flat-list';
+import { Heading } from '@/components/ui/heading';
+import { HStack } from '@/components/ui/hstack';
+import { Pressable } from '@/components/ui/pressable';
+import {
+  Slider,
+  SliderFilledTrack,
+  SliderThumb,
+  SliderTrack,
+} from '@/components/ui/slider';
+import { Spinner } from '@/components/ui/spinner';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
+import { useAppToast } from '@/components/feedback/use-app-toast';
+import { ThemedRefreshControl } from '@/components/ui-app/themed-refresh-control';
 import {
   getCards,
   getDeck,
@@ -38,6 +45,7 @@ import {
 
 export default function DeckDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const notify = useAppToast();
 
   const [deck, setDeck] = useState<Deck | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
@@ -95,7 +103,7 @@ export default function DeckDetailScreen() {
     } catch (err) {
       // Revert on error
       setPriority(deck.priority);
-      Alert.alert(
+      notify.error(
         'Error',
         err instanceof Error ? err.message : 'Failed to update priority',
       );
@@ -147,12 +155,12 @@ export default function DeckDetailScreen() {
       });
     } catch (err) {
       if (err instanceof ApiError && err.code === 'NO_ELIGIBLE_CARDS') {
-        Alert.alert(
+        notify.info(
           'No Cards Due',
           'There are no cards due for review in this deck right now.',
         );
       } else {
-        Alert.alert(
+        notify.error(
           'Error',
           err instanceof Error ? err.message : 'Failed to start sprint',
         );
@@ -163,41 +171,51 @@ export default function DeckDetailScreen() {
   };
 
   const renderCard = ({ item }: { item: Card }) => (
-    <TouchableOpacity
-      style={styles.cardItem}
+    <Pressable
+      className="rounded-xl bg-background-0 p-4"
       onPress={() => handleEditCard(item.id)}
-      activeOpacity={0.7}
+      testID={`card-${item.id}`}
     >
-      <View style={styles.cardContent}>
-        <Text style={styles.cardLabel}>Front</Text>
-        <Text style={styles.cardText} numberOfLines={2}>
+      <VStack>
+        <Text size="xs" className="uppercase text-typography-400">
+          Front
+        </Text>
+        <Text size="md" className="text-typography-900" numberOfLines={2}>
           {item.front}
         </Text>
-        <Text style={[styles.cardLabel, styles.backLabel]}>Back</Text>
-        <Text style={styles.cardText} numberOfLines={2}>
+        <Text size="xs" className="mt-2 uppercase text-typography-400">
+          Back
+        </Text>
+        <Text size="md" className="text-typography-900" numberOfLines={2}>
           {item.back}
         </Text>
-      </View>
-      <View style={styles.cardMeta}>
-        <View style={styles.cardMetaLeft}>
-          <Text style={styles.cardState}>{item.state}</Text>
-          <Text style={styles.cardPriority}>P: {item.priority}</Text>
-        </View>
-        <Text style={styles.cardReps}>
+      </VStack>
+      <HStack className="mt-3 items-center justify-between">
+        <HStack className="items-center gap-2">
+          <Text size="xs" className="text-typography-500">
+            {item.state}
+          </Text>
+          <Text size="xs" className="text-typography-500">
+            P: {item.priority}
+          </Text>
+        </HStack>
+        <Text size="xs" className="text-typography-400">
           {item.reps} reps · {item.lapses} lapses
         </Text>
-      </View>
-    </TouchableOpacity>
+      </HStack>
+    </Pressable>
   );
 
   if (loading) {
     return (
       <>
         <Stack.Screen options={{ title: 'Loading...' }} />
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" />
-          <Text style={styles.loadingText}>Loading deck...</Text>
-        </View>
+        <Center className="flex-1 bg-background-50">
+          <Spinner size="large" className="text-primary-500" />
+          <Text size="md" className="mt-3 text-typography-500">
+            Loading deck...
+          </Text>
+        </Center>
       </>
     );
   }
@@ -206,13 +224,19 @@ export default function DeckDetailScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Error' }} />
-        <View style={styles.centered}>
-          <Text style={styles.errorIcon}>!</Text>
-          <Text style={styles.errorText}>{error || 'Deck not found'}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
+        <Center className="flex-1 bg-background-50 p-5">
+          <Text className="mb-4 text-4xl">!</Text>
+          <Text size="md" className="mb-4 text-center text-error-700">
+            {error || 'Deck not found'}
+          </Text>
+          <Button
+            action="primary"
+            onPress={handleRefresh}
+            testID="retry-button"
+          >
+            <ButtonText>Retry</ButtonText>
+          </Button>
+        </Center>
       </>
     );
   }
@@ -226,307 +250,126 @@ export default function DeckDetailScreen() {
   return (
     <>
       <Stack.Screen options={{ title: deck.title }} />
-      <View style={styles.container}>
+      <Box className="flex-1 bg-background-50">
         {/* Start Sprint for Deck Button */}
         {cards.length > 0 && (
-          <View style={styles.sprintSection}>
-            <TouchableOpacity
-              style={[
-                styles.startSprintButton,
-                (startingSprintForDeck || dueCardsCount === 0) &&
-                  styles.buttonDisabled,
-              ]}
+          <Box className="border-b border-outline-100 bg-background-0 p-4">
+            <Pressable
+              className="items-center rounded-xl bg-success-500 p-4 disabled:opacity-40"
               onPress={handleStartSprintForDeck}
               disabled={startingSprintForDeck || dueCardsCount === 0}
+              testID="start-deck-sprint-button"
             >
               {startingSprintForDeck ? (
-                <ActivityIndicator color="#fff" size="small" />
+                <Spinner className="text-typography-0" />
               ) : (
                 <>
-                  <Text style={styles.startSprintButtonText}>
+                  <Text size="md" className="font-semibold text-typography-0">
                     Start Sprint for This Deck
                   </Text>
                   {dueCardsCount > 0 ? (
-                    <Text style={styles.dueCountText}>
+                    <Text
+                      size="sm"
+                      className="mt-1 text-typography-0 opacity-90"
+                    >
                       {dueCardsCount} card{dueCardsCount !== 1 ? 's' : ''} due
                     </Text>
                   ) : (
-                    <Text style={styles.noDueText}>No cards due</Text>
+                    <Text
+                      size="sm"
+                      className="mt-1 text-typography-0 opacity-70"
+                    >
+                      No cards due
+                    </Text>
                   )}
                 </>
               )}
-            </TouchableOpacity>
-          </View>
+            </Pressable>
+          </Box>
         )}
 
         {/* Deck Priority Slider */}
-        <View style={styles.prioritySection}>
-          <View style={styles.priorityHeader}>
-            <Text style={styles.priorityLabel}>Deck Priority</Text>
-            <View style={styles.priorityValueContainer}>
-              <Text style={styles.priorityValue}>{priority}</Text>
+        <Box className="border-b border-outline-100 bg-background-0 p-4">
+          <HStack className="items-center justify-between">
+            <Text size="md" className="font-semibold text-typography-900">
+              Deck Priority
+            </Text>
+            <HStack className="items-center gap-2">
+              <Text size="md" className="font-semibold text-primary-500">
+                {priority}
+              </Text>
               {savingPriority && (
-                <ActivityIndicator
-                  size="small"
-                  color="#2196f3"
-                  style={styles.savingIndicator}
-                />
+                <Spinner size="small" className="text-primary-500" />
               )}
-            </View>
-          </View>
+            </HStack>
+          </HStack>
+          {/* gluestack renames the community slider's props: minimumValue ->
+              minValue, maximumValue -> maxValue, onValueChange -> onChange.
+              The network write stays on onChangeEnd (was onSlidingComplete)
+              so dragging doesn't fire a request per frame. */}
           <Slider
-            style={styles.slider}
-            minimumValue={0}
-            maximumValue={100}
+            className="my-3"
+            minValue={0}
+            maxValue={100}
             step={1}
             value={priority}
-            onValueChange={setPriority}
-            onSlidingComplete={handlePriorityChange}
-            minimumTrackTintColor="#2196f3"
-            maximumTrackTintColor="#ddd"
-            thumbTintColor="#2196f3"
-          />
-          <View style={styles.priorityLabels}>
-            <Text style={styles.priorityLabelText}>Low</Text>
-            <Text style={styles.priorityLabelText}>High</Text>
-          </View>
-          <Text style={styles.priorityHint}>
+            onChange={setPriority}
+            onChangeEnd={handlePriorityChange}
+            testID="priority-slider"
+          >
+            <SliderTrack>
+              <SliderFilledTrack />
+            </SliderTrack>
+            <SliderThumb />
+          </Slider>
+          <HStack className="justify-between">
+            <Text size="xs" className="text-typography-400">
+              Low
+            </Text>
+            <Text size="xs" className="text-typography-400">
+              High
+            </Text>
+          </HStack>
+          <Text size="xs" className="mt-2 text-typography-500">
             Higher priority decks have their cards appear first in sprints
           </Text>
-        </View>
+        </Box>
 
         {/* Add Card Button */}
-        <TouchableOpacity style={styles.addButton} onPress={handleAddCard}>
-          <Text style={styles.addButtonText}>+ Add Card</Text>
-        </TouchableOpacity>
+        <Button
+          variant="link"
+          action="primary"
+          className="justify-start p-4"
+          onPress={handleAddCard}
+          testID="add-card-button"
+        >
+          <ButtonText>+ Add Card</ButtonText>
+        </Button>
 
         {cards.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No cards yet</Text>
-            <Text style={styles.emptyText}>
+          <Center className="flex-1 p-5">
+            <Heading size="lg" className="mb-2">
+              No cards yet
+            </Heading>
+            <Text size="md" className="text-center text-typography-500">
               Add your first card to start learning!
             </Text>
-          </View>
+          </Center>
         ) : (
           <FlatList
             data={cards}
             renderItem={renderCard}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.list}
+            keyExtractor={(item: Card) => item.id}
+            contentContainerClassName="gap-3 p-4"
             refreshControl={
-              <RefreshControl
+              <ThemedRefreshControl
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
               />
             }
           />
         )}
-      </View>
+      </Box>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  // Sprint Section
-  sprintSection: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  startSprintButton: {
-    backgroundColor: '#4CAF50',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  startSprintButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  dueCountText: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 13,
-    marginTop: 4,
-  },
-  noDueText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 13,
-    marginTop: 4,
-  },
-  // Priority Section
-  prioritySection: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  priorityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  priorityLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
-  priorityValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  priorityValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2196f3',
-  },
-  savingIndicator: {
-    marginLeft: 8,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  priorityLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-  },
-  priorityLabelText: {
-    fontSize: 12,
-    color: '#999',
-  },
-  priorityHint: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 8,
-  },
-  // Common
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorIcon: {
-    fontSize: 48,
-    color: '#d32f2f',
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#d32f2f',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#2196f3',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  addButton: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  addButtonText: {
-    fontSize: 16,
-    color: '#2196f3',
-    fontWeight: '600',
-  },
-  list: {
-    padding: 16,
-    gap: 12,
-  },
-  cardItem: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  cardContent: {
-    marginBottom: 12,
-  },
-  cardLabel: {
-    fontSize: 11,
-    color: '#999',
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  backLabel: {
-    marginTop: 12,
-  },
-  cardText: {
-    fontSize: 16,
-    color: '#333',
-    lineHeight: 22,
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  cardMetaLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  cardState: {
-    fontSize: 12,
-    color: '#2196f3',
-    fontWeight: '600',
-  },
-  cardPriority: {
-    fontSize: 12,
-    color: '#999',
-  },
-  cardReps: {
-    fontSize: 12,
-    color: '#999',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-});

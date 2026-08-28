@@ -6,16 +6,44 @@
  */
 
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 
+import { Box } from '@/components/ui/box';
+import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
+import { Center } from '@/components/ui/center';
+import { Divider } from '@/components/ui/divider';
+import { Heading } from '@/components/ui/heading';
+import { HStack } from '@/components/ui/hstack';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
 import { startSprint, ApiError, type SprintSource } from '@/lib/api';
+
+function StatRow({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: string | number;
+  tone?: 'neutral' | 'pass' | 'fail';
+}) {
+  const valueClass =
+    tone === 'pass'
+      ? 'text-success-700'
+      : tone === 'fail'
+        ? 'text-error-700'
+        : 'text-typography-900';
+  return (
+    <HStack className="items-center justify-between py-2">
+      <Text size="md" className="text-typography-500">
+        {label}
+      </Text>
+      <Text size="md" className={`font-semibold ${valueClass}`}>
+        {value}
+      </Text>
+    </HStack>
+  );
+}
 
 export default function SprintCompleteScreen() {
   const {
@@ -110,190 +138,89 @@ export default function SprintCompleteScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.container}>
+      <Center className="flex-1 bg-background-50 p-6">
         {/* Success Icon */}
-        <Text style={styles.emoji}>🎉</Text>
+        <Text className="mb-4 text-7xl">🎉</Text>
 
         {/* Title */}
-        <Text style={styles.title}>Sprint Complete!</Text>
+        <Heading size="3xl" className="mb-6">
+          Sprint Complete!
+        </Heading>
 
         {/* Stats */}
         {stats.totalCards > 0 && (
-          <View style={styles.statsContainer}>
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Cards reviewed</Text>
-              <Text style={styles.statValue}>{stats.reviewedCards}</Text>
-            </View>
-
+          <Box className="mb-6 w-full rounded-xl bg-background-0 p-4">
+            <StatRow label="Cards reviewed" value={stats.reviewedCards} />
             {stats.passCount > 0 && (
-              <View style={styles.statRow}>
-                <Text style={styles.statLabel}>Passed</Text>
-                <Text style={[styles.statValue, styles.passValue]}>
-                  {stats.passCount}
-                </Text>
-              </View>
+              <>
+                <Divider />
+                <StatRow label="Passed" value={stats.passCount} tone="pass" />
+              </>
             )}
-
             {stats.failCount > 0 && (
-              <View style={styles.statRow}>
-                <Text style={styles.statLabel}>Need review</Text>
-                <Text style={[styles.statValue, styles.failValue]}>
-                  {stats.failCount}
-                </Text>
-              </View>
+              <>
+                <Divider />
+                <StatRow
+                  label="Need review"
+                  value={stats.failCount}
+                  tone="fail"
+                />
+              </>
             )}
-
             {stats.durationSeconds > 0 && (
-              <View style={styles.statRow}>
-                <Text style={styles.statLabel}>Time</Text>
-                <Text style={styles.statValue}>
-                  {formatDuration(stats.durationSeconds)}
-                </Text>
-              </View>
+              <>
+                <Divider />
+                <StatRow
+                  label="Time"
+                  value={formatDuration(stats.durationSeconds)}
+                />
+              </>
             )}
-          </View>
+          </Box>
         )}
 
         {/* Error message */}
-        {error && <Text style={styles.errorText}>{error}</Text>}
+        {error && (
+          <Text size="sm" className="mb-4 text-center text-error-700">
+            {error}
+          </Text>
+        )}
 
         {/* Actions */}
-        <View style={styles.actionsContainer}>
-          <TouchableOpacity
-            style={styles.doneButton}
+        <VStack className="w-full gap-3">
+          <Button
+            size="xl"
+            action="primary"
+            className="rounded-xl"
             onPress={handleDone}
-            disabled={startingNewSprint}
+            isDisabled={startingNewSprint}
+            testID="done-button"
           >
-            <Text style={styles.doneButtonText}>Done</Text>
-          </TouchableOpacity>
+            <ButtonText>Done</ButtonText>
+          </Button>
 
-          <TouchableOpacity
-            style={[
-              styles.oneMoreButton,
-              startingNewSprint && styles.buttonDisabled,
-            ]}
+          <Button
+            size="xl"
+            variant="outline"
+            action="primary"
+            className="rounded-xl"
             onPress={handleOneMoreSprint}
-            disabled={startingNewSprint}
+            isDisabled={startingNewSprint}
+            testID="one-more-sprint-button"
           >
             {startingNewSprint ? (
-              <ActivityIndicator color="#2196f3" size="small" />
+              <ButtonSpinner className="text-primary-700" />
             ) : (
-              <Text style={styles.oneMoreButtonText}>One More Sprint</Text>
+              <ButtonText>One More Sprint</ButtonText>
             )}
-          </TouchableOpacity>
-        </View>
+          </Button>
+        </VStack>
 
         {/* Encouragement */}
-        <Text style={styles.encouragement}>
+        <Text size="sm" className="mt-6 text-center text-typography-500">
           Great job! Every review strengthens your memory.
         </Text>
-      </View>
+      </Center>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#f5f5f5',
-  },
-  emoji: {
-    fontSize: 72,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 24,
-  },
-  // Stats
-  statsContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    width: '100%',
-    maxWidth: 300,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e0e0e0',
-  },
-  statLabel: {
-    fontSize: 16,
-    color: '#666',
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  passValue: {
-    color: '#4CAF50',
-  },
-  failValue: {
-    color: '#f44336',
-  },
-  // Error
-  errorText: {
-    fontSize: 14,
-    color: '#f44336',
-    textAlign: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 20,
-  },
-  // Actions
-  actionsContainer: {
-    width: '100%',
-    maxWidth: 300,
-    gap: 12,
-  },
-  doneButton: {
-    backgroundColor: '#2196f3',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  doneButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  oneMoreButton: {
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#2196f3',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  oneMoreButtonText: {
-    color: '#2196f3',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  // Encouragement
-  encouragement: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 32,
-    paddingHorizontal: 20,
-  },
-});

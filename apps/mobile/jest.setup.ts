@@ -65,8 +65,13 @@ jest.mock('expo-router', () => ({
     canGoBack: jest.fn(() => false),
     setParams: jest.fn(),
   }),
-  useLocalSearchParams: () => ({}),
-  useGlobalSearchParams: () => ({}),
+  // Route params are per-test; set them with setSearchParams() from
+  // test-utils/router-params (screens keyed on an [id] segment hang in their
+  // loading state without one).
+  useLocalSearchParams: () =>
+    (globalThis as Record<string, unknown>).__routeParams ?? {},
+  useGlobalSearchParams: () =>
+    (globalThis as Record<string, unknown>).__routeParams ?? {},
   useSegments: () => [],
   // Screens fetch on focus; under test there is no navigator, so run the
   // effect once like useEffect (cleanup included).
