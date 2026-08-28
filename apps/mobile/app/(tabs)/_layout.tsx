@@ -3,7 +3,9 @@ import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { HeaderRight } from '@/components/HeaderRight';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { CheckCircle2, Folder } from 'lucide-react-native';
+
+import { Icon } from '@/components/ui/icon';
 
 export default function TabLayout() {
   return (
@@ -26,7 +28,7 @@ export default function TabLayout() {
         options={{
           title: 'Review',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="checkmark.circle.fill" color={color} />
+            <Icon as={CheckCircle2} size="xl" style={{ color }} />
           ),
         }}
       />
@@ -35,7 +37,7 @@ export default function TabLayout() {
         options={{
           title: 'Library',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="folder.fill" color={color} />
+            <Icon as={Folder} size="xl" style={{ color }} />
           ),
         }}
       />
