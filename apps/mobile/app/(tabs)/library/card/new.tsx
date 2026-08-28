@@ -6,25 +6,31 @@
  */
 
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import { Platform } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
-import Slider from '@react-native-community/slider';
 
+import { Box } from '@/components/ui/box';
+import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
+import { HStack } from '@/components/ui/hstack';
+import { KeyboardAvoidingView } from '@/components/ui/keyboard-avoiding-view';
+import { ScrollView } from '@/components/ui/scroll-view';
+import {
+  Slider,
+  SliderFilledTrack,
+  SliderThumb,
+  SliderTrack,
+} from '@/components/ui/slider';
+import { Text } from '@/components/ui/text';
+import { Textarea, TextareaInput } from '@/components/ui/textarea';
+import { VStack } from '@/components/ui/vstack';
+import { useAppToast } from '@/components/feedback/use-app-toast';
+import { useConfirm } from '@/components/feedback/use-confirm';
 import { createCard } from '@/lib/api';
 import { CardContent } from '@/components/CardContent';
 
 export default function NewCardScreen() {
+  const notify = useAppToast();
+  const { confirm, ConfirmDialog } = useConfirm();
   const { deckId, returnTo } = useLocalSearchParams<{
     deckId: string;
     returnTo?: string;
@@ -38,15 +44,15 @@ export default function NewCardScreen() {
 
   const handleSave = async () => {
     if (!front.trim()) {
-      Alert.alert('Error', 'Please enter the front of the card (question)');
+      notify.error('Error', 'Please enter the front of the card (question)');
       return;
     }
     if (!back.trim()) {
-      Alert.alert('Error', 'Please enter the back of the card (answer)');
+      notify.error('Error', 'Please enter the back of the card (answer)');
       return;
     }
     if (!deckId) {
-      Alert.alert('Error', 'No deck specified');
+      notify.error('Error', 'No deck specified');
       return;
     }
 
@@ -66,7 +72,7 @@ export default function NewCardScreen() {
         router.back();
       }
     } catch (err) {
-      Alert.alert(
+      notify.error(
         'Error',
         err instanceof Error ? err.message : 'Failed to create card',
       );
@@ -75,33 +81,26 @@ export default function NewCardScreen() {
     }
   };
 
-  const handleCancel = () => {
-    if (front.trim() || back.trim()) {
-      Alert.alert(
-        'Discard Changes?',
-        'You have unsaved changes. Are you sure you want to discard them?',
-        [
-          { text: 'Keep Editing', style: 'cancel' },
-          {
-            text: 'Discard',
-            style: 'destructive',
-            onPress: () => {
-              if (returnTo) {
-                router.replace(returnTo as any);
-              } else {
-                router.back();
-              }
-            },
-          },
-        ],
-      );
+  const leave = () => {
+    if (returnTo) {
+      router.replace(returnTo as any);
     } else {
-      if (returnTo) {
-        router.replace(returnTo as any);
-      } else {
-        router.back();
-      }
+      router.back();
     }
+  };
+
+  const handleCancel = async () => {
+    if (front.trim() || back.trim()) {
+      const discard = await confirm({
+        title: 'Discard Changes?',
+        body: 'You have unsaved changes. Are you sure you want to discard them?',
+        confirmText: 'Discard',
+        cancelText: 'Keep Editing',
+        action: 'negative',
+      });
+      if (!discard) return;
+    }
+    leave();
   };
 
   return (
@@ -111,324 +110,195 @@ export default function NewCardScreen() {
           title: 'New Card',
           headerBackTitle: 'Cancel',
           headerRight: () => (
-            <TouchableOpacity onPress={handleSave} disabled={saving}>
-              {saving ? (
-                <ActivityIndicator size="small" color="#2196f3" />
-              ) : (
-                <Text style={styles.saveButton}>Save</Text>
-              )}
-            </TouchableOpacity>
+            <Button
+              variant="link"
+              action="primary"
+              size="sm"
+              onPress={handleSave}
+              isDisabled={saving}
+              testID="header-save-button"
+            >
+              {saving ? <ButtonSpinner /> : <ButtonText>Save</ButtonText>}
+            </Button>
           ),
         }}
       />
+      {/* Explicit flex:1 alongside the class: KeyboardAvoidingView is
+          remapProps'd rather than cssInterop'd, and the bottom action bar is
+          a sibling of the ScrollView that must stay pinned. */}
       <KeyboardAvoidingView
-        style={styles.container}
+        style={{ flex: 1 }}
+        className="flex-1 bg-background-50"
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView
-          style={styles.scrollView}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
           {/* Preview Toggle */}
-          <View style={styles.toggleContainer}>
-            <TouchableOpacity
-              style={[styles.toggleButton, !showPreview && styles.toggleActive]}
+          <HStack className="gap-2 border-b border-outline-100 bg-background-0 p-3">
+            <Button
+              variant={showPreview ? 'outline' : 'solid'}
+              action={showPreview ? 'secondary' : 'primary'}
+              size="sm"
+              className="flex-1"
               onPress={() => setShowPreview(false)}
+              testID="edit-tab"
             >
-              <Text
-                style={[
-                  styles.toggleText,
-                  !showPreview && styles.toggleTextActive,
-                ]}
-              >
-                Edit
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toggleButton, showPreview && styles.toggleActive]}
+              <ButtonText>Edit</ButtonText>
+            </Button>
+            <Button
+              variant={showPreview ? 'solid' : 'outline'}
+              action={showPreview ? 'primary' : 'secondary'}
+              size="sm"
+              className="flex-1"
               onPress={() => setShowPreview(true)}
+              testID="preview-tab"
             >
-              <Text
-                style={[
-                  styles.toggleText,
-                  showPreview && styles.toggleTextActive,
-                ]}
-              >
-                Preview
-              </Text>
-            </TouchableOpacity>
-          </View>
+              <ButtonText>Preview</ButtonText>
+            </Button>
+          </HStack>
 
           {showPreview ? (
             /* Preview Mode */
-            <View style={styles.previewContainer}>
-              <View style={styles.previewCard}>
-                <Text style={styles.previewLabel}>Front (Question)</Text>
+            <VStack className="gap-4 p-4">
+              <Box className="rounded-xl bg-background-0 p-4">
+                <Text size="xs" className="mb-2 uppercase text-typography-400">
+                  Front (Question)
+                </Text>
                 {front.trim() ? (
-                  <CardContent content={front} fontSize={18} color="#333" />
+                  <CardContent content={front} fontSize={18} />
                 ) : (
-                  <Text style={styles.previewPlaceholder}>
+                  <Text size="md" className="italic text-typography-400">
                     Enter the front of the card...
                   </Text>
                 )}
-              </View>
+              </Box>
 
-              <View style={styles.previewCard}>
-                <Text style={styles.previewLabel}>Back (Answer)</Text>
+              <Box className="rounded-xl bg-background-0 p-4">
+                <Text size="xs" className="mb-2 uppercase text-typography-400">
+                  Back (Answer)
+                </Text>
                 {back.trim() ? (
-                  <CardContent content={back} fontSize={18} color="#333" />
+                  <CardContent content={back} fontSize={18} />
                 ) : (
-                  <Text style={styles.previewPlaceholder}>
+                  <Text size="md" className="italic text-typography-400">
                     Enter the back of the card...
                   </Text>
                 )}
-              </View>
-            </View>
+              </Box>
+            </VStack>
           ) : (
             /* Edit Mode */
-            <View style={styles.editContainer}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Front (Question)</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter the question or prompt..."
-                  value={front}
-                  onChangeText={setFront}
-                  multiline
-                  textAlignVertical="top"
-                  autoFocus
-                />
-                <Text style={styles.inputHint}>
+            <VStack className="gap-5 p-4">
+              <VStack>
+                <Text
+                  size="sm"
+                  className="mb-2 font-semibold text-typography-900"
+                >
+                  Front (Question)
+                </Text>
+                {/* Textarea's base height is fixed; the old TextInput used
+                    minHeight, so restore a comfortable minimum. */}
+                <Textarea size="md" className="min-h-[120px]">
+                  <TextareaInput
+                    placeholder="Enter the question or prompt..."
+                    value={front}
+                    onChangeText={setFront}
+                    autoFocus
+                    testID="front-input"
+                  />
+                </Textarea>
+                <Text size="xs" className="mt-1 text-typography-500">
                   Supports markdown and LaTeX ($...$ or $$...$$)
                 </Text>
-              </View>
+              </VStack>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Back (Answer)</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter the answer..."
-                  value={back}
-                  onChangeText={setBack}
-                  multiline
-                  textAlignVertical="top"
-                />
-                <Text style={styles.inputHint}>
+              <VStack>
+                <Text
+                  size="sm"
+                  className="mb-2 font-semibold text-typography-900"
+                >
+                  Back (Answer)
+                </Text>
+                <Textarea size="md" className="min-h-[120px]">
+                  <TextareaInput
+                    placeholder="Enter the answer..."
+                    value={back}
+                    onChangeText={setBack}
+                    testID="back-input"
+                  />
+                </Textarea>
+                <Text size="xs" className="mt-1 text-typography-500">
                   Supports markdown and LaTeX ($...$ or $$...$$)
                 </Text>
-              </View>
+              </VStack>
 
               {/* Priority Slider */}
-              <View style={styles.priorityContainer}>
-                <View style={styles.priorityHeader}>
-                  <Text style={styles.inputLabel}>Priority</Text>
-                  <Text style={styles.priorityValue}>{priority}</Text>
-                </View>
+              <VStack>
+                <HStack className="items-center justify-between">
+                  <Text size="sm" className="font-semibold text-typography-900">
+                    Priority
+                  </Text>
+                  <Text size="md" className="font-semibold text-primary-500">
+                    {priority}
+                  </Text>
+                </HStack>
                 <Slider
-                  style={styles.slider}
-                  minimumValue={0}
-                  maximumValue={100}
+                  className="my-3"
+                  minValue={0}
+                  maxValue={100}
                   step={1}
                   value={priority}
-                  onValueChange={setPriority}
-                  minimumTrackTintColor="#2196f3"
-                  maximumTrackTintColor="#ddd"
-                  thumbTintColor="#2196f3"
-                />
-                <View style={styles.priorityLabels}>
-                  <Text style={styles.priorityLabelText}>Low</Text>
-                  <Text style={styles.priorityLabelText}>High</Text>
-                </View>
-                <Text style={styles.inputHint}>
+                  onChange={setPriority}
+                  testID="priority-slider"
+                >
+                  <SliderTrack>
+                    <SliderFilledTrack />
+                  </SliderTrack>
+                  <SliderThumb />
+                </Slider>
+                <HStack className="justify-between">
+                  <Text size="xs" className="text-typography-400">
+                    Low
+                  </Text>
+                  <Text size="xs" className="text-typography-400">
+                    High
+                  </Text>
+                </HStack>
+                <Text size="xs" className="mt-2 text-typography-500">
                   Higher priority cards appear first in sprints
                 </Text>
-              </View>
-            </View>
+              </VStack>
+            </VStack>
           )}
         </ScrollView>
 
         {/* Bottom Action Buttons */}
-        <View style={styles.bottomActions}>
-          <TouchableOpacity
-            style={styles.cancelButton}
+        <HStack className="gap-3 border-t border-outline-100 bg-background-0 p-4">
+          <Button
+            variant="outline"
+            action="secondary"
+            className="flex-1"
             onPress={handleCancel}
-            disabled={saving}
+            isDisabled={saving}
+            testID="cancel-button"
           >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.saveButtonLarge, saving && styles.buttonDisabled]}
+            <ButtonText>Cancel</ButtonText>
+          </Button>
+          <Button
+            action="primary"
+            className="flex-1"
             onPress={handleSave}
-            disabled={saving}
+            isDisabled={saving}
+            testID="create-card-button"
           >
             {saving ? (
-              <ActivityIndicator color="#fff" size="small" />
+              <ButtonSpinner className="text-typography-0" />
             ) : (
-              <Text style={styles.saveButtonLargeText}>Create Card</Text>
+              <ButtonText>Create Card</ButtonText>
             )}
-          </TouchableOpacity>
-        </View>
+          </Button>
+        </HStack>
       </KeyboardAvoidingView>
+      <ConfirmDialog />
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  saveButton: {
-    color: '#2196f3',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    padding: 8,
-    gap: 8,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-  },
-  toggleActive: {
-    backgroundColor: '#2196f3',
-  },
-  toggleText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#666',
-  },
-  toggleTextActive: {
-    color: '#fff',
-  },
-  // Edit Mode
-  editContainer: {
-    padding: 16,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  textInput: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    minHeight: 120,
-    lineHeight: 24,
-  },
-  inputHint: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 6,
-  },
-  // Priority
-  priorityContainer: {
-    marginBottom: 20,
-  },
-  priorityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  priorityValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2196f3',
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  priorityLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-  },
-  priorityLabelText: {
-    fontSize: 12,
-    color: '#999',
-  },
-  // Preview Mode
-  previewContainer: {
-    padding: 16,
-  },
-  previewCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  previewLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#999',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  previewPlaceholder: {
-    fontSize: 16,
-    color: '#ccc',
-    fontStyle: 'italic',
-  },
-  // Bottom Actions
-  bottomActions: {
-    flexDirection: 'row',
-    padding: 16,
-    paddingBottom: 32,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '600',
-  },
-  saveButtonLarge: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: 8,
-    backgroundColor: '#2196f3',
-    alignItems: 'center',
-  },
-  saveButtonLargeText: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-});

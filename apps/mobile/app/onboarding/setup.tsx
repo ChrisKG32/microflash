@@ -5,21 +5,81 @@
  */
 
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  ScrollView,
-  TextInput,
-  Alert,
-} from 'react-native';
 import { Stack, router } from 'expo-router';
-import Slider from '@react-native-community/slider';
+
+import { Box } from '@/components/ui/box';
+import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
+import { Heading } from '@/components/ui/heading';
+import { HStack } from '@/components/ui/hstack';
+import { Input, InputField } from '@/components/ui/input';
+import { ScrollView } from '@/components/ui/scroll-view';
+import {
+  Slider,
+  SliderFilledTrack,
+  SliderThumb,
+  SliderTrack,
+} from '@/components/ui/slider';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
+import { useAppToast } from '@/components/feedback/use-app-toast';
 import { updateNotificationPreferences } from '@/lib/api';
 
+/** A labelled slider row: label, current value, optional hint. */
+function PreferenceSlider({
+  label,
+  hint,
+  value,
+  minValue,
+  maxValue,
+  step,
+  onChange,
+  testID,
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  minValue: number;
+  maxValue: number;
+  step: number;
+  onChange: (value: number) => void;
+  testID: string;
+}) {
+  return (
+    <Box className="mb-6">
+      <HStack className="items-center justify-between">
+        <Text size="md" className="font-semibold text-typography-900">
+          {label}
+        </Text>
+        <Text size="sm" className="text-typography-500">
+          {value} (Recommended)
+        </Text>
+      </HStack>
+      {hint && (
+        <Text size="xs" className="mt-1 text-typography-500">
+          {hint}
+        </Text>
+      )}
+      <Slider
+        className="my-3"
+        minValue={minValue}
+        maxValue={maxValue}
+        step={step}
+        value={value}
+        onChange={onChange}
+        testID={testID}
+      >
+        <SliderTrack>
+          <SliderFilledTrack />
+        </SliderTrack>
+        <SliderThumb />
+      </Slider>
+    </Box>
+  );
+}
+
 export default function OnboardingSetupScreen() {
+  const notify = useAppToast();
+
   // Recommended defaults
   const [quietHoursStart, setQuietHoursStart] = useState('');
   const [quietHoursEnd, setQuietHoursEnd] = useState('');
@@ -37,7 +97,7 @@ export default function OnboardingSetupScreen() {
   const handleContinue = async () => {
     // Validate quiet hours
     if (!quietHoursStart.trim() || !quietHoursEnd.trim()) {
-      Alert.alert(
+      notify.error(
         'Required',
         'Please enter both quiet hours start and end times (HH:MM format)',
       );
@@ -45,7 +105,7 @@ export default function OnboardingSetupScreen() {
     }
 
     if (!validateTime(quietHoursStart) || !validateTime(quietHoursEnd)) {
-      Alert.alert(
+      notify.error(
         'Invalid Format',
         'Please use HH:MM format (e.g., 22:00 or 07:00)',
       );
@@ -78,210 +138,112 @@ export default function OnboardingSetupScreen() {
     <>
       <Stack.Screen options={{ title: 'Setup', headerBackTitle: 'Back' }} />
       <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}
+        className="flex-1 bg-background-50"
+        contentContainerClassName="p-6 pb-10"
       >
-        <Text style={styles.title}>Respectful Notifications</Text>
-        <Text style={styles.description}>
+        <Heading size="2xl" className="mb-2">
+          Respectful Notifications
+        </Heading>
+        <Text size="md" className="mb-6 text-typography-500">
           Configure when and how often you&apos;d like to be reminded. You can
           change these anytime.
         </Text>
 
         {/* Quiet Hours */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Quiet Hours (Required)</Text>
-          <Text style={styles.hint}>No notifications during these hours</Text>
-          <View style={styles.timeRow}>
-            <View style={styles.timeInput}>
-              <Text style={styles.timeLabel}>Start</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="22:00"
-                value={quietHoursStart}
-                onChangeText={setQuietHoursStart}
-                keyboardType="numbers-and-punctuation"
-                maxLength={5}
-              />
-            </View>
-            <View style={styles.timeInput}>
-              <Text style={styles.timeLabel}>End</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="07:00"
-                value={quietHoursEnd}
-                onChangeText={setQuietHoursEnd}
-                keyboardType="numbers-and-punctuation"
-                maxLength={5}
-              />
-            </View>
-          </View>
-        </View>
+        <Box className="mb-6">
+          <Text size="md" className="font-semibold text-typography-900">
+            Quiet Hours (Required)
+          </Text>
+          <Text size="xs" className="mt-1 text-typography-500">
+            No notifications during these hours
+          </Text>
+          <HStack className="mt-3 gap-3">
+            <VStack className="flex-1">
+              <Text size="xs" className="mb-1 text-typography-500">
+                Start
+              </Text>
+              <Input variant="outline">
+                <InputField
+                  placeholder="22:00"
+                  value={quietHoursStart}
+                  onChangeText={setQuietHoursStart}
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={5}
+                  testID="quiet-hours-start"
+                />
+              </Input>
+            </VStack>
+            <VStack className="flex-1">
+              <Text size="xs" className="mb-1 text-typography-500">
+                End
+              </Text>
+              <Input variant="outline">
+                <InputField
+                  placeholder="07:00"
+                  value={quietHoursEnd}
+                  onChangeText={setQuietHoursEnd}
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={5}
+                  testID="quiet-hours-end"
+                />
+              </Input>
+            </VStack>
+          </HStack>
+        </Box>
 
-        {/* Max Per Day */}
-        <View style={styles.section}>
-          <View style={styles.labelRow}>
-            <Text style={styles.label}>Max Notifications/Day</Text>
-            <Text style={styles.value}>{maxPerDay} (Recommended)</Text>
-          </View>
-          <Slider
-            style={styles.slider}
-            minimumValue={1}
-            maximumValue={10}
-            step={1}
-            value={maxPerDay}
-            onValueChange={setMaxPerDay}
-            minimumTrackTintColor="#2196f3"
-            maximumTrackTintColor="#ddd"
-            thumbTintColor="#2196f3"
-          />
-        </View>
+        <PreferenceSlider
+          label="Max Notifications/Day"
+          value={maxPerDay}
+          minValue={1}
+          maxValue={10}
+          step={1}
+          onChange={setMaxPerDay}
+          testID="max-per-day-slider"
+        />
 
-        {/* Cooldown */}
-        <View style={styles.section}>
-          <View style={styles.labelRow}>
-            <Text style={styles.label}>Cooldown (minutes)</Text>
-            <Text style={styles.value}>{cooldown} (Recommended)</Text>
-          </View>
-          <Text style={styles.hint}>Minimum time between notifications</Text>
-          <Slider
-            style={styles.slider}
-            minimumValue={120}
-            maximumValue={480}
-            step={30}
-            value={cooldown}
-            onValueChange={setCooldown}
-            minimumTrackTintColor="#2196f3"
-            maximumTrackTintColor="#ddd"
-            thumbTintColor="#2196f3"
-          />
-        </View>
+        <PreferenceSlider
+          label="Cooldown (minutes)"
+          hint="Minimum time between notifications"
+          value={cooldown}
+          minValue={120}
+          maxValue={480}
+          step={30}
+          onChange={setCooldown}
+          testID="cooldown-slider"
+        />
 
-        {/* Sprint Size */}
-        <View style={styles.section}>
-          <View style={styles.labelRow}>
-            <Text style={styles.label}>Sprint Size (cards)</Text>
-            <Text style={styles.value}>{sprintSize} (Recommended)</Text>
-          </View>
-          <Text style={styles.hint}>Cards per micro-sprint</Text>
-          <Slider
-            style={styles.slider}
-            minimumValue={3}
-            maximumValue={10}
-            step={1}
-            value={sprintSize}
-            onValueChange={setSprintSize}
-            minimumTrackTintColor="#2196f3"
-            maximumTrackTintColor="#ddd"
-            thumbTintColor="#2196f3"
-          />
-        </View>
+        <PreferenceSlider
+          label="Sprint Size (cards)"
+          hint="Cards per micro-sprint"
+          value={sprintSize}
+          minValue={3}
+          maxValue={10}
+          step={1}
+          onChange={setSprintSize}
+          testID="sprint-size-slider"
+        />
 
-        {error && <Text style={styles.errorText}>{error}</Text>}
+        {error && (
+          <Text size="sm" className="mb-4 text-center text-error-700">
+            {error}
+          </Text>
+        )}
 
-        <TouchableOpacity
-          style={styles.continueButton}
+        <Button
+          size="xl"
+          action="primary"
+          className="rounded-xl"
           onPress={handleContinue}
-          disabled={loading}
+          isDisabled={loading}
+          testID="continue-button"
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ButtonSpinner className="text-typography-0" />
           ) : (
-            <Text style={styles.continueButtonText}>Continue</Text>
+            <ButtonText>Continue</ButtonText>
           )}
-        </TouchableOpacity>
+        </Button>
       </ScrollView>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  content: {
-    padding: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 24,
-    lineHeight: 24,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  value: {
-    fontSize: 14,
-    color: '#2196f3',
-    fontWeight: '600',
-  },
-  hint: {
-    fontSize: 14,
-    color: '#999',
-    marginBottom: 8,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  timeInput: {
-    flex: 1,
-  },
-  timeLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#333',
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  errorText: {
-    color: '#d32f2f',
-    fontSize: 14,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  continueButton: {
-    backgroundColor: '#2196f3',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  continueButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

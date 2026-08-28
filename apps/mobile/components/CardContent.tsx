@@ -18,12 +18,16 @@ import { View, StyleSheet, StyleProp, TextStyle } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { WebView } from 'react-native-webview';
 
+import { useTokens } from '@/theme/use-token';
+
 interface CardContentProps {
   /** The content string to render (may contain markdown and/or LaTeX) */
   content: string;
   /** Font size for the content (default: 18) */
   fontSize?: number;
-  /** Text color (default: #333) */
+  /**
+   * Text color. Defaults to the themed body color; pass one only to override.
+   */
   color?: string;
 }
 
@@ -92,12 +96,54 @@ function markdownToHtml(content: string): string {
 }
 
 /**
+ * Colors this component needs as literal strings.
+ *
+ * className cannot reach either consumer: react-native-markdown-display takes
+ * a plain style object, and the KaTeX block is a string template inside a
+ * WebView. Both come from the same token palette as everything else.
+ */
+type CardColors = {
+  text: string;
+  surface: string;
+  codeBg: string;
+  quoteBg: string;
+  quoteBorder: string;
+  link: string;
+  error: string;
+  errorBg: string;
+};
+
+function useCardColors(): CardColors {
+  const t = useTokens(
+    'typography-900',
+    'background-0',
+    'background-100',
+    'background-50',
+    'outline-200',
+    'primary-500',
+    'error-700',
+    'background-error',
+  );
+  return {
+    text: t['typography-900'],
+    surface: t['background-0'],
+    codeBg: t['background-100'],
+    quoteBg: t['background-50'],
+    quoteBorder: t['outline-200'],
+    link: t['primary-500'],
+    error: t['error-700'],
+    errorBg: t['background-error'],
+  };
+}
+
+/**
  * Generate HTML with KaTeX auto-render for mixed content
  */
 function generateKaTeXHTML(
   content: string,
   fontSize: number,
   color: string,
+  c: CardColors,
 ): string {
   const htmlContent = markdownToHtml(content);
 
@@ -117,7 +163,9 @@ function generateKaTeXHTML(
       box-sizing: border-box;
     }
     html, body {
-      background-color: transparent;
+      /* Android composites a transparent WebView over WHITE, which is a
+         white rectangle on a dark card. Paint the surface explicitly. */
+      background-color: ${c.surface};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: ${fontSize}px;
       line-height: 1.5;
@@ -139,7 +187,7 @@ function generateKaTeXHTML(
     strong { font-weight: bold; }
     em { font-style: italic; }
     code {
-      background-color: #f0f0f0;
+      background-color: ${c.codeBg};
       font-family: monospace;
       font-size: 0.9em;
       padding: 2px 4px;
@@ -153,7 +201,7 @@ function generateKaTeXHTML(
       margin: 0.2em 0;
     }
     a {
-      color: #2196f3;
+      color: ${c.link};
       text-decoration: underline;
     }
     /* KaTeX styling */
@@ -167,8 +215,8 @@ function generateKaTeXHTML(
     }
     /* Error styling - KaTeX renders invalid LaTeX in this span */
     .katex-error {
-      color: #cc0000 !important;
-      background-color: #ffebee;
+      color: ${c.error} !important;
+      background-color: ${c.errorBg};
       padding: 2px 4px;
       border-radius: 3px;
       font-family: monospace;
@@ -176,8 +224,8 @@ function generateKaTeXHTML(
     }
     /* Custom error message styling */
     .math-error {
-      color: #cc0000;
-      background-color: #ffebee;
+      color: ${c.error};
+      background-color: ${c.errorBg};
       padding: 4px 8px;
       border-radius: 4px;
       font-style: italic;
@@ -197,7 +245,7 @@ function generateKaTeXHTML(
           {left: "\\\\[", right: "\\\\]", display: true}
         ],
         throwOnError: false,
-        errorColor: '#cc0000',
+        errorColor: '${c.error}',
         // Custom error callback to log and style errors
         errorCallback: function(msg, err) {
           console.warn('KaTeX error:', msg, err);
@@ -222,24 +270,30 @@ function generateKaTeXHTML(
 export function CardContent({
   content,
   fontSize = 18,
-  color = '#333',
+  color,
 }: CardContentProps) {
   const [webViewHeight, setWebViewHeight] = useState(100);
+
+  const c = useCardColors();
+  // `color` stays an escape hatch; the theme supplies the default.
+  const textColor = color ?? c.text;
 
   // Check if content has any math
   const hasMath = useMemo(() => containsMath(content), [content]);
 
   // Generate HTML for WebView (only if has math)
   const html = useMemo(
-    () => (hasMath ? generateKaTeXHTML(content, fontSize, color) : ''),
-    [content, fontSize, color, hasMath],
+    () => (hasMath ? generateKaTeXHTML(content, fontSize, textColor, c) : ''),
+    [content, fontSize, textColor, c, hasMath],
   );
 
   // If no math, render pure native Markdown (better performance)
   if (!hasMath) {
     return (
       // @ts-expect-error style doesn't exist?
-      <Markdown style={getMarkdownStyles(fontSize, color)}>{content}</Markdown>
+      <Markdown style={getMarkdownStyles(fontSize, textColor, c)}>
+        {content}
+      </Markdown>
     );
   }
 
@@ -281,6 +335,7 @@ export function CardContent({
 function getMarkdownStyles(
   fontSize: number,
   color: string,
+  c: CardColors,
 ): StyleProp<TextStyle> {
   return {
     body: {
@@ -313,14 +368,14 @@ function getMarkdownStyles(
       fontStyle: 'italic' as const,
     },
     code_inline: {
-      backgroundColor: '#f0f0f0',
+      backgroundColor: c.codeBg,
       fontFamily: 'monospace',
       fontSize: fontSize * 0.9,
       paddingHorizontal: 4,
       borderRadius: 3,
     },
     code_block: {
-      backgroundColor: '#f5f5f5',
+      backgroundColor: c.quoteBg,
       fontFamily: 'monospace',
       fontSize: fontSize * 0.85,
       padding: 12,
@@ -328,7 +383,7 @@ function getMarkdownStyles(
       marginVertical: 8,
     },
     fence: {
-      backgroundColor: '#f5f5f5',
+      backgroundColor: c.quoteBg,
       fontFamily: 'monospace',
       fontSize: fontSize * 0.85,
       padding: 12,
@@ -336,9 +391,9 @@ function getMarkdownStyles(
       marginVertical: 8,
     },
     blockquote: {
-      backgroundColor: '#f9f9f9',
+      backgroundColor: c.quoteBg,
       borderLeftWidth: 4,
-      borderLeftColor: '#ddd',
+      borderLeftColor: c.quoteBorder,
       paddingLeft: 12,
       paddingVertical: 4,
       marginVertical: 8,
@@ -353,7 +408,7 @@ function getMarkdownStyles(
       marginVertical: 4,
     },
     link: {
-      color: '#2196f3',
+      color: c.link,
       textDecorationLine: 'underline' as const,
     },
   } as StyleProp<TextStyle>;

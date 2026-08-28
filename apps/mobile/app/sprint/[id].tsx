@@ -7,14 +7,6 @@
 
 import { useState, useCallback } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  ScrollView,
-} from 'react-native';
-import {
   useLocalSearchParams,
   Stack,
   router,
@@ -30,7 +22,46 @@ import {
   type SprintCard,
   type Rating,
 } from '@/lib/api';
+import { Box } from '@/components/ui/box';
+import { Button, ButtonText } from '@/components/ui/button';
+import { Center } from '@/components/ui/center';
+import { Divider } from '@/components/ui/divider';
+import { HStack } from '@/components/ui/hstack';
+import { Progress, ProgressFilledTrack } from '@/components/ui/progress';
+import { Pressable } from '@/components/ui/pressable';
+import { ScrollView } from '@/components/ui/scroll-view';
+import { Spinner } from '@/components/ui/spinner';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
 import { CardContent } from '@/components/CardContent';
+
+/** The four FSRS grades, in Again -> Easy order. */
+const GRADES = [
+  {
+    rating: 'AGAIN' as const,
+    label: 'Again',
+    hint: 'Forgot',
+    tone: 'bg-error-500',
+  },
+  {
+    rating: 'HARD' as const,
+    label: 'Hard',
+    hint: 'Struggled',
+    tone: 'bg-warning-500',
+  },
+  {
+    rating: 'GOOD' as const,
+    label: 'Good',
+    hint: 'Correct',
+    tone: 'bg-success-500',
+  },
+  {
+    rating: 'EASY' as const,
+    label: 'Easy',
+    hint: 'Effortless',
+    tone: 'bg-primary-500',
+  },
+];
 
 export default function SprintReviewScreen() {
   const { id, returnTo, launchSource, deckId } = useLocalSearchParams<{
@@ -177,10 +208,12 @@ export default function SprintReviewScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Sprint Review' }} />
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#2196f3" />
-          <Text style={styles.loadingText}>Loading sprint...</Text>
-        </View>
+        <Center className="flex-1 bg-background-50">
+          <Spinner size="large" className="text-primary-500" />
+          <Text size="md" className="mt-4 text-typography-500">
+            Loading sprint...
+          </Text>
+        </Center>
       </>
     );
   }
@@ -189,13 +222,19 @@ export default function SprintReviewScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Sprint Review' }} />
-        <View style={styles.centered}>
-          <Text style={styles.errorIcon}>⚠️</Text>
-          <Text style={styles.errorText}>{error || 'Sprint not found'}</Text>
-          <TouchableOpacity style={styles.homeButton} onPress={handleGoHome}>
-            <Text style={styles.homeButtonText}>Go Home</Text>
-          </TouchableOpacity>
-        </View>
+        <Center className="flex-1 bg-background-50 p-5">
+          <Text className="mb-4 text-5xl">⚠️</Text>
+          <Text size="md" className="mb-4 text-center text-error-700">
+            {error || 'Sprint not found'}
+          </Text>
+          <Button
+            action="primary"
+            onPress={handleGoHome}
+            testID="go-home-button"
+          >
+            <ButtonText>Go Home</ButtonText>
+          </Button>
+        </Center>
       </>
     );
   }
@@ -205,10 +244,12 @@ export default function SprintReviewScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Sprint Review' }} />
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#2196f3" />
-          <Text style={styles.loadingText}>Completing sprint...</Text>
-        </View>
+        <Center className="flex-1 bg-background-50">
+          <Spinner size="large" className="text-primary-500" />
+          <Text size="md" className="mt-4 text-typography-500">
+            Completing sprint...
+          </Text>
+        </Center>
       </>
     );
   }
@@ -221,281 +262,96 @@ export default function SprintReviewScreen() {
           headerBackTitle: 'Back',
         }}
       />
-      <View style={styles.container}>
+      <Box className="flex-1 bg-background-50">
         {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${((progress?.reviewed ?? 0) / (progress?.total ?? 1)) * 100}%`,
-                },
-              ]}
-            />
-          </View>
-          <Text style={styles.progressText}>
+        <HStack className="items-center gap-3 border-b border-outline-100 bg-background-0 px-4 py-3">
+          <Progress
+            value={((progress?.reviewed ?? 0) / (progress?.total ?? 1)) * 100}
+            size="sm"
+            className="flex-1"
+            testID="sprint-progress"
+          >
+            <ProgressFilledTrack />
+          </Progress>
+          <Text
+            size="sm"
+            className="text-typography-500"
+            testID="sprint-progress-label"
+          >
             {progress?.reviewed ?? 0} / {progress?.total ?? 0}
           </Text>
-        </View>
+        </HStack>
 
         {/* Card */}
-        <ScrollView
-          style={styles.cardContainer}
-          contentContainerStyle={styles.cardContent}
-        >
-          <View style={styles.card}>
+        <ScrollView className="flex-1" contentContainerClassName="p-4 pb-8">
+          <Box className="rounded-2xl bg-background-0 p-5">
             {/* Front */}
-            <Text style={styles.cardLabel}>Question</Text>
-            <CardContent
-              content={currentCard.card.front}
-              fontSize={18}
-              color="#333"
-            />
+            <Text size="xs" className="mb-2 uppercase text-typography-400">
+              Question
+            </Text>
+            <CardContent content={currentCard.card.front} fontSize={18} />
 
             {/* Back (if revealed) */}
             {showAnswer && (
               <>
-                <View style={styles.divider} />
-                <Text style={styles.cardLabel}>Answer</Text>
-                <CardContent
-                  content={currentCard.card.back}
-                  fontSize={18}
-                  color="#333"
-                />
+                <Divider className="my-4" />
+                <Text size="xs" className="mb-2 uppercase text-typography-400">
+                  Answer
+                </Text>
+                <CardContent content={currentCard.card.back} fontSize={18} />
               </>
             )}
-          </View>
+          </Box>
 
           {/* Deck info */}
           {currentCard.card.deckTitle && (
-            <Text style={styles.deckInfo}>{currentCard.card.deckTitle}</Text>
+            <Text size="xs" className="mt-3 text-center text-typography-400">
+              {currentCard.card.deckTitle}
+            </Text>
           )}
         </ScrollView>
 
         {/* Actions */}
-        <View style={styles.actionsContainer}>
+        <Box className="border-t border-outline-100 bg-background-0 p-4">
           {!showAnswer ? (
-            <TouchableOpacity
-              style={styles.revealButton}
+            <Button
+              size="xl"
+              action="primary"
+              className="rounded-xl"
               onPress={handleReveal}
+              testID="show-answer-button"
             >
-              <Text style={styles.revealButtonText}>Show Answer</Text>
-            </TouchableOpacity>
+              <ButtonText>Show Answer</ButtonText>
+            </Button>
           ) : (
-            <View style={styles.gradeButtons}>
-              <TouchableOpacity
-                style={[styles.gradeButton, styles.againButton]}
-                onPress={() => handleGrade('AGAIN')}
-                disabled={submitting}
-              >
-                <Text style={styles.gradeButtonText}>Again</Text>
-                <Text style={styles.gradeButtonHint}>Forgot</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.gradeButton, styles.hardButton]}
-                onPress={() => handleGrade('HARD')}
-                disabled={submitting}
-              >
-                <Text style={styles.gradeButtonText}>Hard</Text>
-                <Text style={styles.gradeButtonHint}>Struggled</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.gradeButton, styles.goodButton]}
-                onPress={() => handleGrade('GOOD')}
-                disabled={submitting}
-              >
-                <Text style={styles.gradeButtonText}>Good</Text>
-                <Text style={styles.gradeButtonHint}>Correct</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.gradeButton, styles.easyButton]}
-                onPress={() => handleGrade('EASY')}
-                disabled={submitting}
-              >
-                <Text style={styles.gradeButtonText}>Easy</Text>
-                <Text style={styles.gradeButtonHint}>Effortless</Text>
-              </TouchableOpacity>
-            </View>
+            <HStack className="gap-2">
+              {GRADES.map(({ rating, label, hint, tone }) => (
+                <Pressable
+                  key={rating}
+                  className={`flex-1 items-center rounded-xl p-3 ${tone}`}
+                  onPress={() => handleGrade(rating)}
+                  disabled={submitting}
+                  testID={`grade-${rating.toLowerCase()}`}
+                >
+                  <Text size="md" className="font-semibold text-typography-0">
+                    {label}
+                  </Text>
+                  <Text size="xs" className="text-typography-0 opacity-80">
+                    {hint}
+                  </Text>
+                </Pressable>
+              ))}
+            </HStack>
           )}
-        </View>
+        </Box>
 
         {/* Submitting overlay */}
         {submitting && (
-          <View style={styles.submittingOverlay}>
-            <ActivityIndicator color="#fff" size="small" />
-          </View>
+          <Center className="absolute inset-0 bg-background-dark/30">
+            <Spinner className="text-typography-0" />
+          </Center>
         )}
-      </View>
+      </Box>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#f5f5f5',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#d32f2f',
-    textAlign: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 20,
-  },
-  homeButton: {
-    backgroundColor: '#2196f3',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  homeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Progress
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    paddingBottom: 8,
-  },
-  progressBar: {
-    flex: 1,
-    height: 8,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginRight: 12,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-    minWidth: 50,
-    textAlign: 'right',
-  },
-  // Card
-  cardContainer: {
-    flex: 1,
-  },
-  cardContent: {
-    padding: 16,
-    paddingTop: 8,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#999',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
-  cardText: {
-    fontSize: 18,
-    color: '#333',
-    lineHeight: 26,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#e0e0e0',
-    marginVertical: 16,
-  },
-  deckInfo: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 12,
-  },
-  // Actions
-  actionsContainer: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  revealButton: {
-    backgroundColor: '#2196f3',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  revealButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  gradeButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  gradeButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  gradeButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  gradeButtonHint: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 10,
-    marginTop: 2,
-  },
-  againButton: {
-    backgroundColor: '#f44336',
-  },
-  hardButton: {
-    backgroundColor: '#ff9800',
-  },
-  goodButton: {
-    backgroundColor: '#4CAF50',
-  },
-  easyButton: {
-    backgroundColor: '#2196f3',
-  },
-  // Submitting overlay
-  submittingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
