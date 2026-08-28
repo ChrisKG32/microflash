@@ -9,16 +9,20 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  ScrollView,
-  RefreshControl,
-} from 'react-native';
 import { useFocusEffect, router } from 'expo-router';
+
+import { Box } from '@/components/ui/box';
+import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Center } from '@/components/ui/center';
+import { Heading } from '@/components/ui/heading';
+import { Icon, ChevronRightIcon } from '@/components/ui/icon';
+import { Pressable } from '@/components/ui/pressable';
+import { ScrollView } from '@/components/ui/scroll-view';
+import { Spinner } from '@/components/ui/spinner';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
+import { ThemedRefreshControl } from '@/components/ui-app/themed-refresh-control';
 
 import {
   getHomeSummary,
@@ -145,25 +149,35 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
+      <Center className="flex-1 bg-background-50 p-5">
+        <Spinner size="large" className="text-primary-500" />
+        <Text size="md" className="mt-3 text-typography-500">
+          Loading...
+        </Text>
+      </Center>
     );
   }
 
   if (error) {
     return (
       <ScrollView
-        contentContainerStyle={styles.centered}
+        className="flex-1 bg-background-50"
+        // The old style had flex:1 on the content container, which collapses
+        // inside a ScrollView; flex-grow is what was actually intended.
+        contentContainerClassName="flex-grow items-center justify-center p-5"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <ThemedRefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+          />
         }
       >
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
+        <Text size="md" className="mb-4 text-center text-error-700">
+          {error}
+        </Text>
+        <Button action="primary" onPress={handleRefresh} testID="retry-button">
+          <ButtonText>Retry</ButtonText>
+        </Button>
       </ScrollView>
     );
   }
@@ -172,250 +186,111 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
+      className="flex-1 bg-background-50"
+      contentContainerClassName="p-4 pb-8"
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        <ThemedRefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+        />
       }
     >
       {/* Resume Sprint CTA */}
       {showResumeCTA && summary?.resumableSprint && (
-        <TouchableOpacity
-          style={styles.resumeBanner}
+        <Pressable
+          className="mb-4 flex-row items-center justify-between rounded-xl bg-success-500 p-4"
           onPress={handleResumeSprint}
+          testID="resume-sprint-banner"
         >
-          <View style={styles.resumeContent}>
-            <Text style={styles.resumeTitle}>Resume Sprint</Text>
-            <Text style={styles.resumeSubtext}>
+          <VStack className="flex-1">
+            <Heading size="md" className="mb-1 text-typography-0">
+              Resume Sprint
+            </Heading>
+            <Text size="sm" className="text-typography-0 opacity-90">
               {summary.resumableSprint.progress.reviewed} of{' '}
               {summary.resumableSprint.progress.total} cards reviewed
               {summary.resumableSprint.deckTitle &&
                 ` - ${summary.resumableSprint.deckTitle}`}
             </Text>
-          </View>
-          <Text style={styles.resumeArrow}>{'>'}</Text>
-        </TouchableOpacity>
+          </VStack>
+          <Icon
+            as={ChevronRightIcon}
+            size="xl"
+            className="ml-3 text-typography-0"
+          />
+        </Pressable>
       )}
 
       {/* Main Content */}
       {hasDueCards ? (
-        <View style={styles.dueSection}>
+        <VStack className="items-center pt-10">
           {/* Due Count Card */}
-          <View style={styles.statsCard}>
-            <Text style={styles.statsNumber}>{summary.dueCount}</Text>
-            <Text style={styles.statsLabel}>cards due</Text>
+          <Card
+            variant="elevated"
+            className="mb-6 w-full items-center rounded-2xl p-8"
+          >
+            <Text
+              className="text-6xl font-bold text-primary-500"
+              testID="due-count"
+            >
+              {summary.dueCount}
+            </Text>
+            <Text size="lg" className="mt-1 text-typography-500">
+              cards due
+            </Text>
             {summary.overdueCount > 0 && (
-              <Text style={styles.overdueText}>
+              <Text size="sm" className="mt-2 text-error-700">
                 {summary.overdueCount} overdue
               </Text>
             )}
-          </View>
+          </Card>
 
-          {/* Start Sprint Button */}
-          <TouchableOpacity
-            style={[
-              styles.startButton,
-              startingSprintSource && styles.buttonDisabled,
-            ]}
+          {/* Start Sprint Button. Button's base style already dims when
+              disabled, so the old buttonDisabled opacity rule is gone. */}
+          <Button
+            size="xl"
+            action="primary"
+            className="min-w-[200px] rounded-xl"
             onPress={handleStartSprint}
-            disabled={!!startingSprintSource}
+            isDisabled={!!startingSprintSource}
+            testID="start-sprint-button"
           >
             {startingSprintSource ? (
-              <ActivityIndicator color="#fff" />
+              <ButtonSpinner className="text-typography-0" />
             ) : (
-              <Text style={styles.startButtonText}>Start Sprint</Text>
+              <ButtonText size="lg">Start Sprint</ButtonText>
             )}
-          </TouchableOpacity>
-        </View>
+          </Button>
+        </VStack>
       ) : (
-        <View style={styles.emptySection}>
-          <Text style={styles.emptyIcon}>🎉</Text>
-          <Text style={styles.emptyTitle}>You&apos;re all caught up!</Text>
-          <Text style={styles.emptyText}>
+        <VStack className="items-center pt-16">
+          <Text className="mb-4 text-6xl">🎉</Text>
+          <Heading size="xl" className="mb-2">
+            You&apos;re all caught up!
+          </Heading>
+          <Text size="md" className="mb-6 text-center text-typography-500">
             No cards are due for review right now.
           </Text>
-          <TouchableOpacity
-            style={styles.reviewAheadButton}
+          <Button
+            variant="outline"
+            action="primary"
             onPress={handleReviewAhead}
+            testID="review-ahead-button"
           >
-            <Text style={styles.reviewAheadText}>Review Ahead</Text>
-          </TouchableOpacity>
-        </View>
+            <ButtonText>Review Ahead</ButtonText>
+          </Button>
+        </VStack>
       )}
 
       {/* Notification Status (subtle) */}
       {summary && !summary.notificationsEnabled && (
-        <View style={styles.notificationWarning}>
-          <Text style={styles.notificationWarningText}>
+        <Box className="mt-6 rounded-lg bg-background-warning p-3">
+          <Text size="sm" className="text-center text-warning-700">
             Notifications are disabled. Enable them in Settings to get reminded
             when cards are due.
           </Text>
-        </View>
+        </Box>
       )}
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#f5f5f5',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#d32f2f',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#2196f3',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Resume Banner
-  resumeBanner: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  resumeContent: {
-    flex: 1,
-  },
-  resumeTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  resumeSubtext: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 14,
-  },
-  resumeArrow: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: '600',
-    marginLeft: 12,
-  },
-  // Due Section
-  dueSection: {
-    alignItems: 'center',
-    paddingTop: 40,
-  },
-  statsCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 32,
-    alignItems: 'center',
-    marginBottom: 24,
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statsNumber: {
-    fontSize: 64,
-    fontWeight: '700',
-    color: '#2196f3',
-  },
-  statsLabel: {
-    fontSize: 18,
-    color: '#666',
-    marginTop: 4,
-  },
-  overdueText: {
-    fontSize: 14,
-    color: '#f44336',
-    marginTop: 8,
-  },
-  startButton: {
-    backgroundColor: '#2196f3',
-    paddingHorizontal: 48,
-    paddingVertical: 16,
-    borderRadius: 12,
-    minWidth: 200,
-    alignItems: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  startButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  // Empty Section
-  emptySection: {
-    alignItems: 'center',
-    paddingTop: 60,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  reviewAheadButton: {
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#2196f3',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  reviewAheadText: {
-    color: '#2196f3',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Notification Warning
-  notificationWarning: {
-    backgroundColor: '#FFF3E0',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 24,
-  },
-  notificationWarningText: {
-    color: '#E65100',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-});

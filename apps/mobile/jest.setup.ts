@@ -68,6 +68,18 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
   useGlobalSearchParams: () => ({}),
   useSegments: () => [],
+  // Screens fetch on focus; under test there is no navigator, so run the
+  // effect once like useEffect (cleanup included).
+  useFocusEffect: (cb: () => void | (() => void)) => {
+    const React = require('react');
+    React.useEffect(cb, [cb]);
+  },
+  useNavigation: () => ({
+    navigate: jest.fn(),
+    goBack: jest.fn(),
+    setOptions: jest.fn(),
+    addListener: jest.fn(() => jest.fn()),
+  }),
   usePathname: () => '/',
   Link: ({ children }: { children: React.ReactNode }) => children,
   // Navigators render their children; `.Screen` is config-only, so it renders

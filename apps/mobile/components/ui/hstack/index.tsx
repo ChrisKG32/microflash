@@ -19,7 +19,7 @@ const HStack = React.forwardRef<React.ComponentRef<typeof View>, IHStackProps>(
         ref={ref}
       />
     );
-  }
+  },
 );
 
 HStack.displayName = 'HStack';

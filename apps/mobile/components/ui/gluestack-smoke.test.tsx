@@ -14,24 +14,27 @@ import { VStack } from '@/components/ui/vstack';
 import { renderScreen } from '@/test-utils/render-screen';
 
 describe('gluestack registry', () => {
-  it.each(['light', 'dark'] as const)('renders primitives in %s mode', (mode) => {
-    const { getByText, getByTestId } = renderScreen(
-      <Center>
-        <VStack>
-          <Heading size="md">Due today</Heading>
-          <Text size="sm">7 cards</Text>
-          <Spinner testID="spinner" />
-          <Button testID="cta">
-            <ButtonText>Start Sprint</ButtonText>
-          </Button>
-        </VStack>
-      </Center>,
-      mode,
-    );
+  it.each(['light', 'dark'] as const)(
+    'renders primitives in %s mode',
+    (mode) => {
+      const { getByText, getByTestId } = renderScreen(
+        <Center>
+          <VStack>
+            <Heading size="md">Due today</Heading>
+            <Text size="sm">7 cards</Text>
+            <Spinner testID="spinner" />
+            <Button testID="cta">
+              <ButtonText>Start Sprint</ButtonText>
+            </Button>
+          </VStack>
+        </Center>,
+        mode,
+      );
 
-    expect(getByText('Due today')).toBeTruthy();
-    expect(getByText('7 cards')).toBeTruthy();
-    expect(getByTestId('spinner')).toBeTruthy();
-    expect(getByTestId('cta')).toBeTruthy();
-  });
+      expect(getByText('Due today')).toBeTruthy();
+      expect(getByText('7 cards')).toBeTruthy();
+      expect(getByTestId('spinner')).toBeTruthy();
+      expect(getByTestId('cta')).toBeTruthy();
+    },
+  );
 });

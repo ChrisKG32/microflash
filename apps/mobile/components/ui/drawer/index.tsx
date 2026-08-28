@@ -26,7 +26,7 @@ type IAnimatedPressableProps = React.ComponentProps<typeof Pressable> &
   MotionComponentProps<typeof Pressable, ViewStyle, unknown, unknown, unknown>;
 
 const AnimatedPressable = createMotionAnimatedComponent(
-  Pressable
+  Pressable,
 ) as React.ComponentType<IAnimatedPressableProps>;
 
 const SCOPE = 'MODAL';

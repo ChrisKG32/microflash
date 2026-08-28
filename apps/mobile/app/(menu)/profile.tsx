@@ -1,48 +1,28 @@
 /**
  * Profile Screen (Placeholder)
  *
- * Accessed from avatar menu.
+ * Accessed from the avatar menu.
  */
 
-import { View, Text, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
+
+import { Center } from '@/components/ui/center';
+import { Heading } from '@/components/ui/heading';
+import { Text } from '@/components/ui/text';
 
 export default function ProfileScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Profile' }} />
-      <View style={styles.container}>
-        <Text style={styles.emoji}>👤</Text>
-        <Text style={styles.title}>Profile</Text>
-        <Text style={styles.description}>
+      <Center className="flex-1 bg-background-50 p-6">
+        <Text className="mb-4 text-6xl">👤</Text>
+        <Heading size="xl" className="mb-2">
+          Profile
+        </Heading>
+        <Text size="md" className="text-center text-typography-500">
           User profile management coming soon.
         </Text>
-      </View>
+      </Center>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#f5f5f5',
-  },
-  emoji: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-});

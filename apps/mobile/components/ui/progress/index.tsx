@@ -27,11 +27,11 @@ const progressStyle = tva({
       vertical: 'h-full',
     },
     size: {
-      'xs': 'h-1',
-      'sm': 'h-2',
-      'md': 'h-3',
-      'lg': 'h-4',
-      'xl': 'h-5',
+      xs: 'h-1',
+      sm: 'h-2',
+      md: 'h-3',
+      lg: 'h-4',
+      xl: 'h-5',
       '2xl': 'h-6',
     },
   },
@@ -78,11 +78,11 @@ const progressFilledTrackStyle = tva({
       vertical: 'h-full',
     },
     size: {
-      'xs': 'h-1',
-      'sm': 'h-2',
-      'md': 'h-3',
-      'lg': 'h-4',
-      'xl': 'h-5',
+      xs: 'h-1',
+      sm: 'h-2',
+      md: 'h-3',
+      lg: 'h-4',
+      xl: 'h-5',
       '2xl': 'h-6',
     },
   },
@@ -131,7 +131,7 @@ const Progress = React.forwardRef<
   IProgressProps
 >(function Progress(
   { className, size = 'md', orientation = 'horizontal', ...props },
-  ref
+  ref,
 ) {
   return (
     <UIProgress

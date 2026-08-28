@@ -11,7 +11,10 @@ import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
  * `className` styling itself is not resolvable under jest (metro's CSS
  * transformer doesn't run here).
  */
-export function renderScreen(ui: ReactElement, mode: 'light' | 'dark' = 'light') {
+export function renderScreen(
+  ui: ReactElement,
+  mode: 'light' | 'dark' = 'light',
+) {
   return render(
     <SafeAreaProvider
       initialMetrics={{

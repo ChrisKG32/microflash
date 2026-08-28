@@ -165,7 +165,7 @@ const Slider = React.forwardRef<
     isReversed = false,
     ...props
   },
-  ref
+  ref,
 ) {
   return (
     <UISlider

@@ -120,10 +120,9 @@ function Badge({
   className,
   ...props
 }: { className?: string } & IBadgeProps) {
-
   const contextValue = useMemo(
     () => ({ action, variant, size }),
-    [action, variant, size]
+    [action, variant, size],
   );
 
   return (
