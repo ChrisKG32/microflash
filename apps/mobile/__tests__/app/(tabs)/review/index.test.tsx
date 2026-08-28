@@ -16,7 +16,7 @@ jest.mock('@/lib/api', () => ({
 
 import { getHomeSummary } from '@/lib/api';
 import { renderScreen } from '@/test-utils/render-screen';
-import HomeScreen from './index';
+import HomeScreen from '@/app/(tabs)/review/index';
 
 const mockedGetHomeSummary = getHomeSummary as jest.Mock;
 

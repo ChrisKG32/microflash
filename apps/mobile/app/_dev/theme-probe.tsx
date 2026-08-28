@@ -24,6 +24,7 @@ import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { Box } from '@/components/ui/box';
+import { Center } from '@/components/ui/center';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Divider } from '@/components/ui/divider';
 import { Heading } from '@/components/ui/heading';
@@ -71,6 +72,19 @@ export default function ThemeProbe() {
   const scheme = useColorScheme();
   const [showSpecials, setShowSpecials] = useState(true);
   const p = palette[scheme];
+
+  /*
+   * expo-router special-cases only `_layout`; a `_`-prefixed directory is NOT
+   * excluded from routing, so /_dev/theme-probe exists in release builds too.
+   * Keep the route inert outside development.
+   */
+  if (!__DEV__) {
+    return (
+      <Center className="flex-1 bg-background-0">
+        <Text className="text-typography-500">Not available.</Text>
+      </Center>
+    );
+  }
 
   return (
     <ScrollView className="flex-1 bg-background-0">

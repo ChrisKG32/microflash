@@ -7,7 +7,7 @@ jest.mock('@/lib/api', () => ({
 
 import { createDeck, getDecks } from '@/lib/api';
 import { renderScreen } from '@/test-utils/render-screen';
-import DecksScreen from './index';
+import DecksScreen from '@/app/(tabs)/library/index';
 
 const mockedGetDecks = getDecks as jest.Mock;
 const mockedCreateDeck = createDeck as jest.Mock;

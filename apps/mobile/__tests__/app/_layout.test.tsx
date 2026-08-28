@@ -14,7 +14,7 @@ jest.mock('@/lib/api', () => ({
 }));
 
 import { getMe } from '@/lib/api';
-import RootLayout from './_layout';
+import RootLayout from '@/app/_layout';
 
 const mockedGetMe = getMe as jest.MockedFunction<typeof getMe>;
 

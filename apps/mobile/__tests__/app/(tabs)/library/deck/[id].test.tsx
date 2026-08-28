@@ -11,7 +11,7 @@ jest.mock('@/lib/api', () => ({
 import { getCards, getDeck, updateDeck } from '@/lib/api';
 import { renderScreen } from '@/test-utils/render-screen';
 import { clearSearchParams, setSearchParams } from '@/test-utils/router-params';
-import DeckDetailScreen from './[id]';
+import DeckDetailScreen from '@/app/(tabs)/library/deck/[id]';
 
 const mockedGetDeck = getDeck as jest.Mock;
 const mockedGetCards = getCards as jest.Mock;

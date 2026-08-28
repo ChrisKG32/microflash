@@ -24,6 +24,10 @@ Color has one source of truth, `theme/tokens.ts`, consumed three ways: `cssVars`
 
 Every token change needs `expo start -c` — stale NativeWind CSS caching otherwise reads as a theming bug.
 
+`app/_dev/theme-probe.tsx` renders every token twice per swatch: left half via `className`, right half via the `palette` hex. A visible seam means variable resolution has diverged from the source of truth. The cross-platform invariant to check is that one token in one scheme yields the same hex on iOS, Android and web — that equality is exactly what the old bug broke, and it broke it on native only.
+
+Screens are gated by lint: `app/**` and `components/**` may not import `Alert`, `TouchableOpacity`, `ActivityIndicator` or `StyleSheet` from `react-native`, nor `Colors` from `constants/theme`. `components/CardContent.tsx` is the one exemption, because `react-native-webview` needs a real style object.
+
 ## Commands
 
 ```bash
@@ -49,7 +53,7 @@ pnpm --filter @microflash/server test -- --runTestsByPath src/routes/decks.test.
 pnpm --filter @microflash/server test -- -t "creates a deck"
 ```
 
-Convention: `*.test.ts(x)` = unit, `*.spec.ts(x)` = integration. Tests are colocated with source. Integration specs need a real Postgres (`apps/server/.env.test`) and **self-skip with a warning** when the DB is unreachable — a green run does not prove they executed.
+Convention: `*.test.ts(x)` = unit, `*.spec.ts(x)` = integration. Tests are colocated with source — **except screen tests**, which live under `apps/mobile/__tests__/app/**` mirroring the route path. expo-router's route scanner excludes only `+api`/`+html`/`+middleware`, so a colocated `screen.test.tsx` becomes a route and drags `@testing-library/react-native` into the production bundle. See `apps/mobile/__tests__/README.md`. Integration specs need a real Postgres (`apps/server/.env.test`) and **self-skip with a warning** when the DB is unreachable — a green run does not prove they executed.
 
 Database (from `apps/server`, or `--filter @microflash/server`):
 

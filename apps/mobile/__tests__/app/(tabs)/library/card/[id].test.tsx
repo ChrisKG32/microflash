@@ -9,7 +9,7 @@ jest.mock('@/lib/api', () => ({
 import { deleteCard, getCard } from '@/lib/api';
 import { renderScreen } from '@/test-utils/render-screen';
 import { clearSearchParams, setSearchParams } from '@/test-utils/router-params';
-import EditCardScreen from './[id]';
+import EditCardScreen from '@/app/(tabs)/library/card/[id]';
 
 const mockedGetCard = getCard as jest.Mock;
 const mockedDeleteCard = deleteCard as jest.Mock;
