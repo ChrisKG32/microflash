@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 jest.mock('@/lib/api', () => ({
   getDeck: jest.fn(),
@@ -9,6 +9,7 @@ jest.mock('@/lib/api', () => ({
 }));
 
 import { getCards, getDeck, updateDeck } from '@/lib/api';
+import { refocus } from '@/test-utils/focus';
 import { renderScreen } from '@/test-utils/render-screen';
 import { clearSearchParams, setSearchParams } from '@/test-utils/router-params';
 import DeckDetailScreen from '@/app/(tabs)/library/deck/[id]';
@@ -49,6 +50,44 @@ describe('DeckDetailScreen', () => {
       expect(screen.getByText('hello')).toBeTruthy();
     },
   );
+
+  // Regression: returning from the card editor refocuses this screen, and the
+  // focus effect used to setLoading(true) — replacing the deck with the
+  // full-screen spinner every time.
+  it('refreshes on refocus without blanking the deck', async () => {
+    renderScreen(<DeckDetailScreen />);
+    expect(await screen.findByText('hola')).toBeTruthy();
+
+    let resolveRefetch!: (value: { cards: typeof CARDS }) => void;
+    mockedGetCards.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRefetch = resolve;
+      }),
+    );
+
+    await refocus();
+
+    expect(screen.queryByText('Loading deck...')).toBeNull();
+    expect(screen.getByText('hola')).toBeTruthy();
+
+    await act(async () => {
+      resolveRefetch({ cards: [{ ...CARDS[0], front: 'adios' }] });
+    });
+
+    expect(screen.getByText('adios')).toBeTruthy();
+  });
+
+  // Regression: the fetch used to `return` on a missing route param before
+  // reaching the try/finally that clears `loading`, so the screen sat on its
+  // spinner forever — no error, no retry, no way out.
+  it('surfaces a missing route param instead of spinning forever', async () => {
+    clearSearchParams();
+    renderScreen(<DeckDetailScreen />);
+
+    expect(await screen.findByText('Deck not found')).toBeTruthy();
+    expect(screen.queryByText('Loading deck...')).toBeNull();
+    expect(mockedGetDeck).not.toHaveBeenCalled();
+  });
 
   it('renders the empty state when the deck has no cards', async () => {
     mockedGetCards.mockResolvedValue({ cards: [] });

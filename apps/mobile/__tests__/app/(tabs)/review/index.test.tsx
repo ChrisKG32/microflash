@@ -6,7 +6,7 @@
  * in BOTH color schemes — which is the dark-mode regression net, since
  * `className` styling itself is not resolvable under jest.
  */
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 jest.mock('@/lib/api', () => ({
   getHomeSummary: jest.fn(),
@@ -15,6 +15,7 @@ jest.mock('@/lib/api', () => ({
 }));
 
 import { getHomeSummary } from '@/lib/api';
+import { refocus } from '@/test-utils/focus';
 import { renderScreen } from '@/test-utils/render-screen';
 import HomeScreen from '@/app/(tabs)/review/index';
 
@@ -51,6 +52,46 @@ describe('HomeScreen', () => {
     expect(await screen.findByText("You're all caught up!")).toBeTruthy();
     expect(screen.getByTestId('review-ahead-button')).toBeTruthy();
     expect(screen.queryByTestId('start-sprint-button')).toBeNull();
+  });
+
+  // Regression: the focus effect used to setLoading(true) on every focus, so
+  // returning to Home — from a sprint, the avatar menu, or the other tab —
+  // replaced the rendered screen with the full-screen spinner until the
+  // refetch landed. Only the first load has nothing to show.
+  it('refreshes on refocus without blanking the screen', async () => {
+    mockedGetHomeSummary.mockResolvedValue({ summary: SUMMARY });
+    renderScreen(<HomeScreen />);
+    expect(await screen.findByTestId('due-count')).toHaveTextContent('7');
+
+    // Hold the refocus fetch open. The bug is only visible in the window
+    // between focus firing and the response landing — resolve it eagerly and
+    // act() flushes straight past the spinner render, so the test passes
+    // against the broken screen too.
+    let resolveRefetch!: (value: { summary: typeof SUMMARY }) => void;
+    mockedGetHomeSummary.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRefetch = resolve;
+      }),
+    );
+
+    await refocus();
+
+    expect(screen.queryByText('Loading...')).toBeNull();
+    expect(screen.getByTestId('due-count')).toHaveTextContent('7');
+
+    await act(async () => {
+      resolveRefetch({ summary: { ...SUMMARY, dueCount: 9 } });
+    });
+
+    expect(screen.getByTestId('due-count')).toHaveTextContent('9');
+    expect(mockedGetHomeSummary).toHaveBeenCalledTimes(2);
+  });
+
+  it('still blocks on a spinner for the very first load', async () => {
+    mockedGetHomeSummary.mockReturnValue(new Promise(() => {}));
+    renderScreen(<HomeScreen />);
+
+    expect(await screen.findByText('Loading...')).toBeTruthy();
   });
 
   it('renders the error state and retries', async () => {

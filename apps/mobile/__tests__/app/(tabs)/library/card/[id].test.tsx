@@ -7,6 +7,7 @@ jest.mock('@/lib/api', () => ({
 }));
 
 import { deleteCard, getCard } from '@/lib/api';
+import { refocus } from '@/test-utils/focus';
 import { renderScreen } from '@/test-utils/render-screen';
 import { clearSearchParams, setSearchParams } from '@/test-utils/router-params';
 import EditCardScreen from '@/app/(tabs)/library/card/[id]';
@@ -31,11 +32,41 @@ describe('EditCardScreen', () => {
     mockedGetCard.mockResolvedValue({ card: CARD });
   });
 
-  it.each(['light', 'dark'] as const)('renders the editor in %s', async (scheme) => {
-    renderScreen(<EditCardScreen />, scheme);
-    expect(await screen.findByTestId('front-input')).toBeTruthy();
-    expect(screen.getByTestId('back-input')).toBeTruthy();
-    expect(screen.getByTestId('priority-slider')).toBeTruthy();
+  it.each(['light', 'dark'] as const)(
+    'renders the editor in %s',
+    async (scheme) => {
+      renderScreen(<EditCardScreen />, scheme);
+      expect(await screen.findByTestId('front-input')).toBeTruthy();
+      expect(screen.getByTestId('back-input')).toBeTruthy();
+      expect(screen.getByTestId('priority-slider')).toBeTruthy();
+    },
+  );
+
+  // Regression: this screen loaded on FOCUS, so leaving and coming back — the
+  // avatar menu, a backgrounded app — refetched the card and overwrote
+  // front/back/priority with the server's copy, silently discarding whatever
+  // had been typed. It loads once per mount now.
+  it('keeps unsaved edits when the screen is refocused', async () => {
+    renderScreen(<EditCardScreen />);
+
+    const front = await screen.findByTestId('front-input');
+    fireEvent.changeText(front, 'buenos dias');
+
+    await refocus();
+
+    expect(screen.getByTestId('front-input').props.value).toBe('buenos dias');
+    expect(mockedGetCard).toHaveBeenCalledTimes(1);
+  });
+
+  // Regression: as above — a missing route param returned before the
+  // try/finally that clears `loading`, leaving the spinner up permanently.
+  it('surfaces a missing route param instead of spinning forever', async () => {
+    clearSearchParams();
+    renderScreen(<EditCardScreen />);
+
+    expect(await screen.findByText('Card not found')).toBeTruthy();
+    expect(screen.queryByText('Loading card...')).toBeNull();
+    expect(mockedGetCard).not.toHaveBeenCalled();
   });
 
   it('renders the error state', async () => {

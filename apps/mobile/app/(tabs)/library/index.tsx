@@ -30,9 +30,12 @@ export default function DecksScreen() {
 
   const fetchDecks = useCallback(async () => {
     try {
-      setError(null);
       const { decks: fetchedDecks } = await getDecks();
       setDecks(fetchedDecks);
+      // Cleared on success, not before the request: clearing up front leaves a
+      // window with no error, no decks and loading already false, which paints
+      // the empty-list state for a frame.
+      setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load decks');
     } finally {
@@ -43,7 +46,12 @@ export default function DecksScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
+      // Refetch on every focus, but only the first load blocks on a spinner.
+      // setLoading(true) here swapped the whole rendered screen for the
+      // full-screen spinner every time it regained focus; against a local
+      // server the refetch lands almost immediately, so it read as a flash.
+      // `loading` now only guards the initial render, where there genuinely
+      // is nothing to show.
       fetchDecks();
     }, [fetchDecks]),
   );
@@ -170,7 +178,10 @@ export default function DecksScreen() {
         <Button
           variant="link"
           action="primary"
-          className="justify-start p-4"
+          // px only, not p-4: Button keeps size="md"'s fixed h-10, so
+          // vertical padding leaves ~8px of content box and clips the label.
+          // Vertical spacing goes on the margin instead.
+          className="my-2 justify-start px-4"
           onPress={() => setShowForm(true)}
           testID="new-deck-button"
         >

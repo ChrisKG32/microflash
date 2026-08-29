@@ -253,8 +253,48 @@ export default function RootLayout() {
               {/* Main Tabs (Review + Library) */}
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
-              {/* Menu Stack (Settings, Profile, Stats, etc.) */}
-              <Stack.Screen name="(menu)" options={{ headerShown: false }} />
+              {/*
+                Menu screens (avatar popover destinations).
+
+                These sit directly on the root Stack, NOT under a nested
+                Stack in app/(menu)/_layout.tsx. That nested stack is why they
+                had no back button: pushing /(menu)/profile put profile at
+                index 0 of its own stack, and a native stack only draws a back
+                button when the screen it renders has a predecessor *in that
+                stack*. The root entry it was pushed onto was headerShown:
+                false, so the only visible header was the nested one — which
+                had nothing to go back to.
+
+                Flat is also what navigation_model.md asks for: "Opening from
+                the avatar popover pushes onto RootStack above whatever the
+                user was doing. Back returns to the exact prior screen." It
+                gets the iOS swipe-back gesture right too — on the nested
+                stack, swiping at Settings > Account would have popped the
+                whole group instead of one screen.
+
+                `(menu)` is a group, so it stays in the route name but not in
+                the URL; each screen sets its own `title` inline.
+              */}
+              <Stack.Screen
+                name="(menu)/profile"
+                options={{ headerBackTitle: 'Back' }}
+              />
+              <Stack.Screen
+                name="(menu)/settings"
+                options={{ headerBackTitle: 'Back' }}
+              />
+              <Stack.Screen
+                name="(menu)/stats"
+                options={{ headerBackTitle: 'Back' }}
+              />
+              <Stack.Screen
+                name="(menu)/notification-controls"
+                options={{ headerBackTitle: 'Back' }}
+              />
+              <Stack.Screen
+                name="(menu)/account"
+                options={{ headerBackTitle: 'Back' }}
+              />
 
               {/* Public Stack (Welcome, Sign In) */}
               <Stack.Screen name="(public)" options={{ headerShown: false }} />

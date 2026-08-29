@@ -78,12 +78,18 @@ export default function SprintReviewScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const fetchSprint = useCallback(async () => {
-    if (!id) return;
-
     try {
-      setError(null);
+      // Guard inside the try so the finally below still clears `loading`. As a
+      // bare early return this left the screen on its spinner forever whenever
+      // the route param was missing.
+      if (!id) throw new Error('Sprint not found');
+
       const { sprint: fetchedSprint } = await getSprint(id);
       setSprint(fetchedSprint);
+      // Cleared on success rather than before the request, so a failed refresh
+      // keeps its message up instead of flashing stale sprint content. Set
+      // again just below when the sprint came back already abandoned.
+      setError(null);
 
       // Check if sprint was auto-abandoned
       if (fetchedSprint.status === 'ABANDONED') {
@@ -110,7 +116,13 @@ export default function SprintReviewScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
+      // Refetch on every focus — the sprint can auto-abandon out from under
+      // us — but only the first load blocks on a spinner. setLoading(true)
+      // here replaced the card being reviewed with the full-screen spinner
+      // every time the screen regained focus.
+      //
+      // Hiding the answer again on focus is deliberate and stays: coming back
+      // to a revealed answer would hand out a free grade.
       setShowAnswer(false);
       fetchSprint();
     }, [fetchSprint]),

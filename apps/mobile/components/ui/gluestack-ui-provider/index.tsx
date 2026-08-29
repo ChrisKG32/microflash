@@ -32,10 +32,21 @@ export function GluestackUIProvider({
    * NO variables at all — every `bg-background-0` resolves to nothing and the
    * app flashes transparent/black before the effect lands. Resolve a fallback
    * synchronously instead.
+   *
+   * RN 0.83 (SDK 55) widened `ColorSchemeName` from
+   * `'light' | 'dark' | null | undefined` to `'light' | 'dark' | 'unspecified'`,
+   * so the narrowing below is load-bearing, not a type formality: an
+   * unhandled `'unspecified'` would index `config` to `undefined` and
+   * reintroduce exactly the blank-variables flash this block prevents.
    */
-  const resolved =
-    colorScheme ??
-    (mode === 'system' ? (Appearance.getColorScheme() ?? 'light') : mode);
+  const resolved: keyof typeof config =
+    colorScheme === 'light' || colorScheme === 'dark'
+      ? colorScheme
+      : mode === 'system'
+        ? Appearance.getColorScheme() === 'dark'
+          ? 'dark'
+          : 'light'
+        : mode;
 
   return (
     <View

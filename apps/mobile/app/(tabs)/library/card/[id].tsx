@@ -5,14 +5,9 @@
  * Includes live preview of markdown + LaTeX rendering.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
-import {
-  useLocalSearchParams,
-  Stack,
-  router,
-  useFocusEffect,
-} from 'expo-router';
+import { useLocalSearchParams, Stack, router } from 'expo-router';
 
 import { Box } from '@/components/ui/box';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
@@ -55,9 +50,12 @@ export default function EditCardScreen() {
   const [deleting, setDeleting] = useState(false);
 
   const fetchCard = useCallback(async () => {
-    if (!id) return;
-
     try {
+      // Guard inside the try so the finally below still clears `loading`. As a
+      // bare early return this left the screen on its spinner forever whenever
+      // the route param was missing.
+      if (!id) throw new Error('Card not found');
+
       setError(null);
       const { card: fetchedCard } = await getCard(id);
       setCard(fetchedCard);
@@ -71,12 +69,20 @@ export default function EditCardScreen() {
     }
   }, [id]);
 
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      fetchCard();
-    }, [fetchCard]),
-  );
+  // Loads once per mount, deliberately NOT on every focus.
+  //
+  // This screen is a form: fetchCard() overwrites front/back/priority with the
+  // server's copy. On a focus effect, leaving and returning — opening the
+  // avatar menu, say — silently discarded whatever the user had typed, behind
+  // a spinner flash that hid it happening. That fights the unsaved-changes
+  // confirm this screen already has.
+  //
+  // Nothing here needs refreshing on focus: it is the only editor of this
+  // card, and navigating to a different one mounts a new screen (fetchCard is
+  // keyed on `id` regardless).
+  useEffect(() => {
+    fetchCard();
+  }, [fetchCard]);
 
   const hasChanges = () => {
     if (!card) return false;

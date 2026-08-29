@@ -58,10 +58,13 @@ export default function DeckDetailScreen() {
   const [startingSprintForDeck, setStartingSprintForDeck] = useState(false);
 
   const fetchData = useCallback(async () => {
-    if (!id) return;
-
     try {
-      setError(null);
+      // Guard inside the try so the finally below still clears `loading`. As a
+      // bare early return this left the screen on its spinner forever whenever
+      // the route param was missing — no error, no retry, nothing to do but
+      // back out.
+      if (!id) throw new Error('Deck not found');
+
       // Fetch deck and cards in parallel
       const [deckResponse, cardsResponse] = await Promise.all([
         getDeck(id),
@@ -70,6 +73,9 @@ export default function DeckDetailScreen() {
       setDeck(deckResponse.deck);
       setCards(cardsResponse.cards);
       setPriority(deckResponse.deck.priority);
+      // Cleared on success, not before the request, so a failed refresh keeps
+      // the error on screen instead of briefly showing stale deck content.
+      setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load deck');
     } finally {
@@ -80,7 +86,12 @@ export default function DeckDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
+      // Refetch on every focus, but only the first load blocks on a spinner.
+      // setLoading(true) here swapped the whole rendered screen for the
+      // full-screen spinner every time it regained focus; against a local
+      // server the refetch lands almost immediately, so it read as a flash.
+      // `loading` now only guards the initial render, where there genuinely
+      // is nothing to show.
       fetchData();
     }, [fetchData]),
   );
@@ -339,7 +350,10 @@ export default function DeckDetailScreen() {
         <Button
           variant="link"
           action="primary"
-          className="justify-start p-4"
+          // px only, not p-4: Button keeps size="md"'s fixed h-10, so
+          // vertical padding leaves ~8px of content box and clips the label.
+          // Vertical spacing goes on the margin instead.
+          className="my-2 justify-start px-4"
           onPress={handleAddCard}
           testID="add-card-button"
         >

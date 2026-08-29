@@ -1,8 +1,8 @@
 /**
  * Set the params expo-router's useLocalSearchParams returns for a test.
  *
- * Screens routed on an [id] segment bail out of their fetch when the param is
- * missing, so without this they sit in their loading state forever.
+ * Screens routed on an [id] segment treat a missing param as a load failure,
+ * so without this they render their not-found error instead of content.
  */
 export function setSearchParams(params: Record<string, string>): void {
   (globalThis as Record<string, unknown>).__routeParams = params;

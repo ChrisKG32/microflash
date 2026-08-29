@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 jest.mock('@/lib/api', () => ({
   getDecks: jest.fn(),
@@ -6,6 +6,7 @@ jest.mock('@/lib/api', () => ({
 }));
 
 import { createDeck, getDecks } from '@/lib/api';
+import { refocus } from '@/test-utils/focus';
 import { renderScreen } from '@/test-utils/render-screen';
 import DecksScreen from '@/app/(tabs)/library/index';
 
@@ -37,6 +38,33 @@ describe('DecksScreen', () => {
     expect(await screen.findByText('No decks yet')).toBeTruthy();
   });
 
+  // Regression: the focus effect used to setLoading(true), so every return
+  // from a deck blanked the list behind the full-screen spinner. Hold the
+  // refetch open — resolve it eagerly and act() flushes past the bad frame.
+  it('refreshes on refocus without blanking the list', async () => {
+    mockedGetDecks.mockResolvedValue({ decks: DECKS });
+    renderScreen(<DecksScreen />);
+    expect(await screen.findByText('Spanish')).toBeTruthy();
+
+    let resolveRefetch!: (value: { decks: typeof DECKS }) => void;
+    mockedGetDecks.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRefetch = resolve;
+      }),
+    );
+
+    await refocus();
+
+    expect(screen.queryByText('Loading decks...')).toBeNull();
+    expect(screen.getByText('Spanish')).toBeTruthy();
+
+    await act(async () => {
+      resolveRefetch({ decks: [{ ...DECKS[0], title: 'Portuguese' }] });
+    });
+
+    expect(screen.getByText('Portuguese')).toBeTruthy();
+  });
+
   it('renders the error state and retries', async () => {
     mockedGetDecks.mockRejectedValueOnce(new Error('offline'));
     renderScreen(<DecksScreen />);
@@ -53,7 +81,10 @@ describe('DecksScreen', () => {
     renderScreen(<DecksScreen />);
 
     fireEvent.press(await screen.findByTestId('new-deck-button'));
-    fireEvent.changeText(screen.getByTestId('deck-title-input'), '  Chemistry  ');
+    fireEvent.changeText(
+      screen.getByTestId('deck-title-input'),
+      '  Chemistry  ',
+    );
     fireEvent.press(screen.getByTestId('create-deck-button'));
 
     await waitFor(() =>

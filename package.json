@@ -31,7 +31,7 @@
   "author": "Kyla Gregory",
   "license": "MIT",
   "engines": {
-    "node": ">=20.0.0",
+    "node": "^20.19.4 || ^22.13.0 || ^24.3.0 || >=25.0.0",
     "pnpm": ">=9.0.0"
   },
   "devDependencies": {
@@ -51,8 +51,8 @@
   },
   "pnpm": {
     "overrides": {
-      "react": "19.1.0",
-      "react-dom": "19.1.0"
+      "react": "19.2.0",
+      "react-dom": "19.2.0"
     }
   }
 }

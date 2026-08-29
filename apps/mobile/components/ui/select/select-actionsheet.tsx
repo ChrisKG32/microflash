@@ -522,8 +522,13 @@ const ActionsheetIcon = React.forwardRef<
   ref,
 ) {
   if (AsComp) {
+    // `as` intersects with UIActionsheet.Icon's own `as`, which under React
+    // 19.2's types leaves a value TS no longer sees as constructible (TS2604).
+    // Re-widen locally; the newer registry codegen in components/ui/actionsheet
+    // sidesteps this by not destructuring `as` at all.
+    const AsComponent = AsComp as React.ElementType;
     return (
-      <AsComp
+      <AsComponent
         className={actionsheetIconStyle({
           class: className,
           size,

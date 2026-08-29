@@ -51,9 +51,13 @@ export default function HomeScreen() {
 
   const fetchSummary = useCallback(async () => {
     try {
-      setError(null);
       const { summary: fetchedSummary } = await getHomeSummary();
       setSummary(fetchedSummary);
+      // Cleared on success rather than before the request, so a retry keeps
+      // showing the error until real data replaces it. Clearing up front left
+      // a window with no error, no summary and loading already false, which
+      // renders as a flash of the "all caught up" empty state.
+      setError(null);
 
       // Show resume CTA if there's a resumable sprint
       if (fetchedSummary.resumableSprint) {
@@ -78,7 +82,16 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
+      // Refetch on every focus, but only the first load blocks on a spinner.
+      // This used to setLoading(true) here, which swapped the whole rendered
+      // screen for the full-screen "Loading..." centre every time Home
+      // regained focus — returning from a sprint, from the avatar menu, or
+      // just switching tabs. Against a local server the fetch resolves almost
+      // immediately, so it read as a flash rather than a load.
+      //
+      // `loading` now only guards the initial render, where there genuinely
+      // is nothing to show; a refocus refreshes underneath the current
+      // content instead.
       fetchSummary();
 
       // Cleanup timer on unfocus

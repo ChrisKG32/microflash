@@ -67,7 +67,9 @@ pnpm db:studio
 
 ## Architecture
 
-Five workspaces (`apps/*`, `packages/*`), pnpm + Node 20.11, `node-linker=hoisted`.
+Five workspaces (`apps/*`, `packages/*`), pnpm + Node 22.13 (SDK 55 requires
+`^20.19.4 || ^22.13.0 || ^24.3.0 || ^25.0.0` — the old 20.11 pin is below that
+floor), `node-linker=hoisted`.
 
 ### Sprint is the central domain object
 

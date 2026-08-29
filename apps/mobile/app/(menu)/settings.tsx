@@ -4,7 +4,7 @@
  * Central place for app settings including notification controls and account.
  */
 
-import { router } from 'expo-router';
+import { Stack, router } from 'expo-router';
 
 import { Box } from '@/components/ui/box';
 import { Divider } from '@/components/ui/divider';
@@ -68,53 +68,56 @@ export default function SettingsScreen() {
   const { hasPermission, expoPushToken } = useNotifications();
 
   return (
-    <ScrollView
-      className="flex-1 bg-background-50"
-      contentContainerClassName="p-4 pb-8"
-    >
-      <Section title="Notifications">
-        <StatusRow
-          label="Permission"
-          value={hasPermission ? 'Granted' : 'Denied'}
-          tone={hasPermission ? 'positive' : 'negative'}
-        />
-        <StatusRow
-          label="Push Token"
-          value={expoPushToken ? 'Registered' : 'Not registered'}
-          tone={expoPushToken ? 'positive' : 'muted'}
-        />
+    <>
+      <Stack.Screen options={{ title: 'Settings' }} />
+      <ScrollView
+        className="flex-1 bg-background-50"
+        contentContainerClassName="p-4 pb-8"
+      >
+        <Section title="Notifications">
+          <StatusRow
+            label="Permission"
+            value={hasPermission ? 'Granted' : 'Denied'}
+            tone={hasPermission ? 'positive' : 'negative'}
+          />
+          <StatusRow
+            label="Push Token"
+            value={expoPushToken ? 'Registered' : 'Not registered'}
+            tone={expoPushToken ? 'positive' : 'muted'}
+          />
 
-        <Pressable
-          className="mt-2 flex-row items-center justify-between py-3"
-          onPress={() => router.push('/(menu)/notification-controls')}
-          testID="notification-controls-link"
-        >
-          <Text size="md">Notification Controls</Text>
-          <Text size="lg" className="text-typography-500">
-            {'>'}
+          <Pressable
+            className="mt-2 flex-row items-center justify-between py-3"
+            onPress={() => router.push('/(menu)/notification-controls')}
+            testID="notification-controls-link"
+          >
+            <Text size="md">Notification Controls</Text>
+            <Text size="lg" className="text-typography-500">
+              {'>'}
+            </Text>
+          </Pressable>
+        </Section>
+
+        <Section title="Sprint Preferences">
+          <Text size="sm" className="text-typography-500">
+            Sprint size and preferences will be configurable in a future update.
           </Text>
-        </Pressable>
-      </Section>
+        </Section>
 
-      <Section title="Sprint Preferences">
-        <Text size="sm" className="text-typography-500">
-          Sprint size and preferences will be configurable in a future update.
-        </Text>
-      </Section>
+        <Section title="Account">
+          <Text size="sm" className="text-typography-500">
+            Account management will be available once Clerk authentication is
+            fully integrated.
+          </Text>
+        </Section>
 
-      <Section title="Account">
-        <Text size="sm" className="text-typography-500">
-          Account management will be available once Clerk authentication is
-          fully integrated.
-        </Text>
-      </Section>
-
-      <Section title="About">
-        <StatusRow label="Version" value="MVP" />
-        <Text size="sm" className="mt-2 text-typography-500">
-          MicroFlash - Microlearning-first spaced repetition
-        </Text>
-      </Section>
-    </ScrollView>
+        <Section title="About">
+          <StatusRow label="Version" value="MVP" />
+          <Text size="sm" className="mt-2 text-typography-500">
+            MicroFlash - Microlearning-first spaced repetition
+          </Text>
+        </Section>
+      </ScrollView>
+    </>
   );
 }

@@ -6,8 +6,21 @@
 // Extend Jest matchers with React Native Testing Library matchers
 import '@testing-library/jest-native/extend-expect';
 
-// Setup react-native-reanimated mock for Jest
-// This must be called before any component that uses Reanimated is imported
+/**
+ * Reanimated 4 (SDK 55) moved its runtime into react-native-worklets, whose
+ * NativeWorklets throws at MODULE SCOPE when the native part is missing — as
+ * it always is under jest. Mocking `react-native-reanimated` no longer avoids
+ * that, because `react-native-reanimated/mock` itself loads the real index,
+ * and app/_layout.tsx has a bare `import 'react-native-reanimated'` anyway.
+ *
+ * So mock the package that actually throws. Both ship their own inert mocks;
+ * pointing at those keeps the real module graph intact and leaves nothing to
+ * hand-maintain. Our code calls no Reanimated API directly — the gluestack
+ * animations come through @legendapp/motion, flattened separately below.
+ */
+jest.mock('react-native-worklets', () =>
+  require('react-native-worklets/src/mock'),
+);
 jest.mock('react-native-reanimated', () => {
   const Reanimated = require('react-native-reanimated/mock');
   // Silence the warning: Animated: `useNativeDriver` is not supported
@@ -75,9 +88,25 @@ jest.mock('expo-router', () => ({
   useSegments: () => [],
   // Screens fetch on focus; under test there is no navigator, so run the
   // effect once like useEffect (cleanup included).
+  //
+  // The callback is also registered in a global map so refocus() from
+  // test-utils/focus can replay blur-then-focus. Without that there is no way
+  // to test what a screen does on RE-focus, which is where the "blocking
+  // spinner blanks content the user is already reading" bug lives.
   useFocusEffect: (cb: () => void | (() => void)) => {
     const React = require('react');
-    React.useEffect(cb, [cb]);
+    React.useEffect(() => {
+      const g = globalThis as Record<string, unknown>;
+      const registry = (g.__focusCallbacks ??= new Map()) as Map<
+        () => void | (() => void),
+        (() => void) | undefined
+      >;
+      registry.set(cb, cb() ?? undefined);
+      return () => {
+        registry.get(cb)?.();
+        registry.delete(cb);
+      };
+    }, [cb]);
   },
   useNavigation: () => ({
     navigate: jest.fn(),
