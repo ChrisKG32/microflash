@@ -8,21 +8,21 @@
  * - Empty state when nothing is due
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { useFocusEffect, router } from 'expo-router';
+import { useState, useCallback, useRef } from 'react';
+import { router } from 'expo-router';
 
 import { Box } from '@/components/ui/box';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Center } from '@/components/ui/center';
 import { Heading } from '@/components/ui/heading';
 import { Icon, ChevronRightIcon } from '@/components/ui/icon';
 import { Pressable } from '@/components/ui/pressable';
 import { ScrollView } from '@/components/ui/scroll-view';
-import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { ScreenLoading, ScreenMessage } from '@/components/ui-app/screen-state';
 import { ThemedRefreshControl } from '@/components/ui-app/themed-refresh-control';
+import { useRefreshableQuery } from '@/hooks/use-refreshable-query';
 
 import {
   getHomeSummary,
@@ -38,10 +38,6 @@ import {
 const RESUME_CTA_DURATION_MS = 5000;
 
 export default function HomeScreen() {
-  const [summary, setSummary] = useState<HomeSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [startingSprintSource, setStartingSprintSource] =
     useState<SprintSource | null>(null);
 
@@ -49,73 +45,42 @@ export default function HomeScreen() {
   const [showResumeCTA, setShowResumeCTA] = useState(false);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchSummary = useCallback(async () => {
-    try {
-      const { summary: fetchedSummary } = await getHomeSummary();
-      setSummary(fetchedSummary);
-      // Cleared on success rather than before the request, so a retry keeps
-      // showing the error until real data replaces it. Clearing up front left
-      // a window with no error, no summary and loading already false, which
-      // renders as a flash of the "all caught up" empty state.
-      setError(null);
-
-      // Show resume CTA if there's a resumable sprint
-      if (fetchedSummary.resumableSprint) {
-        setShowResumeCTA(true);
-        // Auto-hide after 5 seconds
-        if (resumeTimerRef.current) {
-          clearTimeout(resumeTimerRef.current);
-        }
-        resumeTimerRef.current = setTimeout(() => {
-          setShowResumeCTA(false);
-        }, RESUME_CTA_DURATION_MS);
-      } else {
+  const armResumeCTA = useCallback(
+    ({ summary: fetched }: { summary: HomeSummary }) => {
+      if (!fetched.resumableSprint) {
         setShowResumeCTA(false);
+        return;
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load summary');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      // Refetch on every focus, but only the first load blocks on a spinner.
-      // This used to setLoading(true) here, which swapped the whole rendered
-      // screen for the full-screen "Loading..." centre every time Home
-      // regained focus — returning from a sprint, from the avatar menu, or
-      // just switching tabs. Against a local server the fetch resolves almost
-      // immediately, so it read as a flash rather than a load.
-      //
-      // `loading` now only guards the initial render, where there genuinely
-      // is nothing to show; a refocus refreshes underneath the current
-      // content instead.
-      fetchSummary();
-
-      // Cleanup timer on unfocus
-      return () => {
-        if (resumeTimerRef.current) {
-          clearTimeout(resumeTimerRef.current);
-        }
-      };
-    }, [fetchSummary]),
+      setShowResumeCTA(true);
+      // Auto-hide after 5 seconds.
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+      resumeTimerRef.current = setTimeout(
+        () => setShowResumeCTA(false),
+        RESUME_CTA_DURATION_MS,
+      );
+    },
+    [],
   );
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (resumeTimerRef.current) {
-        clearTimeout(resumeTimerRef.current);
-      }
-    };
+  const clearResumeTimer = useCallback(() => {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
   }, []);
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchSummary();
-  };
+  const {
+    data,
+    loading,
+    refreshing,
+    error,
+    setError,
+    refresh: handleRefresh,
+    load: fetchSummary,
+  } = useRefreshableQuery(getHomeSummary, 'Failed to load summary', {
+    onSuccess: armResumeCTA,
+    // Returned from the focus effect, so it covers blur AND unmount — which is
+    // what the separate unmount useEffect here used to duplicate.
+    onBlur: clearResumeTimer,
+  });
+  const summary = data?.summary ?? null;
 
   const handleStartSprint = async () => {
     if (startingSprintSource) return; // Prevent double-tap
@@ -162,12 +127,10 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <Center className="flex-1 bg-background-50 p-5">
-        <Spinner size="large" className="text-primary-500" />
-        <Text size="md" className="mt-3 text-typography-500">
-          Loading...
-        </Text>
-      </Center>
+      <ScreenLoading
+        label="Loading..."
+        className="flex-1 bg-background-50 p-5"
+      />
     );
   }
 
@@ -185,12 +148,14 @@ export default function HomeScreen() {
           />
         }
       >
-        <Text size="md" className="mb-4 text-center text-error-700">
-          {error}
-        </Text>
-        <Button action="primary" onPress={handleRefresh} testID="retry-button">
-          <ButtonText>Retry</ButtonText>
-        </Button>
+        <ScreenMessage
+          className=""
+          tone="error"
+          body={error}
+          actionLabel="Retry"
+          onAction={handleRefresh}
+          actionTestID="retry-button"
+        />
       </ScrollView>
     );
   }

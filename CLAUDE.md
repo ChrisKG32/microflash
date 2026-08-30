@@ -16,7 +16,11 @@ The older form of this rule said to avoid design systems entirely until the MVP 
 
 The `gluestack` branch is migrating the mobile app off hand-rolled `StyleSheet` components onto gluestack-ui v3 + NativeWind, themed from Radix `slate`/`blue` so light and dark both work. `apps/mobile-3` and the throwaway `starter-kit-expo` scaffold are **gone** — the app lives at `apps/mobile` and the package is `@microflash/mobile`, so directory and package name finally agree.
 
-The gluestack component registry is vendored at `apps/mobile/components/ui/<name>/index.tsx` (54 components, no barrel — import deep, e.g. `@/components/ui/box`). Treat it as vendored: `npx gluestack-ui add <component>` should keep working, so keep local edits few and commented.
+The gluestack component registry is vendored at `apps/mobile/components/ui/<name>/index.tsx` (25 components, no barrel — import deep, e.g. `@/components/ui/box`). Treat it as vendored: `npx gluestack-ui add <component>` should keep working, so keep local edits few and commented.
+
+The registry holds only what the app actually imports. It was pruned from 51 to 25 — the other 26 were never imported anywhere and cost ~5,300 lines to carry. **This is not a rule against using them:** if a screen needs `badge`, `alert`, `select` or anything else, run `npx gluestack-ui add <name>` and it comes back verbatim. That is cheaper than carrying components on the chance one is wanted, and it is still the adopted library — reaching for `gluestack-ui add` is always preferred over hand-rolling.
+
+One caveat when re-adding: the deleted `select` carried an undocumented local patch — `select-actionsheet.tsx` re-widened `as` to `React.ElementType` because the `as` prop intersects with `UIActionsheet.Icon`'s own under React 19.2's types, leaving a value TS will not treat as constructible (TS2604). If `gluestack-ui add select` reintroduces that error, that is the fix, and it belongs in a comment.
 
 **The theming bug that stalled the first attempt** — do not reintroduce it. `global.css` once declared `--color-background-*` under a bare `*` selector. In `react-native-css-interop`, `*` registers as a _universal_ variable, and `getVar()` resolves universal vars (bucket 2) **before** the inherited vars (bucket 3) that `GluestackUIProvider` supplies via `<View style={[config[scheme]]}>`. That pinned the background to one ramp in both modes on native, while web looked fine because its provider emits real `:root{}` / `.dark{}` rules that outspecify `*`. Colors belong in `theme/tokens.ts`; if a global CSS var is ever genuinely needed it must be `:root{}` **and** `.dark:root{}`, never `*`. `theme/global-css.test.ts` enforces this.
 
@@ -26,7 +30,24 @@ Every token change needs `expo start -c` — stale NativeWind CSS caching otherw
 
 `app/_dev/theme-probe.tsx` renders every token twice per swatch: left half via `className`, right half via the `palette` hex. A visible seam means variable resolution has diverged from the source of truth. The cross-platform invariant to check is that one token in one scheme yields the same hex on iOS, Android and web — that equality is exactly what the old bug broke, and it broke it on native only.
 
-Screens are gated by lint: `app/**` and `components/**` may not import `Alert`, `TouchableOpacity`, `ActivityIndicator` or `StyleSheet` from `react-native`, nor `Colors` from `constants/theme`. `components/CardContent.tsx` is the one exemption, because `react-native-webview` needs a real style object.
+Screens are gated by lint: `app/**` and `components/**` may not import `Alert`, `TouchableOpacity`, `ActivityIndicator` or `StyleSheet` from `react-native`, nor `Colors` from `constants/theme`. `components/CardContent.tsx` is the one exemption, because `react-native-webview` needs a real style object. (`constants/theme.ts` itself is gone — the shim had no importers left once the migration finished. The lint rule stays as a tripwire.)
+
+### Shared compositions
+
+Repeated screen markup is factored into thin compositions of the vendored
+primitives. Use these rather than re-copying the markup:
+
+- `components/ui-app/screen-state.tsx` — `ScreenLoading`, `ScreenMessage`
+  (error branches, empty states, placeholder screens)
+- `components/ui-app/labeled-slider.tsx` — `LabeledSlider` (card + deck
+  priority, onboarding preferences)
+- `components/ui-app/settings-list.tsx` — `Section`, `StatRow`
+- `components/card/card-editor-form.tsx` — `CardEditorForm`, shared by the
+  create and edit card screens
+
+They hold no design decisions of their own: every `className` in them was
+lifted from the call sites they replaced. Props exist only where two call sites
+genuinely differed (`labelSize`, `hintPlacement`, `busy` vs `saving`).
 
 ## Commands
 
@@ -67,7 +88,7 @@ pnpm db:studio
 
 ## Architecture
 
-Five workspaces (`apps/*`, `packages/*`), pnpm + Node 22.13 (SDK 55 requires
+Four workspaces (`apps/*`, `packages/api-client`), pnpm + Node 22.13 (SDK 55 requires
 `^20.19.4 || ^22.13.0 || ^24.3.0 || ^25.0.0` — the old 20.11 pin is below that
 floor), `node-linker=hoisted`.
 
@@ -102,9 +123,9 @@ On device, `apps/mobile/app/_layout.tsx` registers the iOS notification category
 
 ### Client/server contract
 
-- `packages/shared` — types only, consumed by server and clients.
-- `packages/api-client` — platform-agnostic (`fetch`-based) client shared by mobile and desktop. Module-level config via `configureApiClient({ baseUrl, getAuthHeaders })`; `getAuthHeaders` may be async, which is how dev headers and real Clerk `getToken()` both fit.
-- Both packages resolve to **`src/*.ts` directly** (`types`/`react-native`/`module` fields), so clients typecheck against source without a build step.
+- `packages/api-client` — the single shared contract package: a platform-agnostic (`fetch`-based) client, plus the types it returns, consumed by mobile and desktop. (There was also a `packages/shared` types package; it ended up with zero importers — api-client declares its own types — so it is gone.)
+- Module-level config via `configureApiClient({ baseUrl, getAuthHeaders })`; `getAuthHeaders` may be async, which is how dev headers and real Clerk `getToken()` both fit.
+- `packages/api-client` resolves to **`src/*.ts` directly** (`types`/`react-native`/`module` fields), so clients typecheck against source without a build step.
 - `apps/mobile/lib/api.ts` configures the client at import time and re-exports everything — mobile code imports from `@/lib/api`, not the package.
 
 ### Server request pipeline

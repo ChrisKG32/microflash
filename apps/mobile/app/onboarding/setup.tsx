@@ -13,69 +13,11 @@ import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
 import { Input, InputField } from '@/components/ui/input';
 import { ScrollView } from '@/components/ui/scroll-view';
-import {
-  Slider,
-  SliderFilledTrack,
-  SliderThumb,
-  SliderTrack,
-} from '@/components/ui/slider';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useAppToast } from '@/components/feedback/use-app-toast';
+import { LabeledSlider } from '@/components/ui-app/labeled-slider';
 import { updateNotificationPreferences } from '@/lib/api';
-
-/** A labelled slider row: label, current value, optional hint. */
-function PreferenceSlider({
-  label,
-  hint,
-  value,
-  minValue,
-  maxValue,
-  step,
-  onChange,
-  testID,
-}: {
-  label: string;
-  hint?: string;
-  value: number;
-  minValue: number;
-  maxValue: number;
-  step: number;
-  onChange: (value: number) => void;
-  testID: string;
-}) {
-  return (
-    <Box className="mb-6">
-      <HStack className="items-center justify-between">
-        <Text size="md" className="font-semibold text-typography-900">
-          {label}
-        </Text>
-        <Text size="sm" className="text-typography-500">
-          {value} (Recommended)
-        </Text>
-      </HStack>
-      {hint && (
-        <Text size="xs" className="mt-1 text-typography-500">
-          {hint}
-        </Text>
-      )}
-      <Slider
-        className="my-3"
-        minValue={minValue}
-        maxValue={maxValue}
-        step={step}
-        value={value}
-        onChange={onChange}
-        testID={testID}
-      >
-        <SliderTrack>
-          <SliderFilledTrack />
-        </SliderTrack>
-        <SliderThumb />
-      </Slider>
-    </Box>
-  );
-}
 
 export default function OnboardingSetupScreen() {
   const notify = useAppToast();
@@ -191,7 +133,13 @@ export default function OnboardingSetupScreen() {
           </HStack>
         </Box>
 
-        <PreferenceSlider
+        <LabeledSlider
+          className="mb-6"
+          labelSize="md"
+          valueSize="sm"
+          valueClassName="text-typography-500"
+          valueSuffix=" (Recommended)"
+          hintPlacement="above"
           label="Max Notifications/Day"
           value={maxPerDay}
           minValue={1}
@@ -201,7 +149,13 @@ export default function OnboardingSetupScreen() {
           testID="max-per-day-slider"
         />
 
-        <PreferenceSlider
+        <LabeledSlider
+          className="mb-6"
+          labelSize="md"
+          valueSize="sm"
+          valueClassName="text-typography-500"
+          valueSuffix=" (Recommended)"
+          hintPlacement="above"
           label="Cooldown (minutes)"
           hint="Minimum time between notifications"
           value={cooldown}
@@ -212,7 +166,13 @@ export default function OnboardingSetupScreen() {
           testID="cooldown-slider"
         />
 
-        <PreferenceSlider
+        <LabeledSlider
+          className="mb-6"
+          labelSize="md"
+          valueSize="sm"
+          valueClassName="text-typography-500"
+          valueSuffix=" (Recommended)"
+          hintPlacement="above"
           label="Sprint Size (cards)"
           hint="Cards per micro-sprint"
           value={sprintSize}

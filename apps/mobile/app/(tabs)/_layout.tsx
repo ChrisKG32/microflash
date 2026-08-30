@@ -2,7 +2,6 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { HeaderRight } from '@/components/HeaderRight';
 import { CheckCircle2, Folder } from 'lucide-react-native';
 
 import { Icon } from '@/components/ui/icon';

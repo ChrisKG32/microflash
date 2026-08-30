@@ -8,31 +8,21 @@
  */
 
 import { useState, useCallback } from 'react';
-import {
-  useLocalSearchParams,
-  Stack,
-  router,
-  useFocusEffect,
-} from 'expo-router';
+import { useLocalSearchParams, Stack, router } from 'expo-router';
 
 import { Box } from '@/components/ui/box';
-import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
-import { Center } from '@/components/ui/center';
+import { Button, ButtonText } from '@/components/ui/button';
 import { FlatList } from '@/components/ui/flat-list';
-import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
 import { Pressable } from '@/components/ui/pressable';
-import {
-  Slider,
-  SliderFilledTrack,
-  SliderThumb,
-  SliderTrack,
-} from '@/components/ui/slider';
 import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useAppToast } from '@/components/feedback/use-app-toast';
+import { LabeledSlider } from '@/components/ui-app/labeled-slider';
+import { ScreenLoading, ScreenMessage } from '@/components/ui-app/screen-state';
 import { ThemedRefreshControl } from '@/components/ui-app/themed-refresh-control';
+import { useRefreshableQuery } from '@/hooks/use-refreshable-query';
 import {
   getCards,
   getDeck,
@@ -47,59 +37,42 @@ export default function DeckDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const notify = useAppToast();
 
-  const [deck, setDeck] = useState<Deck | null>(null);
-  const [cards, setCards] = useState<Card[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const [priority, setPriority] = useState(50);
   const [savingPriority, setSavingPriority] = useState(false);
   const [startingSprintForDeck, setStartingSprintForDeck] = useState(false);
 
   const fetchData = useCallback(async () => {
-    try {
-      // Guard inside the try so the finally below still clears `loading`. As a
-      // bare early return this left the screen on its spinner forever whenever
-      // the route param was missing — no error, no retry, nothing to do but
-      // back out.
-      if (!id) throw new Error('Deck not found');
+    // Guard inside the fetcher so the hook's finally still clears `loading`.
+    // As a bare early return this left the screen on its spinner forever
+    // whenever the route param was missing — no error, no retry.
+    if (!id) throw new Error('Deck not found');
 
-      // Fetch deck and cards in parallel
-      const [deckResponse, cardsResponse] = await Promise.all([
-        getDeck(id),
-        getCards(id),
-      ]);
-      setDeck(deckResponse.deck);
-      setCards(cardsResponse.cards);
-      setPriority(deckResponse.deck.priority);
-      // Cleared on success, not before the request, so a failed refresh keeps
-      // the error on screen instead of briefly showing stale deck content.
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load deck');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    // Fetch deck and cards in parallel
+    const [deckResponse, cardsResponse] = await Promise.all([
+      getDeck(id),
+      getCards(id),
+    ]);
+    return { deck: deckResponse.deck, cards: cardsResponse.cards };
   }, [id]);
 
-  useFocusEffect(
-    useCallback(() => {
-      // Refetch on every focus, but only the first load blocks on a spinner.
-      // setLoading(true) here swapped the whole rendered screen for the
-      // full-screen spinner every time it regained focus; against a local
-      // server the refetch lands almost immediately, so it read as a flash.
-      // `loading` now only guards the initial render, where there genuinely
-      // is nothing to show.
-      fetchData();
-    }, [fetchData]),
+  const syncPriority = useCallback(
+    ({ deck: fetched }: { deck: Deck; cards: Card[] }) =>
+      setPriority(fetched.priority),
+    [],
   );
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchData();
-  };
+  const {
+    data,
+    setData,
+    loading,
+    refreshing,
+    error,
+    refresh: handleRefresh,
+  } = useRefreshableQuery(fetchData, 'Failed to load deck', {
+    onSuccess: syncPriority,
+  });
+  const deck = data?.deck ?? null;
+  const cards = data?.cards ?? [];
 
   const handlePriorityChange = async (newPriority: number) => {
     if (!id || !deck) return;
@@ -109,7 +82,7 @@ export default function DeckDetailScreen() {
       const { deck: updatedDeck } = await updateDeck(id, {
         priority: newPriority,
       });
-      setDeck(updatedDeck);
+      setData((prev) => (prev ? { ...prev, deck: updatedDeck } : prev));
       setPriority(updatedDeck.priority);
     } catch (err) {
       // Revert on error
@@ -221,12 +194,7 @@ export default function DeckDetailScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Loading...' }} />
-        <Center className="flex-1 bg-background-50">
-          <Spinner size="large" className="text-primary-500" />
-          <Text size="md" className="mt-3 text-typography-500">
-            Loading deck...
-          </Text>
-        </Center>
+        <ScreenLoading label="Loading deck..." />
       </>
     );
   }
@@ -235,19 +203,15 @@ export default function DeckDetailScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Error' }} />
-        <Center className="flex-1 bg-background-50 p-5">
-          <Text className="mb-4 text-4xl">!</Text>
-          <Text size="md" className="mb-4 text-center text-error-700">
-            {error || 'Deck not found'}
-          </Text>
-          <Button
-            action="primary"
-            onPress={handleRefresh}
-            testID="retry-button"
-          >
-            <ButtonText>Retry</ButtonText>
-          </Button>
-        </Center>
+        <ScreenMessage
+          glyph="!"
+          glyphClassName="mb-4 text-4xl"
+          tone="error"
+          body={error || 'Deck not found'}
+          actionLabel="Retry"
+          onAction={handleRefresh}
+          actionTestID="retry-button"
+        />
       </>
     );
   }
@@ -301,49 +265,21 @@ export default function DeckDetailScreen() {
 
         {/* Deck Priority Slider */}
         <Box className="border-b border-outline-100 bg-background-0 p-4">
-          <HStack className="items-center justify-between">
-            <Text size="md" className="font-semibold text-typography-900">
-              Deck Priority
-            </Text>
-            <HStack className="items-center gap-2">
-              <Text size="md" className="font-semibold text-primary-500">
-                {priority}
-              </Text>
-              {savingPriority && (
-                <Spinner size="small" className="text-primary-500" />
-              )}
-            </HStack>
-          </HStack>
-          {/* gluestack renames the community slider's props: minimumValue ->
-              minValue, maximumValue -> maxValue, onValueChange -> onChange.
-              The network write stays on onChangeEnd (was onSlidingComplete)
-              so dragging doesn't fire a request per frame. */}
-          <Slider
-            className="my-3"
+          {/* The network write stays on onChangeEnd so dragging doesn't fire
+              a request per frame. */}
+          <LabeledSlider
+            label="Deck Priority"
+            labelSize="md"
+            value={priority}
+            busy={savingPriority}
             minValue={0}
             maxValue={100}
-            step={1}
-            value={priority}
             onChange={setPriority}
             onChangeEnd={handlePriorityChange}
+            endLabels={['Low', 'High']}
+            hint="Higher priority decks have their cards appear first in sprints"
             testID="priority-slider"
-          >
-            <SliderTrack>
-              <SliderFilledTrack />
-            </SliderTrack>
-            <SliderThumb />
-          </Slider>
-          <HStack className="justify-between">
-            <Text size="xs" className="text-typography-400">
-              Low
-            </Text>
-            <Text size="xs" className="text-typography-400">
-              High
-            </Text>
-          </HStack>
-          <Text size="xs" className="mt-2 text-typography-500">
-            Higher priority decks have their cards appear first in sprints
-          </Text>
+          />
         </Box>
 
         {/* Add Card Button */}
@@ -361,14 +297,11 @@ export default function DeckDetailScreen() {
         </Button>
 
         {cards.length === 0 ? (
-          <Center className="flex-1 p-5">
-            <Heading size="lg" className="mb-2">
-              No cards yet
-            </Heading>
-            <Text size="md" className="text-center text-typography-500">
-              Add your first card to start learning!
-            </Text>
-          </Center>
+          <ScreenMessage
+            className="flex-1 p-5"
+            title="No cards yet"
+            body="Add your first card to start learning!"
+          />
         ) : (
           <FlatList
             data={cards}

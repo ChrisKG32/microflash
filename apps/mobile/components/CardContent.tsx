@@ -25,10 +25,6 @@ interface CardContentProps {
   content: string;
   /** Font size for the content (default: 18) */
   fontSize?: number;
-  /**
-   * Text color. Defaults to the themed body color; pass one only to override.
-   */
-  color?: string;
 }
 
 /**
@@ -40,17 +36,94 @@ function containsMath(content: string): boolean {
 }
 
 /**
+ * HTML-escape. Applied to prose AND to math spans: KaTeX reads the rendered
+ * text node, so `$a < b$` must reach the DOM as `&lt;` to arrive at KaTeX as
+ * `<`, and a `&` alignment character in an `aligned` block likewise.
+ */
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * The delimiter pairs the KaTeX auto-render config below declares. Kept next to
+ * the extractor that has to honour them, because the two must agree: anything
+ * this list misses gets rewritten by the markdown pass and never reaches KaTeX.
+ */
+const MATH_DELIMITERS: { left: string; right: string }[] = [
+  { left: '$$', right: '$$' },
+  { left: '\\[', right: '\\]' },
+  { left: '\\(', right: '\\)' },
+  { left: '$', right: '$' },
+];
+
+/** Placeholder body: letters only, so no markdown rule can match inside it. */
+const MATH_TOKEN = 'zmathspanz';
+
+/**
+ * Pull math spans out of `content`, leaving inert placeholders behind.
+ *
+ * The markdown rules below are string rewrites with no notion of math, so run
+ * unguarded they corrupt the very spans KaTeX is about to render: `$x_1 + x_2$`
+ * came out as `$x<em>1 + x</em>2$` (the italic `_` rule), and a display block
+ * written across lines had `<br>` spliced into it, which splits the text node
+ * so auto-render never sees a matching delimiter pair. Both rendered as
+ * garbage or silently not at all.
+ *
+ * `$$` is matched before `$` so a display block is never mistaken for two
+ * inline spans.
+ */
+function extractMath(content: string): { text: string; spans: string[] } {
+  const spans: string[] = [];
+  let text = '';
+  let i = 0;
+
+  outer: while (i < content.length) {
+    for (const { left, right } of MATH_DELIMITERS) {
+      if (!content.startsWith(left, i)) continue;
+      const close = content.indexOf(right, i + left.length);
+      // An unclosed delimiter is not math — fall through and treat it as text,
+      // which is what a stray `$` in prose is.
+      if (close === -1) continue;
+      text += `${MATH_TOKEN}${spans.length}${MATH_TOKEN}`;
+      spans.push(content.slice(i, close + right.length));
+      i = close + right.length;
+      continue outer;
+    }
+    text += content[i];
+    i += 1;
+  }
+
+  return { text, spans };
+}
+
+/**
+ * Put the math spans back where their placeholders sit, escaped but otherwise
+ * byte-for-byte as the author wrote them.
+ */
+function restoreMath(html: string, spans: string[]): string {
+  return html.replace(
+    new RegExp(`${MATH_TOKEN}(\\d+)${MATH_TOKEN}`, 'g'),
+    (_, n: string) => escapeHtml(spans[Number(n)] ?? ''),
+  );
+}
+
+/**
  * Convert basic markdown to HTML for WebView rendering
  * Handles: bold, italic, code, headers, lists, links
+ *
+ * Math spans are lifted out first and restored last, so the rules below can
+ * never rewrite LaTeX. See extractMath.
+ *
+ * Exported for CardContent.test.ts only — the math/markdown interaction is
+ * pure string logic and is far cheaper to pin down here than through a
+ * WebView render.
  */
-function markdownToHtml(content: string): string {
-  let html = content;
+export function markdownToHtml(content: string): string {
+  const { text, spans } = extractMath(content);
+  let html = text;
 
-  // Escape HTML entities first (but preserve math delimiters)
-  html = html
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  // Math is already lifted out, so this only ever sees prose.
+  html = escapeHtml(html);
 
   // Headers (must come before bold to avoid conflicts with **)
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
@@ -92,7 +165,7 @@ function markdownToHtml(content: string): string {
     html = '<p>' + html + '</p>';
   }
 
-  return html;
+  return restoreMath(html, spans);
 }
 
 /**
@@ -142,7 +215,6 @@ function useCardColors(): CardColors {
 function generateKaTeXHTML(
   content: string,
   fontSize: number,
-  color: string,
   c: CardColors,
 ): string {
   const htmlContent = markdownToHtml(content);
@@ -169,7 +241,7 @@ function generateKaTeXHTML(
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: ${fontSize}px;
       line-height: 1.5;
-      color: ${color};
+      color: ${c.text};
       overflow-x: hidden;
     }
     body {
@@ -267,33 +339,25 @@ function generateKaTeXHTML(
 /**
  * CardContent - Main component for rendering card content.
  */
-export function CardContent({
-  content,
-  fontSize = 18,
-  color,
-}: CardContentProps) {
+export function CardContent({ content, fontSize = 18 }: CardContentProps) {
   const [webViewHeight, setWebViewHeight] = useState(100);
 
   const c = useCardColors();
-  // `color` stays an escape hatch; the theme supplies the default.
-  const textColor = color ?? c.text;
 
   // Check if content has any math
   const hasMath = useMemo(() => containsMath(content), [content]);
 
   // Generate HTML for WebView (only if has math)
   const html = useMemo(
-    () => (hasMath ? generateKaTeXHTML(content, fontSize, textColor, c) : ''),
-    [content, fontSize, textColor, c, hasMath],
+    () => (hasMath ? generateKaTeXHTML(content, fontSize, c) : ''),
+    [content, fontSize, c, hasMath],
   );
 
   // If no math, render pure native Markdown (better performance)
   if (!hasMath) {
     return (
       // @ts-expect-error style doesn't exist?
-      <Markdown style={getMarkdownStyles(fontSize, textColor, c)}>
-        {content}
-      </Markdown>
+      <Markdown style={getMarkdownStyles(fontSize, c)}>{content}</Markdown>
     );
   }
 
@@ -330,35 +394,34 @@ export function CardContent({
 }
 
 /**
- * Generate markdown styles based on fontSize and color.
+ * Generate markdown styles based on fontSize and the themed palette.
  */
 function getMarkdownStyles(
   fontSize: number,
-  color: string,
   c: CardColors,
 ): StyleProp<TextStyle> {
   return {
     body: {
       fontSize,
-      color,
+      color: c.text,
       lineHeight: fontSize * 1.5,
     },
     heading1: {
       fontSize: fontSize * 1.5,
       fontWeight: 'bold' as const,
-      color,
+      color: c.text,
       marginVertical: 8,
     },
     heading2: {
       fontSize: fontSize * 1.3,
       fontWeight: 'bold' as const,
-      color,
+      color: c.text,
       marginVertical: 6,
     },
     heading3: {
       fontSize: fontSize * 1.1,
       fontWeight: 'bold' as const,
-      color,
+      color: c.text,
       marginVertical: 4,
     },
     strong: {
@@ -424,5 +487,3 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
 });
-
-export default CardContent;

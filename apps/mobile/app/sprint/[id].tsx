@@ -32,8 +32,8 @@ import { Pressable } from '@/components/ui/pressable';
 import { ScrollView } from '@/components/ui/scroll-view';
 import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
-import { VStack } from '@/components/ui/vstack';
 import { CardContent } from '@/components/CardContent';
+import { ScreenLoading, ScreenMessage } from '@/components/ui-app/screen-state';
 
 /** The four FSRS grades, in Again -> Easy order. */
 const GRADES = [
@@ -220,12 +220,7 @@ export default function SprintReviewScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Sprint Review' }} />
-        <Center className="flex-1 bg-background-50">
-          <Spinner size="large" className="text-primary-500" />
-          <Text size="md" className="mt-4 text-typography-500">
-            Loading sprint...
-          </Text>
-        </Center>
+        <ScreenLoading label="Loading sprint..." />
       </>
     );
   }
@@ -234,19 +229,15 @@ export default function SprintReviewScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Sprint Review' }} />
-        <Center className="flex-1 bg-background-50 p-5">
-          <Text className="mb-4 text-5xl">⚠️</Text>
-          <Text size="md" className="mb-4 text-center text-error-700">
-            {error || 'Sprint not found'}
-          </Text>
-          <Button
-            action="primary"
-            onPress={handleGoHome}
-            testID="go-home-button"
-          >
-            <ButtonText>Go Home</ButtonText>
-          </Button>
-        </Center>
+        <ScreenMessage
+          glyph="⚠️"
+          glyphClassName="mb-4 text-5xl"
+          tone="error"
+          body={error || 'Sprint not found'}
+          actionLabel="Go Home"
+          onAction={handleGoHome}
+          actionTestID="go-home-button"
+        />
       </>
     );
   }
@@ -256,12 +247,7 @@ export default function SprintReviewScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Sprint Review' }} />
-        <Center className="flex-1 bg-background-50">
-          <Spinner size="large" className="text-primary-500" />
-          <Text size="md" className="mt-4 text-typography-500">
-            Completing sprint...
-          </Text>
-        </Center>
+        <ScreenLoading label="Completing sprint..." />
       </>
     );
   }

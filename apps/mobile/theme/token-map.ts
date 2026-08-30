@@ -26,8 +26,6 @@ export const GLUESTACK_STEPS = [
   0, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950,
 ] as const;
 
-export type GluestackStep = (typeof GLUESTACK_STEPS)[number];
-
 /**
  * Surfaces. Skips Radix 4 so `bg-background-200` (divider base) lands on
  * slate-5 and `border-background-300` (input rest border) on slate-6, Radix's

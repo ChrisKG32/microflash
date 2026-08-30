@@ -6,23 +6,19 @@
 
 import { Stack } from 'expo-router';
 
-import { Center } from '@/components/ui/center';
-import { Heading } from '@/components/ui/heading';
-import { Text } from '@/components/ui/text';
+import { ScreenMessage } from '@/components/ui-app/screen-state';
 
 export default function StatsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Stats' }} />
-      <Center className="flex-1 bg-background-50 p-6">
-        <Text className="mb-4 text-6xl">📊</Text>
-        <Heading size="xl" className="mb-2">
-          Stats
-        </Heading>
-        <Text size="md" className="text-center text-typography-500">
-          Review statistics and progress tracking coming soon.
-        </Text>
-      </Center>
+      <ScreenMessage
+        glyph="📊"
+        titleSize="xl"
+        title="Stats"
+        body="Review statistics and progress tracking coming soon."
+        className="flex-1 bg-background-50 p-6"
+      />
     </>
   );
 }

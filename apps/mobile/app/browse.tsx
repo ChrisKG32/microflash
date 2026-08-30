@@ -7,34 +7,29 @@
 
 import { Stack, router } from 'expo-router';
 
-import { Button, ButtonText } from '@/components/ui/button';
-import { Center } from '@/components/ui/center';
-import { Heading } from '@/components/ui/heading';
 import { Text } from '@/components/ui/text';
+import { ScreenMessage } from '@/components/ui-app/screen-state';
 
 export default function BrowseScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Review Ahead' }} />
-      <Center className="flex-1 bg-background-50 p-5">
-        <Text className="mb-4 text-5xl">📚</Text>
-        <Heading size="xl" className="mb-2">
-          Review Ahead
-        </Heading>
+      <ScreenMessage
+        glyph="📚"
+        glyphClassName="mb-4 text-5xl"
+        titleSize="xl"
+        title="Review Ahead"
+        actionLabel="Go Back"
+        onAction={() => router.back()}
+        actionTestID="go-back-button"
+      >
         <Text size="sm" className="mb-2 text-center text-typography-500">
           This feature allows you to review cards before they are due.
         </Text>
         <Text size="sm" className="mb-6 italic text-typography-400">
           Coming soon!
         </Text>
-        <Button
-          action="primary"
-          onPress={() => router.back()}
-          testID="go-back-button"
-        >
-          <ButtonText>Go Back</ButtonText>
-        </Button>
-      </Center>
+      </ScreenMessage>
     </>
   );
 }

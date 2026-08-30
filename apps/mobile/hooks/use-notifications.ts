@@ -1,30 +1,39 @@
 /**
- * Hook for managing push notifications.
+ * Notification permission + push-token registration.
  *
- * Handles:
- * - Permission requests
- * - Notification handlers (received + response)
- * - Local notification scheduling (for testing)
- * - Push token retrieval (for real device use)
+ * Scope is deliberately narrow. The app's notification *bootstrap* — the
+ * foreground handler, the iOS category with its Review/Snooze actions, and the
+ * response listener that routes a tap into a sprint — lives in
+ * app/_layout.tsx, which is guaranteed to run before any screen mounts. This
+ * hook used to duplicate the handler and the response listener, so a tap was
+ * observed twice and the two handlers could disagree; it also exported a
+ * schedule/cancel API that nothing ever called.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { registerPushToken } from '@/lib/api';
 
-// Configure how notifications are handled when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+/**
+ * The Android notification channel every notification path needs.
+ *
+ * One owner: this was declared twice with *different* importance (MAX here,
+ * HIGH in the notification-controls dev tester), and on Android the first
+ * caller to run wins — so which one applied depended on navigation order.
+ */
+export async function ensureAndroidChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync('default', {
+    name: 'Default',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    // Android LED colour (ARGB), not a theme color — it never renders in-app.
+    lightColor: '#FF231F7C',
+  });
+}
 
 export interface NotificationState {
   /** Whether we have notification permission */
@@ -33,10 +42,6 @@ export interface NotificationState {
   expoPushToken: string | null;
   /** Whether we're on a physical device (required for remote push) */
   isDevice: boolean;
-  /** Last received notification */
-  lastNotification: Notifications.Notification | null;
-  /** Last notification response (user tapped notification) */
-  lastResponse: Notifications.NotificationResponse | null;
   /** Whether permission check is in progress */
   isLoading: boolean;
   /** Any error that occurred */
@@ -44,84 +49,69 @@ export interface NotificationState {
 }
 
 export interface UseNotificationsReturn extends NotificationState {
-  /** Request notification permissions */
+  /** Request notification permissions, creating the Android channel first. */
   requestPermissions: () => Promise<boolean>;
-  /** Schedule a local notification (for testing) */
-  scheduleLocalNotification: (
-    title: string,
-    body: string,
-    delaySeconds?: number,
-    options?: {
-      categoryIdentifier?: string;
-      data?: Record<string, unknown>;
-    },
-  ) => Promise<string>;
-  /** Cancel a scheduled notification */
-  cancelNotification: (identifier: string) => Promise<void>;
-  /** Cancel all scheduled notifications */
-  cancelAllNotifications: () => Promise<void>;
+  /** Re-read the OS permission status (e.g. after returning from Settings). */
+  refreshPermission: () => Promise<void>;
 }
 
-/**
- * Hook for managing notifications.
- *
- * Usage:
- * ```tsx
- * const { hasPermission, requestPermissions, scheduleLocalNotification } = useNotifications();
- *
- * // Request permissions on mount or user action
- * await requestPermissions();
- *
- * // Schedule a test notification
- * await scheduleLocalNotification('Test', 'This is a test notification', 5);
- * ```
- */
+async function getPushToken(): Promise<string | null> {
+  if (!Device.isDevice) {
+    console.log(
+      '[Notifications] Push tokens only available on physical devices',
+    );
+    return null;
+  }
+
+  try {
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ??
+      Constants.easConfig?.projectId;
+
+    if (!projectId) {
+      console.warn('[Notifications] No EAS project ID found');
+      return null;
+    }
+
+    const { data: token } = await Notifications.getExpoPushTokenAsync({
+      projectId,
+    });
+
+    try {
+      await registerPushToken(token);
+    } catch (error) {
+      console.error('[Notifications] Failed to register token:', error);
+      // Don't fail the overall operation - token is still valid locally
+    }
+
+    return token;
+  } catch (error) {
+    console.error('[Notifications] Failed to get push token:', error);
+    return null;
+  }
+}
+
 export function useNotifications(): UseNotificationsReturn {
   const [state, setState] = useState<NotificationState>({
     hasPermission: false,
     expoPushToken: null,
     isDevice: Device.isDevice,
-    lastNotification: null,
-    lastResponse: null,
     isLoading: true,
     error: null,
   });
 
-  const notificationListener = useRef<Notifications.EventSubscription | null>(
-    null,
-  );
-  const responseListener = useRef<Notifications.EventSubscription | null>(null);
-
-  // Check current permission status on mount
-  useEffect(() => {
-    checkPermissions();
-    setupListeners();
-
-    return () => {
-      if (notificationListener.current) {
-        notificationListener.current.remove();
-      }
-      if (responseListener.current) {
-        responseListener.current.remove();
-      }
-    };
-  }, []);
-
-  const checkPermissions = async () => {
+  const refreshPermission = useCallback(async () => {
     try {
       const { status } = await Notifications.getPermissionsAsync();
       const hasPermission = status === 'granted';
+      const token = hasPermission ? await getPushToken() : null;
 
       setState((prev) => ({
         ...prev,
         hasPermission,
+        expoPushToken: token ?? prev.expoPushToken,
         isLoading: false,
       }));
-
-      // If we have permission and are on a real device, try to get push token
-      if (hasPermission && Device.isDevice) {
-        await getPushToken();
-      }
     } catch (error) {
       setState((prev) => ({
         ...prev,
@@ -132,115 +122,33 @@ export function useNotifications(): UseNotificationsReturn {
             : 'Failed to check permissions',
       }));
     }
-  };
+  }, []);
 
-  const setupListeners = () => {
-    // Listen for notifications received while app is foregrounded
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener((notification) => {
-        console.log('[Notifications] Received:', notification);
-        setState((prev) => ({
-          ...prev,
-          lastNotification: notification,
-        }));
-      });
-
-    // Listen for user interactions with notifications
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log('[Notifications] Response:', response);
-        setState((prev) => ({
-          ...prev,
-          lastResponse: response,
-        }));
-
-        // Handle navigation based on notification data
-        const data = response.notification.request.content.data;
-        if (data?.cardId) {
-          // TODO: Navigate to card review screen
-          console.log('[Notifications] Should navigate to card:', data.cardId);
-        }
-      });
-  };
-
-  const getPushToken = async (): Promise<string | null> => {
-    if (!Device.isDevice) {
-      console.log(
-        '[Notifications] Push tokens only available on physical devices',
-      );
-      return null;
-    }
-
-    try {
-      const projectId =
-        Constants.expoConfig?.extra?.eas?.projectId ??
-        Constants.easConfig?.projectId;
-
-      if (!projectId) {
-        console.warn('[Notifications] No EAS project ID found');
-        return null;
-      }
-
-      const { data: token } = await Notifications.getExpoPushTokenAsync({
-        projectId,
-      });
-
-      console.log('[Notifications] Push token:', token);
-      setState((prev) => ({
-        ...prev,
-        expoPushToken: token,
-      }));
-
-      // Register token with server
-      try {
-        await registerPushToken(token);
-        console.log('[Notifications] Token registered with server');
-      } catch (error) {
-        console.error('[Notifications] Failed to register token:', error);
-        // Don't fail the overall operation - token is still valid locally
-      }
-
-      return token;
-    } catch (error) {
-      console.error('[Notifications] Failed to get push token:', error);
-      return null;
-    }
-  };
+  useEffect(() => {
+    refreshPermission();
+  }, [refreshPermission]);
 
   const requestPermissions = useCallback(async (): Promise<boolean> => {
     try {
-      // On Android, we need to set up notification channel
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-          name: 'Default',
-          importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#FF231F7C',
-        });
-      }
+      await ensureAndroidChannel();
 
       const { status: existingStatus } =
         await Notifications.getPermissionsAsync();
 
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
+      const finalStatus =
+        existingStatus === 'granted'
+          ? existingStatus
+          : (await Notifications.requestPermissionsAsync()).status;
 
       const hasPermission = finalStatus === 'granted';
+      const token = hasPermission ? await getPushToken() : null;
 
       setState((prev) => ({
         ...prev,
         hasPermission,
+        expoPushToken: token ?? prev.expoPushToken,
         error: hasPermission ? null : 'Permission not granted',
       }));
-
-      // If granted and on real device, get push token
-      if (hasPermission && Device.isDevice) {
-        await getPushToken();
-      }
 
       return hasPermission;
     } catch (error) {
@@ -248,64 +156,10 @@ export function useNotifications(): UseNotificationsReturn {
         error instanceof Error
           ? error.message
           : 'Failed to request permissions';
-      setState((prev) => ({
-        ...prev,
-        error: errorMessage,
-      }));
+      setState((prev) => ({ ...prev, error: errorMessage }));
       return false;
     }
   }, []);
 
-  const scheduleLocalNotification = useCallback(
-    async (
-      title: string,
-      body: string,
-      delaySeconds: number = 5,
-      options?: {
-        categoryIdentifier?: string;
-        data?: Record<string, unknown>;
-      },
-    ): Promise<string> => {
-      const identifier = await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          sound: 'default',
-          data: options?.data ?? { type: 'test', timestamp: Date.now() },
-          categoryIdentifier: options?.categoryIdentifier,
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-          seconds: delaySeconds,
-        },
-      });
-
-      console.log(
-        `[Notifications] Scheduled local notification: ${identifier} (in ${delaySeconds}s)`,
-      );
-      return identifier;
-    },
-    [],
-  );
-
-  const cancelNotification = useCallback(
-    async (identifier: string): Promise<void> => {
-      await Notifications.cancelScheduledNotificationAsync(identifier);
-      console.log(`[Notifications] Cancelled notification: ${identifier}`);
-    },
-    [],
-  );
-
-  const cancelAllNotifications = useCallback(async (): Promise<void> => {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    console.log('[Notifications] Cancelled all scheduled notifications');
-  }, []);
-
-  return {
-    ...state,
-    requestPermissions,
-    scheduleLocalNotification,
-    cancelNotification,
-    cancelAllNotifications,
-  };
+  return { ...state, requestPermissions, refreshPermission };
 }

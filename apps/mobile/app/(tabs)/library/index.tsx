@@ -1,65 +1,37 @@
-import { useState, useCallback } from 'react';
-import { useFocusEffect, router } from 'expo-router';
+import { useState } from 'react';
+import { router } from 'expo-router';
 
 import { Box } from '@/components/ui/box';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
-import { Center } from '@/components/ui/center';
 import { FlatList } from '@/components/ui/flat-list';
-import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
 import { Input, InputField } from '@/components/ui/input';
 import { Pressable } from '@/components/ui/pressable';
-import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useAppToast } from '@/components/feedback/use-app-toast';
+import { useRefreshableQuery } from '@/hooks/use-refreshable-query';
+import { ScreenLoading, ScreenMessage } from '@/components/ui-app/screen-state';
 import { ThemedRefreshControl } from '@/components/ui-app/themed-refresh-control';
 import { getDecks, createDeck, type Deck } from '@/lib/api';
 
 export default function DecksScreen() {
   const notify = useAppToast();
-  const [decks, setDecks] = useState<Deck[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Create deck form
   const [showForm, setShowForm] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const fetchDecks = useCallback(async () => {
-    try {
-      const { decks: fetchedDecks } = await getDecks();
-      setDecks(fetchedDecks);
-      // Cleared on success, not before the request: clearing up front leaves a
-      // window with no error, no decks and loading already false, which paints
-      // the empty-list state for a frame.
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load decks');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      // Refetch on every focus, but only the first load blocks on a spinner.
-      // setLoading(true) here swapped the whole rendered screen for the
-      // full-screen spinner every time it regained focus; against a local
-      // server the refetch lands almost immediately, so it read as a flash.
-      // `loading` now only guards the initial render, where there genuinely
-      // is nothing to show.
-      fetchDecks();
-    }, [fetchDecks]),
-  );
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchDecks();
-  };
+  const {
+    data,
+    loading,
+    refreshing,
+    error,
+    refresh: handleRefresh,
+    load: fetchDecks,
+  } = useRefreshableQuery(getDecks, 'Failed to load decks');
+  const decks = data?.decks ?? [];
 
   const handleCreateDeck = async () => {
     if (!newTitle.trim()) {
@@ -121,14 +93,7 @@ export default function DecksScreen() {
   );
 
   if (loading) {
-    return (
-      <Center className="flex-1 bg-background-50">
-        <Spinner size="large" className="text-primary-500" />
-        <Text size="md" className="mt-3 text-typography-500">
-          Loading decks...
-        </Text>
-      </Center>
-    );
+    return <ScreenLoading label="Loading decks..." />;
   }
 
   return (
@@ -190,28 +155,21 @@ export default function DecksScreen() {
       )}
 
       {error ? (
-        <Center className="flex-1 p-5">
-          <Text size="md" className="mb-4 text-center text-error-700">
-            {error}
-          </Text>
-          <Button
-            action="primary"
-            onPress={handleRefresh}
-            testID="retry-button"
-          >
-            <ButtonText>Retry</ButtonText>
-          </Button>
-        </Center>
+        <ScreenMessage
+          className="flex-1 p-5"
+          tone="error"
+          body={error}
+          actionLabel="Retry"
+          onAction={handleRefresh}
+          actionTestID="retry-button"
+        />
       ) : decks.length === 0 ? (
-        <Center className="flex-1 p-5">
-          <Text className="mb-4 text-6xl">📚</Text>
-          <Heading size="lg" className="mb-2">
-            No decks yet
-          </Heading>
-          <Text size="md" className="text-center text-typography-500">
-            Create your first deck to start learning!
-          </Text>
-        </Center>
+        <ScreenMessage
+          className="flex-1 p-5"
+          glyph="📚"
+          title="No decks yet"
+          body="Create your first deck to start learning!"
+        />
       ) : (
         // Spacing stays on the content container: wrapping FlatList children
         // in a stack would defeat virtualization.

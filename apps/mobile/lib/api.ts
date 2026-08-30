@@ -27,67 +27,7 @@ if (!isApiClientConfigured()) {
   });
 }
 
-// Re-export everything from the shared API client
-export {
-  // Core
-  ApiError,
-  configureApiClient,
-  getApiClientConfig,
-  isApiClientConfigured,
-  request,
-  type ApiClientConfig,
-  type AuthHeaderProvider,
-  // Types
-  type User,
-  type Deck,
-  type CreateDeckRequest,
-  type UpdateDeckRequest,
-  type CardState,
-  type Card,
-  type CreateCardRequest,
-  type UpdateCardRequest,
-  type Rating,
-  type Review,
-  type SprintStatus,
-  type SprintSource,
-  type CardResult,
-  type SprintProgress,
-  type CardInSprint,
-  type SprintCard,
-  type Sprint,
-  type SprintStats,
-  type ResumableSprint,
-  type HomeSummary,
-  type NotificationPreferences,
-  type UpdateNotificationPreferencesRequest,
-  type DevTestSprintNotificationResponse,
-  // API Methods
-  getMe,
-  getDecks,
-  createDeck,
-  getDeck,
-  updateDeck,
-  deleteDeck,
-  getCards,
-  getDueCards,
-  createCard,
-  getCard,
-  updateCard,
-  deleteCard,
-  submitReview,
-  startSprint,
-  getSprint,
-  submitSprintReview,
-  completeSprint,
-  abandonSprint,
-  getHomeSummary,
-  registerPushToken,
-  getNotificationPreferences,
-  updateNotificationPreferences,
-  snoozeCardNotifications,
-  unsnoozeCard,
-  markNotificationsPrompted,
-  createFixtureSprint,
-  completeOnboarding,
-  createDevTestSprintNotification,
-} from '@microflash/api-client';
+// Re-export everything from the shared API client. `export *` keeps this in
+// sync automatically — the hand-maintained name list it replaces had to be
+// edited every time the client gained an endpoint.
+export * from '@microflash/api-client';

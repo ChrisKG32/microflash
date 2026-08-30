@@ -13,37 +13,10 @@ import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { Center } from '@/components/ui/center';
 import { Divider } from '@/components/ui/divider';
 import { Heading } from '@/components/ui/heading';
-import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { StatRow } from '@/components/ui-app/settings-list';
 import { startSprint, ApiError, type SprintSource } from '@/lib/api';
-
-function StatRow({
-  label,
-  value,
-  tone = 'neutral',
-}: {
-  label: string;
-  value: string | number;
-  tone?: 'neutral' | 'pass' | 'fail';
-}) {
-  const valueClass =
-    tone === 'pass'
-      ? 'text-success-700'
-      : tone === 'fail'
-        ? 'text-error-700'
-        : 'text-typography-900';
-  return (
-    <HStack className="items-center justify-between py-2">
-      <Text size="md" className="text-typography-500">
-        {label}
-      </Text>
-      <Text size="md" className={`font-semibold ${valueClass}`}>
-        {value}
-      </Text>
-    </HStack>
-  );
-}
 
 export default function SprintCompleteScreen() {
   const {
@@ -150,11 +123,21 @@ export default function SprintCompleteScreen() {
         {/* Stats */}
         {stats.totalCards > 0 && (
           <Box className="mb-6 w-full rounded-xl bg-background-0 p-4">
-            <StatRow label="Cards reviewed" value={stats.reviewedCards} />
+            <StatRow
+              label="Cards reviewed"
+              value={stats.reviewedCards}
+              tone="strong"
+              size="md"
+            />
             {stats.passCount > 0 && (
               <>
                 <Divider />
-                <StatRow label="Passed" value={stats.passCount} tone="pass" />
+                <StatRow
+                  label="Passed"
+                  value={stats.passCount}
+                  tone="positive"
+                  size="md"
+                />
               </>
             )}
             {stats.failCount > 0 && (
@@ -163,7 +146,8 @@ export default function SprintCompleteScreen() {
                 <StatRow
                   label="Need review"
                   value={stats.failCount}
-                  tone="fail"
+                  tone="negative"
+                  size="md"
                 />
               </>
             )}
@@ -173,6 +157,8 @@ export default function SprintCompleteScreen() {
                 <StatRow
                   label="Time"
                   value={formatDuration(stats.durationSeconds)}
+                  tone="strong"
+                  size="md"
                 />
               </>
             )}

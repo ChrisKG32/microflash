@@ -337,10 +337,6 @@ export default function RootLayout() {
 
               {/* Other Root-level Screens */}
               <Stack.Screen name="browse" options={{ title: 'Review Ahead' }} />
-              <Stack.Screen
-                name="modal"
-                options={{ presentation: 'modal', title: 'Modal' }}
-              />
             </Stack>
           </AuthGate>
           {/* Driven by the resolved scheme rather than "auto" so a future manual

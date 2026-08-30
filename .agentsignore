@@ -42,8 +42,8 @@ expo-env.d.ts
 # =============================================================================
 # NATIVE BUILD ARTIFACTS (Expo/React Native)
 # =============================================================================
-apps/client/ios/
-apps/client/android/
+apps/mobile/ios/
+apps/mobile/android/
 .kotlin/
 *.orig.*
 

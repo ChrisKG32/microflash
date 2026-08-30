@@ -15,17 +15,17 @@ import * as Notifications from 'expo-notifications';
 
 import { Box } from '@/components/ui/box';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
-import { Center } from '@/components/ui/center';
 import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
 import { Input, InputField } from '@/components/ui/input';
 import { ScrollView } from '@/components/ui/scroll-view';
-import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useAppToast } from '@/components/feedback/use-app-toast';
 import { useConfirm } from '@/components/feedback/use-confirm';
+import { ScreenLoading } from '@/components/ui-app/screen-state';
+import { useNotifications } from '@/hooks/use-notifications';
 import {
   getNotificationPreferences,
   updateNotificationPreferences,
@@ -37,11 +37,19 @@ import {
 export default function NotificationControlsScreen() {
   const notify = useAppToast();
   const { confirm, ConfirmDialog } = useConfirm();
+  // The hook owns the OS permission flow and the Android channel; this screen
+  // used to re-implement both, with a different channel importance.
+  const {
+    hasPermission: hasOSPermission,
+    // `isLoading` matters: hasPermission starts false, so without this gate the
+    // permission-denied banner flashes on every mount before the OS answers.
+    isLoading: permissionLoading,
+    requestPermissions,
+  } = useNotifications();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasOSPermission, setHasOSPermission] = useState<boolean | null>(null);
   const [schedulingTest, setSchedulingTest] = useState(false);
 
   // Form state
@@ -71,15 +79,9 @@ export default function NotificationControlsScreen() {
     }
   }, []);
 
-  const checkOSPermission = useCallback(async () => {
-    const { status } = await Notifications.getPermissionsAsync();
-    setHasOSPermission(status === 'granted');
-  }, []);
-
   useEffect(() => {
     fetchPreferences();
-    checkOSPermission();
-  }, [fetchPreferences, checkOSPermission]);
+  }, [fetchPreferences]);
 
   const handleToggleNotifications = (value: boolean) => {
     setNotificationsEnabled(value);
@@ -157,11 +159,6 @@ export default function NotificationControlsScreen() {
     }
   };
 
-  const requestPermission = async () => {
-    const { status } = await Notifications.requestPermissionsAsync();
-    setHasOSPermission(status === 'granted');
-  };
-
   /**
    * Schedule a test sprint notification for 30 seconds from now.
    * Only available in __DEV__ builds.
@@ -171,35 +168,13 @@ export default function NotificationControlsScreen() {
     setError(null);
 
     try {
-      // Ensure we have notification permission
-      const { status: existingStatus } =
-        await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-
-      if (finalStatus !== 'granted') {
+      // requestPermissions() also creates the Android channel.
+      if (!(await requestPermissions())) {
         notify.error(
           'Permission Required',
           'Please enable notifications to test this feature.',
         );
-        setHasOSPermission(false);
         return;
-      }
-
-      setHasOSPermission(true);
-
-      // Ensure Android notification channel exists
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-          name: 'Default',
-          importance: Notifications.AndroidImportance.HIGH,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#FF231F7C',
-        });
       }
 
       // Create a PENDING sprint on the server and get the notification payload
@@ -250,7 +225,6 @@ export default function NotificationControlsScreen() {
           err instanceof Error
             ? err.message
             : 'Failed to schedule notification';
-        setError(message);
         notify.error('Error', message);
       }
     } finally {
@@ -262,12 +236,7 @@ export default function NotificationControlsScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Notification Controls' }} />
-        <Center className="flex-1 bg-background-50">
-          <Spinner size="large" className="text-primary-500" />
-          <Text size="sm" className="mt-3 text-typography-500">
-            Loading...
-          </Text>
-        </Center>
+        <ScreenLoading label="Loading..." />
       </>
     );
   }
@@ -280,7 +249,7 @@ export default function NotificationControlsScreen() {
         contentContainerClassName="p-4 pb-8"
       >
         {/* OS Permission Section */}
-        {hasOSPermission === false && (
+        {!permissionLoading && !hasOSPermission && (
           <VStack className="mb-4 rounded-xl bg-background-warning p-4">
             <Text size="md" className="mb-1 font-semibold text-warning-700">
               Notifications Disabled
@@ -300,7 +269,7 @@ export default function NotificationControlsScreen() {
             <Button
               variant="outline"
               action="secondary"
-              onPress={requestPermission}
+              onPress={requestPermissions}
               testID="request-permission-button"
             >
               <ButtonText>Request Permission</ButtonText>

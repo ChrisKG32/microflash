@@ -133,9 +133,6 @@ importers:
       '@microflash/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
-      '@microflash/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@react-navigation/bottom-tabs':
         specifier: ^7.15.5
         version: 7.18.18(@react-navigation/native@7.3.18(react-native@0.83.10(@babel/core@7.28.4)(@types/react@19.2.18)(react@19.2.0))(react@19.2.0))(react-native-safe-area-context@5.6.2(react-native@0.83.10(@babel/core@7.28.4)(@types/react@19.2.18)(react@19.2.0))(react@19.2.0))(react-native-screens@4.23.0(react-native@0.83.10(@babel/core@7.28.4)(@types/react@19.2.18)(react@19.2.0))(react@19.2.0))(react-native@0.83.10(@babel/core@7.28.4)(@types/react@19.2.18)(react@19.2.0))(react@19.2.0)
@@ -278,9 +275,6 @@ importers:
       '@clerk/express':
         specifier: ^1.5.0
         version: 1.7.41(express@4.21.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@microflash/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@prisma/client':
         specifier: ^6.1.0
         version: 6.17.1(prisma@6.17.1(typescript@5.9.3))(typescript@5.9.3)
@@ -347,12 +341,6 @@ importers:
         version: 5.9.3
 
   packages/api-client:
-    devDependencies:
-      typescript:
-        specifier: ^5.6.3
-        version: 5.9.3
-
-  packages/shared:
     devDependencies:
       typescript:
         specifier: ^5.6.3

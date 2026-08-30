@@ -37,12 +37,11 @@ If implementation diverges from docs, flag it and prefer updating code toward do
 - `apps/mobile` — React Native + Expo (expo-router)
 - `apps/desktop` — Electron + React (electron-vite)
 - `apps/server` — Express + Prisma + PostgreSQL
-- `packages/shared` — shared TypeScript types/utils
-- `packages/api-client` — shared API client
+- `packages/api-client` — shared API client and the types it returns
 
 ## Requirements
 
-- Node.js 20.x (see `.nvmrc`)
+- Node.js 22.13 (see `.nvmrc`)
 - pnpm >= 9
 
 ---
@@ -208,7 +207,13 @@ Dev shortcut: `DEV_AUTH=1` allows `x-dev-clerk-id` header bypass.
 ## Mobile patterns (Expo + expo-router)
 
 - Functional components with TypeScript
-- `StyleSheet.create()` at bottom of file
+- No `StyleSheet` — compose the vendored gluestack primitives in
+  `apps/mobile/components/ui/` and style with `className` tokens. ESLint
+  enforces this for `app/**` and `components/**`.
+- Repeated compositions live in `apps/mobile/components/ui-app/`
+  (`screen-state`, `labeled-slider`, `settings-list`) and
+  `apps/mobile/components/card/` (`card-editor-form`). Reach for one of these
+  before writing a screen-local helper.
 - File-based routing in `apps/mobile/app/**`
 - Notifications via `expo-notifications` (bootstrap in `app/_layout.tsx`)
 

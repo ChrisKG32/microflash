@@ -26,9 +26,4 @@ export function useTokens<T extends TokenName>(
   ) as Record<T, string>;
 }
 
-/** The whole palette for the active scheme. */
-export function useAppTheme(): Record<string, string> {
-  return palette[useColorScheme()];
-}
-
 export type { Scheme, TokenName };
